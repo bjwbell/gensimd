@@ -10,7 +10,7 @@ type Asmer interface {
 	Asm() string
 }
 
-type Instruction interface {
+type Instructioner interface {
 	TypeInstruction()
 	Execer
 	Asmer
@@ -22,7 +22,7 @@ type RetInst interface {
 	Asmer
 }
 
-type Block []Instruction
+type Block []Instructioner
 
 type ForLoop struct {
 	Start      Int
@@ -42,7 +42,7 @@ type Int int
 type Int4Var *[4]int
 
 type Int4Add struct {
-	Instruction
+	Instructioner
 	Result Int4Var
 	A      Int4Var
 	B      Int4Var

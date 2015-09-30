@@ -2,9 +2,18 @@ package simd
 
 import "fmt"
 
-type Instruction interface {
-	InstructionAsm() string
+type Execer interface {
 	Exec() error
+}
+
+type Asmer interface {
+	Asm() string
+}
+
+type Instruction interface {
+	InstructionType()
+	Execer
+	Asmer
 }
 
 type Block []Instruction
@@ -22,6 +31,9 @@ type Int4Add struct {
 	B      Int4Var
 }
 
+func (loop ForLoop) String() string {
+	return fmt.Sprintf("ForLoop{Iterations: %v,Body:%v}", loop.Iterations, loop.Body.String())
+}
 func (loop ForLoop) Exec() error {
 	// TODO
 	return nil
@@ -32,22 +44,17 @@ func (b Block) String() string {
 	}
 	str := "{"
 	for _, instruction := range b {
-		str += instruction.InstructionAsm()
+		str += instruction.Asm()
 	}
 	str += "}"
 	return str
-}
-func (i4 Int4Add) Asm() string {
-	return i4.InstructionAsm()
 }
 func (i4 Int4Add) Exec() error {
 	// TODO
 	return nil
 }
-func (i4 Int4Add) InstructionAsm() string {
+func (i4 Int4Add) Asm() string {
 	return fmt.Sprintf("Int4Add(Res(%v), A(%v), B(%v)", i4.Result, i4.A, i4.B)
 }
-
-func (loop ForLoop) String() string {
-	return fmt.Sprintf("ForLoop{Iterations: %v,Body:%v}", loop.Iterations, loop.Body.String())
+func (i4 Int4Add) InstructionType() {
 }

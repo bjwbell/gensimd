@@ -11,7 +11,13 @@ type Asmer interface {
 }
 
 type Instruction interface {
-	InstructionType()
+	TypeInstruction()
+	Execer
+	Asmer
+}
+
+type RetInst interface {
+	TypeRetInst()
 	Execer
 	Asmer
 }
@@ -19,16 +25,35 @@ type Instruction interface {
 type Block []Instruction
 
 type ForLoop struct {
-	Iterations int
+	Start      Int
+	Iterations Int
+	StepBy     Int
 	Body       Block
 }
 
+type Func struct {
+	Init   Block
+	Loop   ForLoop
+	Finish Block
+	Ret    RetInst
+}
+
+type Int int
 type Int4Var *[4]int
 
 type Int4Add struct {
+	Instruction
 	Result Int4Var
 	A      Int4Var
 	B      Int4Var
+}
+
+type RetSuccess struct {
+	RetInst
+}
+
+func (r *RetSuccess) Exec() error {
+	return nil
 }
 
 func (loop ForLoop) String() string {
@@ -56,5 +81,8 @@ func (i4 Int4Add) Exec() error {
 func (i4 Int4Add) Asm() string {
 	return fmt.Sprintf("Int4Add(Res(%v), A(%v), B(%v)", i4.Result, i4.A, i4.B)
 }
-func (i4 Int4Add) InstructionType() {
+
+func (f *Func) Exec() error {
+	// TODO
+	return nil
 }

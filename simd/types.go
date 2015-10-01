@@ -44,6 +44,8 @@ type Func struct {
 }
 
 type Int int
+type IntVar *int
+type Int4 [4]int
 type Int4Var *[4]int
 
 type Int4Add struct {

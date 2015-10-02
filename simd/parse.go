@@ -408,29 +408,19 @@ func (f *File) validParams(params *ast.FieldList) *Error {
 }
 
 func (f *File) validParamType(typ types.Type) *Error {
-	if e := f.validVarType(typ); e != nil {
+	if e := f.validVarDeclType(typ); e != nil {
 		switch typ.(type) {
 		default:
 			return e
 		case *types.Pointer:
 			typ := typ.(*types.Pointer)
-			return f.validVarType(typ.Elem())
+			return f.validParamType(typ.Elem())
 		case *types.Slice:
 			typ := typ.(*types.Slice)
-			return f.validVarType(typ.Elem())
-		}
-	}
-	return nil
-}
-
-func (f *File) validVarType(typ types.Type) *Error {
-	if e := f.validVarDeclType(typ); e != nil {
-		switch typ.(type) {
-		default:
-			return e
+			return f.validParamType(typ.Elem())
 		case *types.Array:
 			typ := typ.(*types.Array)
-			return f.validVarType(typ.Elem())
+			return f.validParamType(typ.Elem())
 		case *types.Named:
 			named, ok := typ.(*types.Named)
 			if !ok {
@@ -454,6 +444,7 @@ func (f *File) validVarType(typ types.Type) *Error {
 	}
 	return nil
 }
+
 func (f *File) validVarDeclType(typ types.Type) *Error {
 	if e := f.validResultType(typ); e != nil {
 		switch typ.(type) {

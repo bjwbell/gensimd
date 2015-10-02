@@ -126,13 +126,32 @@ func (fn *Function) initRegs() {
 }
 
 func (fn *Function) allocReg(t registerType, size int) register {
-	// TODO
-	return register{"", IntReg, 0}
+	reg := register{typ: t, size: size, name: ""}
+	return fn.moveReg(&fn.unusedReg, &fn.usedReg, reg)
 }
 
 func (fn *Function) freeReg(reg register) {
-	// TODO
-	fmt.Println("freereg: ", reg)
+	fn.moveReg(&fn.usedReg, &fn.unusedReg, reg)
+}
+
+func (fn *Function) moveReg(src *[]register, dst *[]register, reg register) register {
+	regs := []register{}
+	var mreg *register
+	for _, r := range *src {
+		if r.typ == reg.typ && r.size == reg.size && (reg.name == "" || reg.name == r.name) {
+
+			mreg = &r
+		} else {
+			regs = append(regs, r)
+		}
+	}
+	src = &regs
+	if mreg == nil {
+		panic(fmt.Sprintf("Couldn't move register: type:%v, size:%v\n", reg.typ, reg.size))
+	} else {
+		*dst = append(*dst, *mreg)
+		return *mreg
+	}
 }
 
 // argsSize returns the size of the arguments in bytes

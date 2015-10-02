@@ -50,7 +50,6 @@ func (f *File) check() {
 	}
 	f.info = info
 	f.pkg = typesPkg
-
 }
 
 func fileDir(f *File) string {
@@ -73,17 +72,12 @@ func ParseFile(f string) (*File, error) {
 	if !strings.HasSuffix(f, ".go") {
 		return nil, errors.New("Invalid file, file suffix not .go")
 	}
-
 	parsed, err := parser.ParseFile(fs, f, nil, parser.ParseComments)
 	if err != nil {
 		log.Fatalf("parsing file: %s: %s", f, err)
 		return nil, errors.New(fmt.Sprintf("Error parsing file:%v", f))
 	}
-	file := File{
-		ast:      parsed,
-		pathName: f,
-		fs:       fs,
-	}
+	file := File{ast: parsed, pathName: f, fs: fs}
 	file.check()
 	return &file, nil
 }
@@ -118,12 +112,10 @@ func (f *File) validTopLevelDecl(decl ast.Decl) *Error {
 	if decl == nil {
 		return &Error{errors.New("Top level decl is nil"), 0}
 	}
-
 	if genDecl, ok := decl.(*ast.GenDecl); ok {
 		if genDecl.Tok != token.IMPORT {
 			return &Error{errors.New(fmt.Sprintf("Top level decl is not import statement or function declaration, decl:%v", genDecl)), genDecl.Pos()}
 		}
-
 	} else if funcDecl, ok := decl.(*ast.FuncDecl); ok {
 		// Only functions (not methods) are allowed
 		if funcDecl.Recv != nil {
@@ -178,7 +170,6 @@ func (f *File) validFuncBody(block *ast.BlockStmt) *Error {
 			if stmt, ok := stmt.(*ast.ForStmt); ok {
 				if !f.validForStmt(stmt) {
 					return &Error{errors.New("Invalid for statement"), stmt.Pos()}
-
 				}
 			}
 			forSection = false
@@ -208,6 +199,7 @@ func (f *File) validFuncBody(block *ast.BlockStmt) *Error {
 	}
 	return nil
 }
+
 func (f *File) validDeclStmt(stmt *ast.DeclStmt) *Error {
 	decl := stmt.Decl
 	d, ok := decl.(*ast.GenDecl)
@@ -232,23 +224,21 @@ func (f *File) validDeclStmt(stmt *ast.DeclStmt) *Error {
 	if vspec.Names == nil || len(vspec.Names) != 1 {
 		return &Error{errors.New("Invalid decl either spec.Names is nil or len(spec.Names) > 1"), vspec.Pos()}
 	}
-	//name := vspec.Names[0]
-
 	// cannot initialize with values
 	if vspec.Values != nil && len(vspec.Values) > 0 {
 		return &Error{errors.New("Invalid decl, initalizing with values is not allowed"), vspec.Pos()}
 	}
-	// only valid var types allowed
+	// only valid var decl types allowed
 	if err := f.validVarDeclType(f.info.TypeOf(vspec.Type)); err != nil {
 		err.Pos = vspec.Pos()
 		if e2 := f.validParamType(f.info.TypeOf(vspec.Type)); e2 == nil {
 			err.Err = errors.New(fmt.Sprint(err.Err) + ", type only valid as a func param type")
 		}
-
 		return err
 	}
 	return nil
 }
+
 func (f *File) validStmt(stmt ast.Stmt) *Error {
 	if stmt == nil {
 		return nil
@@ -273,7 +263,6 @@ func (f *File) validStmt(stmt ast.Stmt) *Error {
 		if err := f.validStmt(ifstmt.Else); err != nil {
 			return err
 		}
-
 	}
 	if blk, ok := stmt.(*ast.BlockStmt); ok {
 		for _, s := range blk.List {
@@ -302,17 +291,21 @@ func (f *File) validStmt(stmt ast.Stmt) *Error {
 	}
 	return &Error{errors.New(fmt.Sprintf("Invalid stmt:%v", stmt)), stmt.Pos()}
 }
+
 func (f *File) validExpr(expr ast.Expr) *Error {
 	if expr != nil {
 		return nil
 	}
 	return &Error{errors.New("Nil ast.Expr not allowed"), expr.Pos()}
 }
+
 func (f *File) validForStmt(stmt *ast.ForStmt) bool {
+	// TODO
 	return true
 }
 
 func (f *File) validFinishStmt(stmt ast.Stmt) bool {
+	// TODO
 	return true
 }
 
@@ -410,7 +403,6 @@ func (f *File) validParams(params *ast.FieldList) *Error {
 			e.Pos = field.Pos()
 			return e
 		}
-
 	}
 	return nil
 }

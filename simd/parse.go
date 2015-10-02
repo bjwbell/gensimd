@@ -13,27 +13,6 @@ import (
 	"strings"
 )
 
-type Error struct {
-	Err error
-	Pos token.Pos
-}
-
-// File holds a single parsed file and associated data.
-type File struct {
-	pathName string
-	ast      *ast.File // Parsed AST.
-	fs       *token.FileSet
-	info     *types.Info
-	pkg      *types.Package
-}
-
-func (f *File) ErrorLocation(err *Error) string {
-	if err == nil {
-		return ""
-	}
-	return f.fs.Position(err.Pos).String()
-}
-
 // check type-checks the package. The package must be OK to proceed.
 func (f *File) check() {
 	// TODO
@@ -125,7 +104,7 @@ func (f *File) validTopLevelDecl(decl ast.Decl) *Error {
 
 			return err
 		}
-		if err := f.validFuncBody(funcDecl.Body); err != nil {
+		if _, _, err := f.validFuncBody(funcDecl.Body); err != nil {
 			return err
 		}
 	} else {
@@ -134,21 +113,21 @@ func (f *File) validTopLevelDecl(decl ast.Decl) *Error {
 	return nil
 }
 
-func (f *File) validFuncBody(block *ast.BlockStmt) *Error {
+func (f *File) validFuncBody(block *ast.BlockStmt) ([]*ast.DeclStmt, []ast.Stmt, *Error) {
 	var declStmts []*ast.DeclStmt
 	var initStmts []ast.Stmt
 	var finishStmts []ast.Stmt
 	declSection, initSection, forSection, finishSection, retSection := true, false, false, false, false
 	// empty func bodies not allowed
 	if block.List == nil {
-		return &Error{errors.New("Empty func bodies not allowed"), block.Pos()}
+		return nil, nil, &Error{errors.New("Empty func bodies not allowed"), block.Pos()}
 	}
 	for _, stmt := range block.List {
 		if declSection {
 			decl, ok := stmt.(*ast.DeclStmt)
 			if ok {
 				if err := f.validDeclStmt(decl); err != nil {
-					return err
+					return nil, nil, err
 				}
 				declStmts = append(declStmts, decl)
 				continue
@@ -169,7 +148,7 @@ func (f *File) validFuncBody(block *ast.BlockStmt) *Error {
 		if forSection {
 			if stmt, ok := stmt.(*ast.ForStmt); ok {
 				if !f.validForStmt(stmt) {
-					return &Error{errors.New("Invalid for statement"), stmt.Pos()}
+					return nil, nil, &Error{errors.New("Invalid for statement"), stmt.Pos()}
 				}
 			}
 			forSection = false
@@ -187,17 +166,18 @@ func (f *File) validFuncBody(block *ast.BlockStmt) *Error {
 		if retSection {
 			if ret, ok := stmt.(*ast.ReturnStmt); ok {
 				if err := f.validRetStmt(ret); err != nil {
-					return err
+					return nil, nil, err
 				}
 			} else {
-				return &Error{errors.New("Expected return statement in retSection"), stmt.Pos()}
+				return nil, nil, &Error{errors.New("Expected return statement in retSection"), stmt.Pos()}
 			}
 		}
 		pos := f.fs.Position(stmt.Pos())
 		end := f.fs.Position(stmt.End())
 		panic(fmt.Sprintf("PANIC: NO SECTION, stmt: (begin, end) - (%v, %v)", pos, end))
 	}
-	return nil
+
+	return declStmts, initStmts, nil
 }
 
 func (f *File) validDeclStmt(stmt *ast.DeclStmt) *Error {

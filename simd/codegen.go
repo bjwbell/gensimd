@@ -66,11 +66,82 @@ func (fn *Function) asmInitStmts(block *ast.BlockStmt) string {
 	if fn.initBlock == nil {
 		panic("ERROR fn.init == nil")
 	} else {
-		if len(fn.initBlock) == 0 {
-			return ""
+		for _, stmt := range fn.initBlock {
+			fn.asmStmt(stmt)
 		}
 		return ""
 	}
+}
+
+func (fn *Function) asmStmt(stmt ast.Stmt) string {
+	if stmt == nil {
+		return ""
+	}
+	if assign, ok := stmt.(*ast.AssignStmt); ok {
+		// TODO
+		fmt.Println("assignstmt:", assign)
+		return ""
+	}
+	if ifstmt, ok := stmt.(*ast.IfStmt); ok {
+		// TODO
+		// ifstmt.Cond ast.Expr
+
+		// initialization clause not allowed in if statements
+		if ifstmt.Init != nil {
+			panic("ifstmt cannot have initialization clause")
+		}
+
+		// TODO
+		// ifstmt.Body
+
+		// TODO
+		// ifstmt.Else
+	}
+	if blk, ok := stmt.(*ast.BlockStmt); ok {
+		asm := ""
+		for _, s := range blk.List {
+			asm += fn.asmStmt(s)
+		}
+		return asm
+	}
+	if _, ok := stmt.(*ast.EmptyStmt); ok {
+		// Do nothing for empty stmt
+		return ""
+	}
+	if ret, ok := stmt.(*ast.ReturnStmt); ok {
+		if ret.Results == nil || len(ret.Results) == 0 {
+			return "RET\n"
+		}
+		if len(ret.Results) > 1 {
+			panic("Return statement doesn't allow multiple return values")
+		}
+		dst := varinfo{name: "ret", offset: 0, size: 1}
+		asm := fn.asmExpr(ret.Results[0], nil, &dst)
+		return asm + "\n" + "RET"
+	}
+	if indec, ok := stmt.(*ast.IncDecStmt); ok {
+		// TODO specialize
+		// indec.X ast.Expr
+		fmt.Println("indec:", indec)
+	}
+	panic(fmt.Sprintf("Invalid stmt:%v", stmt))
+}
+
+func (fn *Function) asmExpr(expr ast.Expr, dstReg *register, dstVar *varinfo) string {
+	if dstReg == nil && dstVar == nil {
+		panic("Both dstReg & dstVar are nil!")
+	}
+	if dstReg != nil && dstVar != nil {
+		panic("Both dstReg & dstVar are non nil!")
+	}
+	fmt.Println("expr:", expr)
+	if dstReg != nil {
+		// TODO
+	}
+	if dstVar != nil {
+		// TODO
+	}
+	return ""
 }
 
 func (fn *Function) varsSize() int {

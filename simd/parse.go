@@ -273,10 +273,10 @@ func (f *File) validStmt(stmt ast.Stmt) *Error {
 }
 
 func (f *File) validExpr(expr ast.Expr) *Error {
-	if expr != nil {
-		return nil
+	if expr == nil {
+		return &Error{errors.New("Nil ast.Expr not allowed"), expr.Pos()}
 	}
-	return &Error{errors.New("Nil ast.Expr not allowed"), expr.Pos()}
+	return nil
 }
 
 func (f *File) validForStmt(stmt *ast.ForStmt) bool {

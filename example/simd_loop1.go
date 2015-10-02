@@ -11,18 +11,18 @@ func simd_loop1(v4 *[4]int) int {
 	var ret int
 	var tmp2 simd.Int4
 	tmp = 4
-	v := simd.Int4Var(v4)
+	x := v4[0]
+	y := v4[1]
+	v := simd.Int4(*v4)
 	for i := 0; i < 10; i++ {
-		_ = simd.Int4Add{
-			Result: v,
-			A:      v,
-			B:      v,
+		tmp2 = simd.Int4Add(v, v)
+		if i == 5 {
+			break
 		}
+		tmp2 = simd.Int4(*v4)
+		tmp = x*3 + 6*y
 	}
 	if tmp == 4 {
-		ret = 1
-	}
-	if v == nil {
 		ret = 1
 	}
 	if tmp2[0] == 0 {

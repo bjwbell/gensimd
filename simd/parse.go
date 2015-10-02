@@ -14,7 +14,7 @@ import (
 )
 
 // check type-checks the package. The package must be OK to proceed.
-func (f *File) check() {
+func (f *File) Check() {
 	// TODO
 	typs := make(map[ast.Expr]types.TypeAndValue)
 	defs := make(map[*ast.Ident]types.Object)
@@ -27,8 +27,8 @@ func (f *File) check() {
 	if err != nil {
 		log.Fatalf("checking package: %s", err)
 	}
-	f.info = info
-	f.pkg = typesPkg
+	f.Info = info
+	f.Pkg = typesPkg
 }
 
 func fileDir(f *File) string {
@@ -53,11 +53,11 @@ func ParseFile(f string) (*File, error) {
 	}
 	parsed, err := parser.ParseFile(fs, f, nil, parser.ParseComments)
 	if err != nil {
-		log.Fatalf("parsing file: %s: %s", f, err)
-		return nil, errors.New(fmt.Sprintf("Error parsing file:%v", f))
+		//log.Fatalf("parsing file: %s: %s", f, err)
+		return nil, errors.New(fmt.Sprintf("go/parser.ParseFile error \"%v\"", err))
 	}
 	file := File{ast: parsed, pathName: f, fs: fs}
-	file.check()
+	file.Check()
 	return &file, nil
 }
 
@@ -209,9 +209,9 @@ func (f *File) validDeclStmt(stmt *ast.DeclStmt) *Error {
 		return &Error{errors.New("Invalid decl, initalizing with values is not allowed"), vspec.Pos()}
 	}
 	// only valid var decl types allowed
-	if err := f.validVarDeclType(f.info.TypeOf(vspec.Type)); err != nil {
+	if err := f.validVarDeclType(f.Info.TypeOf(vspec.Type)); err != nil {
 		err.Pos = vspec.Pos()
-		if e2 := f.validParamType(f.info.TypeOf(vspec.Type)); e2 == nil {
+		if e2 := f.validParamType(f.Info.TypeOf(vspec.Type)); e2 == nil {
 			err.Err = errors.New(fmt.Sprint(err.Err) + ", type only valid as a func param type")
 		}
 		return err
@@ -344,7 +344,7 @@ func (f *File) validResults(results *ast.FieldList) *Error {
 
 		return &Error{errors.New(fmt.Sprint("ERROR: can only return nonnamed result, not:", result.Names)), result.Pos()}
 	}
-	typ := f.info.TypeOf(result.Type)
+	typ := f.Info.TypeOf(result.Type)
 	if err := f.validResultType(typ); err != nil {
 		err.Pos = result.Pos()
 		if f.validVarDeclType(typ) == nil {
@@ -378,7 +378,7 @@ func (f *File) validParams(params *ast.FieldList) *Error {
 		if name == nil {
 			panic("ERROR name == nil, this shouldn't occur")
 		}
-		typ := f.info.TypeOf(field.Type)
+		typ := f.Info.TypeOf(field.Type)
 		if e := f.validParamType(typ); e != nil {
 			e.Pos = field.Pos()
 			return e

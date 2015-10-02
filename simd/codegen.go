@@ -10,41 +10,6 @@ import (
 	"unsafe"
 )
 
-var regnames = []string{
-	"AX",
-	"CX",
-	"DX",
-	"BX",
-	"SP",
-	"BP",
-	"SI",
-	"DI",
-	"R8",
-	"R9",
-	"R10",
-	"R11",
-	"R12",
-	"R13",
-	"R14",
-	"R15",
-	"X0",
-	"X1",
-	"X2",
-	"X3",
-	"X4",
-	"X5",
-	"X6",
-	"X7",
-	"X8",
-	"X9",
-	"X10",
-	"X11",
-	"X12",
-	"X13",
-	"X14",
-	"X15",
-}
-
 func (f *File) Assembly() (string, *Error) {
 	// TODO
 	if err := f.Valid(); err != nil {
@@ -149,15 +114,20 @@ func (fn *Function) initVarsInfo() {
 
 func (fn *Function) initRegs() {
 	for _, r := range regnames {
-		// TODO
-		reg := register{name: r, typ: DataReg, size: 8}
+		typ := IntReg
+		size := IntRegSize
+		if r[0] == 'X' {
+			typ = FloatReg
+			size = FloatRegSize
+		}
+		reg := register{r, typ, size}
 		fn.unusedReg = append(fn.unusedReg, reg)
 	}
 }
 
 func (fn *Function) allocReg(t registerType, size int) register {
 	// TODO
-	return register{"", DataReg, 0}
+	return register{"", IntReg, 0}
 }
 
 func (fn *Function) freeReg(reg register) {

@@ -9,8 +9,14 @@ import (
 	"go/token"
 	"go/types"
 	"log"
+	"reflect"
 	"strings"
 )
+
+type Error struct {
+	Err error
+	Pos token.Pos
+}
 
 // File holds a single parsed file and associated data.
 type File struct {
@@ -19,6 +25,13 @@ type File struct {
 	fs       *token.FileSet
 	info     *types.Info
 	pkg      *types.Package
+}
+
+func (f *File) ErrorLocation(err *Error) string {
+	if err == nil {
+		return ""
+	}
+	return f.fs.Position(err.Pos).String()
 }
 
 // check type-checks the package. The package must be OK to proceed.
@@ -89,9 +102,9 @@ func ParseFile(f string) (*File, error) {
 // {for loop} (optional)
 // {var assignments}
 // {return}
-func (f *File) Valid() error {
+func (f *File) Valid() *Error {
 	if f == nil || f.ast == nil {
-		return errors.New("File is nil or file.ast is nil")
+		return &Error{errors.New("File is nil or file.ast is nil"), 0}
 	}
 	for _, decl := range f.ast.Decls {
 		if err := f.validTopLevelDecl(decl); err != nil {
@@ -101,38 +114,42 @@ func (f *File) Valid() error {
 	return nil
 }
 
-func (f *File) validTopLevelDecl(decl ast.Decl) error {
+func (f *File) validTopLevelDecl(decl ast.Decl) *Error {
 	if decl == nil {
-		return errors.New("Top level decl is nil")
+		return &Error{errors.New("Top level decl is nil"), 0}
 	}
-	funcDecl, ok := decl.(*ast.FuncDecl)
-	// Only func declarations are allowed at the ast.File top level
-	if !ok {
 
-		return errors.New(fmt.Sprintf("Top level decl is not funcDecl, decl:%v", decl))
-	}
-	// Only functions (not methods) are allowed
-	if funcDecl.Recv != nil {
-		return errors.New("Only functions (not methods) are allowed")
-	}
-	if err := f.validFuncType(funcDecl.Type); err != nil {
+	if genDecl, ok := decl.(*ast.GenDecl); ok {
+		if genDecl.Tok != token.IMPORT {
+			return &Error{errors.New(fmt.Sprintf("Top level decl is not import statement or function declaration, decl:%v", genDecl)), genDecl.Pos()}
+		}
 
-		return err
-	}
-	if err := f.validFuncBody(funcDecl.Body); err != nil {
-		return err
+	} else if funcDecl, ok := decl.(*ast.FuncDecl); ok {
+		// Only functions (not methods) are allowed
+		if funcDecl.Recv != nil {
+			return &Error{errors.New("Only functions (not methods) are allowed"), funcDecl.Recv.Pos()}
+		}
+		if err := f.validFuncType(funcDecl.Type); err != nil {
+
+			return err
+		}
+		if err := f.validFuncBody(funcDecl.Body); err != nil {
+			return err
+		}
+	} else {
+		return &Error{errors.New(fmt.Sprintf("Top level decl is not import statement or function declaration, decl:%v", decl)), decl.Pos()}
 	}
 	return nil
 }
 
-func (f *File) validFuncBody(block *ast.BlockStmt) error {
+func (f *File) validFuncBody(block *ast.BlockStmt) *Error {
 	var declStmts []*ast.DeclStmt
 	var initStmts []ast.Stmt
 	var finishStmts []ast.Stmt
 	declSection, initSection, forSection, finishSection, retSection := true, false, false, false, false
 	// empty func bodies not allowed
 	if block.List == nil {
-		return errors.New("Empty func bodies not allowed")
+		return &Error{errors.New("Empty func bodies not allowed"), block.Pos()}
 	}
 	for _, stmt := range block.List {
 		if declSection {
@@ -142,6 +159,7 @@ func (f *File) validFuncBody(block *ast.BlockStmt) error {
 					return err
 				}
 				declStmts = append(declStmts, decl)
+				continue
 			} else {
 				declSection = false
 				initSection = true
@@ -150,16 +168,16 @@ func (f *File) validFuncBody(block *ast.BlockStmt) error {
 		if initSection {
 			if err := f.validStmt(stmt); err == nil {
 				initStmts = append(initStmts, stmt)
+				continue
 			} else {
 				initSection = false
 				forSection = true
 			}
 		}
 		if forSection {
-			stmt, ok := stmt.(*ast.ForStmt)
-			if ok {
+			if stmt, ok := stmt.(*ast.ForStmt); ok {
 				if !f.validForStmt(stmt) {
-					return errors.New("Invalid for statement")
+					return &Error{errors.New("Invalid for statement"), stmt.Pos()}
 
 				}
 			}
@@ -169,6 +187,7 @@ func (f *File) validFuncBody(block *ast.BlockStmt) error {
 		if finishSection {
 			if f.validFinishStmt(stmt) {
 				finishStmts = append(finishStmts, stmt)
+				continue
 			} else {
 				finishSection = false
 				retSection = true
@@ -180,56 +199,63 @@ func (f *File) validFuncBody(block *ast.BlockStmt) error {
 					return err
 				}
 			} else {
-				return errors.New("Expected return statement in retSection")
+				return &Error{errors.New("Expected return statement in retSection"), stmt.Pos()}
 			}
 		}
-		panic("PANIC: NO SECTION")
+		pos := f.fs.Position(stmt.Pos())
+		end := f.fs.Position(stmt.End())
+		panic(fmt.Sprintf("PANIC: NO SECTION, stmt: (begin, end) - (%v, %v)", pos, end))
 	}
 	return nil
 }
-func (f *File) validDeclStmt(stmt *ast.DeclStmt) error {
+func (f *File) validDeclStmt(stmt *ast.DeclStmt) *Error {
 	decl := stmt.Decl
 	d, ok := decl.(*ast.GenDecl)
 	// only gendecls are valid
 	if !ok {
-		return errors.New(fmt.Sprintf("Invalid declstmt, only ast.GenDecl allowed, decl: %v", decl))
+		return &Error{errors.New(fmt.Sprintf("Invalid declstmt, only ast.GenDecl allowed, decl: %v", decl)), decl.Pos()}
 	}
 	// only var declations are valid
 	if d.Tok != token.VAR {
-		return errors.New(fmt.Sprintf("Invalid Gendecl, only var decls allowd, d.Tok:%v", d.Tok))
+		return &Error{errors.New(fmt.Sprintf("Invalid Gendecl, only var decls allowd, d.Tok:%v", d.Tok)), d.TokPos}
 	}
 	// only exactly 1 spec element is allowed
 	if d.Specs == nil || len(d.Specs) != 1 {
-		return errors.New("Invalid decl either specs == nil or len(specs) > 1")
+		return &Error{errors.New("Invalid decl either specs == nil or len(specs) > 1"), d.Pos()}
 	}
 	spec := d.Specs[0]
 	vspec, ok := spec.(*ast.ValueSpec)
 	// only value specs allowed
 	if !ok {
-		return errors.New(fmt.Sprintf("Invalid decl only value specs are allowed, instead of: %v", spec))
+		return &Error{errors.New(fmt.Sprintf("Invalid decl only value specs are allowed, instead of: %v", spec)), spec.Pos()}
 	}
 	if vspec.Names == nil || len(vspec.Names) != 1 {
-		return errors.New("Invalid decl either spec.Names is nil or len(spec.Names) > 1")
+		return &Error{errors.New("Invalid decl either spec.Names is nil or len(spec.Names) > 1"), vspec.Pos()}
 	}
 	//name := vspec.Names[0]
 
 	// cannot initialize with values
 	if vspec.Values != nil && len(vspec.Values) > 0 {
-		return errors.New("Invalid decl, initalizing with values is not allowed")
+		return &Error{errors.New("Invalid decl, initalizing with values is not allowed"), vspec.Pos()}
 	}
 	// only valid var types allowed
-	if err := f.validVarType(f.info.TypeOf(vspec.Type)); err != nil {
+	if err := f.validVarDeclType(f.info.TypeOf(vspec.Type)); err != nil {
+		err.Pos = vspec.Pos()
+		if e2 := f.validParamType(f.info.TypeOf(vspec.Type)); e2 == nil {
+			err.Err = errors.New(fmt.Sprint(err.Err) + ", type only valid as a func param type")
+		}
+
 		return err
 	}
 	return nil
 }
-func (f *File) validStmt(stmt ast.Stmt) error {
+func (f *File) validStmt(stmt ast.Stmt) *Error {
 	if stmt == nil {
 		return nil
 	}
 	if assign, ok := stmt.(*ast.AssignStmt); ok {
 		if len(assign.Lhs) != 1 || len(assign.Rhs) != 1 {
-			return errors.New("Invalid assigment statment")
+			return &Error{errors.New("Invalid assigment statment"), assign.Pos()}
 		}
 		return nil
 	}
@@ -239,7 +265,7 @@ func (f *File) validStmt(stmt ast.Stmt) error {
 		}
 		// initialization clause not allowed for if statements
 		if ifstmt.Init != nil {
-			return errors.New("ifstmt cannot have initialization clause")
+			return &Error{errors.New("ifstmt cannot have initialization clause"), ifstmt.Init.Pos()}
 		}
 		if err := f.validStmt(ifstmt.Body); err != nil {
 			return err
@@ -264,7 +290,7 @@ func (f *File) validStmt(stmt ast.Stmt) error {
 			return nil
 		}
 		if len(ret.Results) > 1 {
-			return errors.New("Return statement doesn't allow multiple return values")
+			return &Error{errors.New("Return statement doesn't allow multiple return values"), ret.Pos()}
 		}
 		return f.validRetExpr(ret.Results[0])
 	}
@@ -274,13 +300,13 @@ func (f *File) validStmt(stmt ast.Stmt) error {
 			return err
 		}
 	}
-	return errors.New(fmt.Sprintf("Invalid stmt:%v", stmt))
+	return &Error{errors.New(fmt.Sprintf("Invalid stmt:%v", stmt)), stmt.Pos()}
 }
-func (f *File) validExpr(expr ast.Expr) error {
+func (f *File) validExpr(expr ast.Expr) *Error {
 	if expr != nil {
 		return nil
 	}
-	return errors.New("Nil ast.Expr not allowed")
+	return &Error{errors.New("Nil ast.Expr not allowed"), expr.Pos()}
 }
 func (f *File) validForStmt(stmt *ast.ForStmt) bool {
 	return true
@@ -290,14 +316,14 @@ func (f *File) validFinishStmt(stmt ast.Stmt) bool {
 	return true
 }
 
-func (f *File) validRetStmt(ret *ast.ReturnStmt) error {
+func (f *File) validRetStmt(ret *ast.ReturnStmt) *Error {
 	// returning nothing is ok
 	if ret.Results == nil || len(ret.Results) == 0 {
 		return nil
 	}
 	// Cannot return multiple values
 	if len(ret.Results) > 1 {
-		return errors.New("Return statements can only have one result")
+		return &Error{errors.New("Return statements can only have one result"), ret.Pos()}
 	}
 	expr := ret.Results[0]
 	if err := f.validRetExpr(expr); err != nil {
@@ -306,18 +332,18 @@ func (f *File) validRetStmt(ret *ast.ReturnStmt) error {
 	return nil
 }
 
-func (f *File) validRetExpr(expr ast.Expr) error {
+func (f *File) validRetExpr(expr ast.Expr) *Error {
 	_, ok := expr.(*ast.Ident)
 	// can only return identifies, i.e. variables
 	if !ok {
-		return errors.New("Return expression only allows identifiers")
+		return &Error{errors.New("Return expression only allows identifiers"), expr.Pos()}
 	}
 	return nil
 }
 
-func (f *File) validFuncType(typ *ast.FuncType) error {
+func (f *File) validFuncType(typ *ast.FuncType) *Error {
 	if typ == nil {
-		return errors.New("Nil func type")
+		return &Error{errors.New("Nil func type"), 0}
 	}
 	if e := f.validParams(typ.Params); e != nil {
 		return e
@@ -328,14 +354,14 @@ func (f *File) validFuncType(typ *ast.FuncType) error {
 	return nil
 }
 
-func (f *File) validResults(results *ast.FieldList) error {
+func (f *File) validResults(results *ast.FieldList) *Error {
 	if results == nil || results.List == nil {
 		return nil
 	}
 	if results.NumFields() != 1 {
 		err := fmt.Sprint("ERROR: can only return at most one result, not:",
 			results.NumFields())
-		return errors.New(err)
+		return &Error{errors.New(err), results.Pos()}
 	}
 	result := results.List[0]
 	if result == nil {
@@ -343,57 +369,23 @@ func (f *File) validResults(results *ast.FieldList) error {
 	}
 	if result.Names != nil {
 
-		return errors.New(fmt.Sprint("ERROR: can only return nonnamed result, not:", result.Names))
+		return &Error{errors.New(fmt.Sprint("ERROR: can only return nonnamed result, not:", result.Names)), result.Pos()}
 	}
 	typ := f.info.TypeOf(result.Type)
-	if e := f.validResultType(typ); e != nil {
-		return e
+	if err := f.validResultType(typ); err != nil {
+		err.Pos = result.Pos()
+		if f.validVarDeclType(typ) == nil {
+			err.Err = errors.New(fmt.Sprint(err.Err) + ", type only valid as a var decl, or param")
+		} else if f.validParamType(typ) == nil {
+			err.Err = errors.New(fmt.Sprint(err.Err) + ", type only valid as func param type")
+		}
+
+		return err
 	}
 	return nil
 }
 
-func (f *File) validResultType(typ types.Type) error {
-	switch typ.(type) {
-	default:
-
-		return errors.New(fmt.Sprint("Invalid result type:", typ.String()))
-	case *types.Basic:
-		typ := typ.(*types.Basic)
-		switch typ.Kind() {
-		default:
-
-			return errors.New(fmt.Sprint("Invalid basic result type:", typ.Info()))
-		case types.Bool:
-			return nil
-		case types.Int:
-			return nil
-		case types.Int8:
-			return nil
-		case types.Int16:
-			return nil
-		case types.Int32:
-			return nil
-		case types.Int64:
-			return nil
-		case types.Uint:
-			return nil
-		case types.Uint8:
-			return nil
-		case types.Uint16:
-			return nil
-		case types.Uint32:
-			return nil
-		case types.Uint64:
-			return nil
-		case types.Float32:
-			return nil
-		case types.Float64:
-			return nil
-		}
-	}
-}
-
-func (f *File) validParams(params *ast.FieldList) error {
+func (f *File) validParams(params *ast.FieldList) *Error {
 	if params == nil {
 		panic("ERROR: params fieldlist should never be nil")
 	}
@@ -404,7 +396,7 @@ func (f *File) validParams(params *ast.FieldList) error {
 		field := params.List[i]
 		if field == nil {
 
-			return errors.New(fmt.Sprint("ERROR nil field, anonymous fields not allowed!!"))
+			return &Error{errors.New(fmt.Sprint("ERROR nil field, anonymous fields not allowed!!")), params.Pos()}
 		}
 		if len(field.Names) != 1 {
 			panic("ERROR len(field.Names) != 1!!")
@@ -415,6 +407,7 @@ func (f *File) validParams(params *ast.FieldList) error {
 		}
 		typ := f.info.TypeOf(field.Type)
 		if e := f.validParamType(typ); e != nil {
+			e.Pos = field.Pos()
 			return e
 		}
 
@@ -422,31 +415,97 @@ func (f *File) validParams(params *ast.FieldList) error {
 	return nil
 }
 
-func (f *File) validParamType(typ types.Type) error {
+func (f *File) validParamType(typ types.Type) *Error {
 	if e := f.validVarType(typ); e != nil {
-		return e
+		switch typ.(type) {
+		default:
+			return e
+		case *types.Pointer:
+			typ := typ.(*types.Pointer)
+			return f.validVarType(typ.Elem())
+		case *types.Slice:
+			typ := typ.(*types.Slice)
+			return f.validVarType(typ.Elem())
+		}
 	}
-	switch typ.(type) {
-	default:
-
-		return errors.New(fmt.Sprint("Invalid type:", typ.String()))
-	case *types.Slice:
-		typ := typ.(*types.Slice)
-		return f.validVarType(typ.Elem())
-	}
+	return nil
 }
 
-func (f *File) validVarType(typ types.Type) error {
+func (f *File) validVarType(typ types.Type) *Error {
+	if e := f.validVarDeclType(typ); e != nil {
+		switch typ.(type) {
+		default:
+			return e
+		case *types.Array:
+			typ := typ.(*types.Array)
+			return f.validVarType(typ.Elem())
+		case *types.Named:
+			named, ok := typ.(*types.Named)
+			if !ok {
+				panic("ERROR can't cast to named type")
+			}
+			tname := named.Obj()
+			i := Int(0)
+			ivar := &i
+			simdIntVar := reflect.TypeOf(ivar)
+			var i4var Int4Var
+			simdInt4Var := reflect.TypeOf(i4var)
+			switch tname.Name() {
+			default:
+				return e
+			case simdIntVar.Name():
+				return nil
+			case simdInt4Var.Name():
+				return nil
+			}
+		}
+	}
+	return nil
+}
+func (f *File) validVarDeclType(typ types.Type) *Error {
+	if e := f.validResultType(typ); e != nil {
+		switch typ.(type) {
+		default:
+			return e
+		case *types.Interface:
+			return f.validVarDeclType(typ.Underlying())
+		case *types.Named:
+			named, ok := typ.(*types.Named)
+			if !ok {
+				panic("ERROR can't cast to named type")
+			}
+			tname := named.Obj()
+			i := Int(0)
+			simdInt := reflect.TypeOf(i)
+			var i4 Int4
+			simdInt4 := reflect.TypeOf(i4)
+			switch tname.Name() {
+			default:
+				return &Error{errors.New(fmt.Sprintf("invalid type (%v)", tname.Name())), 0}
+			case simdInt.Name():
+				return nil
+			case simdInt4.Name():
+				return nil
+			}
+		}
+	}
+	return nil
+}
+
+func (f *File) validResultType(typ types.Type) *Error {
 	switch typ.(type) {
 	default:
-
-		return errors.New(fmt.Sprint("Invalid type:", typ.String()))
+		name := typ.String()
+		if named, ok := typ.(*types.Named); ok {
+			name = named.Obj().Name()
+		}
+		return &Error{errors.New(fmt.Sprint("Invalid result type:", name)), 0}
 	case *types.Basic:
 		typ := typ.(*types.Basic)
 		switch typ.Kind() {
 		default:
 
-			return errors.New(fmt.Sprint("Invalid basic param type:", typ.Info()))
+			return &Error{errors.New(fmt.Sprint("Invalid basic type for result type :", typ.Info())), 0}
 		case types.Bool:
 			return nil
 		case types.Int:
@@ -472,27 +531,6 @@ func (f *File) validVarType(typ types.Type) error {
 		case types.Float32:
 			return nil
 		case types.Float64:
-			return nil
-		}
-	case *types.Array:
-		typ := typ.(*types.Array)
-		return f.validVarType(typ.Elem())
-	case *types.Interface:
-		return f.validVarType(typ.Underlying())
-	case *types.Named:
-		name := typ.String()
-		fmt.Println("named type.string():", name)
-		switch name {
-		default:
-
-			return errors.New(fmt.Sprint("invalid named type name:", name))
-		case "simd.Int":
-			return nil
-		case "simd.IntVar":
-			return nil
-		case "simd.Int4":
-			return nil
-		case "simd.Int4Var":
 			return nil
 		}
 	}

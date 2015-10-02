@@ -15,8 +15,11 @@ func main() {
 	} else {
 		fmt.Println(fmt.Sprintf("Error parsing %v, error: %v", file, err))
 	}
-	if err := f.Valid(); err {
-		fmt.Println("File not valid, error:\n", err)
+	if err := f.Valid(); err != nil {
+
+		fmt.Println(fmt.Sprintf("Invalid file, ERROR:%v, LOCATION:%v \n", err.Err, f.ErrorLocation(err)))
+	} else {
+		fmt.Println("Validated:", file)
 	}
-	// TODO check file parse tree & generate assembly instructions
+	// TODO generate assembly instructions
 }

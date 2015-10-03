@@ -1,6 +1,7 @@
 package simd
 
 import (
+	"errors"
 	"fmt"
 	"go/token"
 
@@ -15,16 +16,26 @@ import (
 )
 
 type Function struct {
-	fn        *ssa.Function
-	vars      map[string]varinfo
-	unusedReg []register
-	usedReg   []register
+	ssa      *ssa.Function
+	locals   map[string]varinfo
+	params   map[string]paraminfo
+	register map[register]bool // maps register to false if unused and true if used
 }
 
 type varinfo struct {
-	name   string
+	name string
+	// offset from the stack base (SB)
 	offset int
 	size   int
+	info   *ssa.Alloc
+}
+
+type paraminfo struct {
+	name string
+	// offset from the frame pointer (FP)
+	offset int
+	size   int
+	info   *ssa.Parameter
 }
 
 type Error struct {
@@ -35,15 +46,46 @@ type Error struct {
 func (f *Function) GoAssembly() (string, *Error) {
 	// TODO
 	assembly := ""
+	if err := f.initLocals(); err != nil {
+		return "", err
+	} else {
+
+	}
 	return assembly, nil
 }
 
+func (f *Function) initLocals() *Error {
+	offset := 0
+	locals := f.ssa.Locals
+	for _, local := range locals {
+		if local.Heap {
+			return &Error{Err: errors.New(fmt.Sprintf("Can't heap alloc local, name: %v", local.Name())), Pos: local.Pos()}
+		}
+		size := sizeof(local.Type())
+		v := varinfo{name: local.Name(), offset: offset, size: size, info: local}
+		f.locals[v.name] = v
+		offset += size
+	}
+	return nil
+}
+
+func (f *Function) asmParams() (string, *Error) {
+	offset := 0
+	for _, p := range f.ssa.Params {
+		param := paraminfo{name: p.Name(), offset: offset, info: p, size: sizeof(p.Type())}
+		f.params[param.name] = param
+		offset += param.size
+		// TODO alloc reg based on param type
+	}
+	return "", nil
+}
+
 func (f *Function) asmFunc() string {
-	fpSize := f.varsSize()
+	fpSize := f.paramsSize()
 	funcAsm := ""
 	asm := fmt.Sprintf(`TEXT ·%v(SB),$%v-$%v
 	%v
-	RET`, f.fn.Name(), f.argsSize(), fpSize, funcAsm)
+	RET`, f.ssa.Name(), f.paramsSize(), fpSize, funcAsm)
 	return asm
 }
 
@@ -63,9 +105,9 @@ func (f *Function) asmValue(value ssa.Value, dstReg *register, dstVar *varinfo) 
 	return ""
 }
 
-func (f *Function) varsSize() int {
+func (f *Function) localsSize() int {
 	size := 0
-	for _, v := range f.vars {
+	for _, v := range f.locals {
 		size += v.size
 	}
 	return size
@@ -73,60 +115,41 @@ func (f *Function) varsSize() int {
 
 func (f *Function) init() {
 	f.initRegs()
-	f.initVarsInfo()
-}
-
-func (f *Function) initVarsInfo() {
-	// TODO
-
+	f.initLocals()
 }
 
 func (f *Function) initRegs() {
-	for _, r := range regnames {
-		typ := IntReg
-		size := IntRegSize
-		if r[0] == 'X' {
-			typ = FloatReg
-			size = FloatRegSize
-		}
-		reg := register{r, typ, size}
-		f.unusedReg = append(f.unusedReg, reg)
+	for _, r := range registers {
+		f.register[r] = false
 	}
 }
 
-func (f *Function) allocReg(t registerType, size int) register {
-	reg := register{typ: t, size: size, name: ""}
-	return f.moveReg(&f.unusedReg, &f.usedReg, reg)
+func (f *Function) allocReg(t RegType, size int) register {
+	var reg register
+	found := false
+	for r, used := range f.register {
+		if !used && r.typ == t {
+			reg = r
+			found = true
+			break
+		}
+	}
+	if found {
+		f.register[reg] = true
+	} else {
+		panic(fmt.Sprintf("couldn't alloc register, type: %v, size: %v", t, size))
+	}
+	return reg
 }
 
 func (f *Function) freeReg(reg register) {
-	f.moveReg(&f.usedReg, &f.unusedReg, reg)
+	f.register[reg] = false
 }
 
-func (f *Function) moveReg(src *[]register, dst *[]register, reg register) register {
-	regs := []register{}
-	var mreg *register
-	for _, r := range *src {
-		if r.typ == reg.typ && r.size == reg.size && (reg.name == "" || reg.name == r.name) {
-
-			mreg = &r
-		} else {
-			regs = append(regs, r)
-		}
-	}
-	src = &regs
-	if mreg == nil {
-		panic(fmt.Sprintf("Couldn't move register: type:%v, size:%v\n", reg.typ, reg.size))
-	} else {
-		*dst = append(*dst, *mreg)
-		return *mreg
-	}
-}
-
-// argsSize returns the size of the arguments in bytes
-func (f *Function) argsSize() int {
+// paramsSize returns the size of the parameters in bytes
+func (f *Function) paramsSize() int {
 	size := 0
-	for _, p := range f.fn.Params {
+	for _, p := range f.ssa.Params {
 		size += sizeof(p.Type())
 	}
 	return size

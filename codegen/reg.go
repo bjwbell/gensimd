@@ -2,46 +2,51 @@ package simd
 
 type register struct {
 	name string
-	typ  registerType
-	size int
+	typ  RegType
 }
 
-type registerType int
+type RegType int
 
-const IntReg = registerType(0)
-const IntRegSize = 8
-const FloatReg = registerType(1)
-const FloatRegSize = 8
+const (
+	DataReg = RegType(iota)
+	XmmReg
+)
 
-var regnames = []string{
-	"AX",
-	"CX",
-	"DX",
-	"BX",
-	"SI",
-	"DI",
-	"R8",
-	"R9",
-	"R10",
-	"R11",
-	"R12",
-	"R13",
-	"R14",
-	"R15",
-	"X0",
-	"X1",
-	"X2",
-	"X3",
-	"X4",
-	"X5",
-	"X6",
-	"X7",
-	"X8",
-	"X9",
-	"X10",
-	"X11",
-	"X12",
-	"X13",
-	"X14",
-	"X15",
+const DataRegSize = 8
+const XmmRegSize = 16
+
+const NumDataRegs = 14
+const NumXmmRegs = 16
+
+var registers = []register{
+	{"AX", DataReg},
+	{"CX", DataReg},
+	{"DX", DataReg},
+	{"BX", DataReg},
+	{"SI", DataReg},
+	{"DI", DataReg},
+	{"R8", DataReg},
+	{"R9", DataReg},
+	{"R10", DataReg},
+	{"R11", DataReg},
+	{"R12", DataReg},
+	{"R13", DataReg},
+	{"R14", DataReg},
+	{"R15", DataReg},
+	{"X0", XmmReg},
+	{"X1", XmmReg},
+	{"X2", XmmReg},
+	{"X3", XmmReg},
+	{"X4", XmmReg},
+	{"X5", XmmReg},
+	{"X6", XmmReg},
+	{"X7", XmmReg},
+	{"X8", XmmReg},
+	{"X9", XmmReg},
+	{"X10", XmmReg},
+	{"X11", XmmReg},
+	{"X12", XmmReg},
+	{"X13", XmmReg},
+	{"X14", XmmReg},
+	{"X15", XmmReg},
 }

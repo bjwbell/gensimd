@@ -16,10 +16,10 @@ import (
 )
 
 type Function struct {
-	ssa      *ssa.Function
-	locals   map[string]varinfo
-	params   map[string]paraminfo
-	register map[register]bool // maps register to false if unused and true if used
+	ssa       *ssa.Function
+	locals    map[string]varinfo
+	params    map[string]paraminfo
+	registers map[register]bool // maps register to false if unused and true if used
 }
 
 type varinfo struct {
@@ -36,6 +36,16 @@ type paraminfo struct {
 	offset int
 	size   int
 	info   *ssa.Parameter
+	extra  interface{}
+}
+
+type paramSlice struct {
+	offset      int
+	lenOffset   int
+	reg         register
+	regValid    bool
+	lenReg      register
+	lenRegValid bool
 }
 
 type Error struct {
@@ -73,9 +83,17 @@ func (f *Function) asmParams() (string, *Error) {
 	offset := 0
 	for _, p := range f.ssa.Params {
 		param := paraminfo{name: p.Name(), offset: offset, info: p, size: sizeof(p.Type())}
+		// TODO alloc reg based on other param types
+		if slice, ok := p.Type().(*types.Slice); ok {
+			reg := f.allocReg(DataReg, pointerSize)
+			// TODO is sizeof length data always pointer size?
+			lenReg := f.allocReg(DataReg, pointerSize)
+			// TODO add assembly code for MOVs of slice to registers
+			fmt.Println("slice param:", slice)
+			param.extra = paramSlice{offset: offset, reg: reg, regValid: true, lenReg: lenReg, lenRegValid: true}
+		}
 		f.params[param.name] = param
 		offset += param.size
-		// TODO alloc reg based on param type
 	}
 	return "", nil
 }
@@ -120,14 +138,14 @@ func (f *Function) init() {
 
 func (f *Function) initRegs() {
 	for _, r := range registers {
-		f.register[r] = false
+		f.registers[r] = false
 	}
 }
 
 func (f *Function) allocReg(t RegType, size int) register {
 	var reg register
 	found := false
-	for r, used := range f.register {
+	for r, used := range f.registers {
 		if !used && r.typ == t {
 			reg = r
 			found = true
@@ -135,7 +153,7 @@ func (f *Function) allocReg(t RegType, size int) register {
 		}
 	}
 	if found {
-		f.register[reg] = true
+		f.registers[reg] = true
 	} else {
 		panic(fmt.Sprintf("couldn't alloc register, type: %v, size: %v", t, size))
 	}
@@ -143,7 +161,7 @@ func (f *Function) allocReg(t RegType, size int) register {
 }
 
 func (f *Function) freeReg(reg register) {
-	f.register[reg] = false
+	f.registers[reg] = false
 }
 
 // paramsSize returns the size of the parameters in bytes

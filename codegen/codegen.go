@@ -239,7 +239,8 @@ func (f *Function) asmInstr(instr ssa.Instruction) string {
 		i := instr.(*ssa.IndexAddr)
 		asm += fmt.Sprintf("ssa.IndexAddr: %v, name: %v", i, i.Name())
 	case *ssa.Jump:
-		asm += fmt.Sprintf("ssa.Jump: %v", instr)
+		jmp := instr.(*ssa.Jump)
+		asm += strings.Replace(jmp.String(), "jump", "JMP ", -1)
 	case *ssa.Lookup:
 		i := instr.(*ssa.Lookup)
 		asm += fmt.Sprintf("ssa.Lookup: %v, name: %v", instr, i.Name())

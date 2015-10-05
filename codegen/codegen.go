@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
-	"log"
 	"strings"
 
 	"golang.org/x/tools/go/types"
@@ -71,8 +70,10 @@ func CreateFunction(instructionsetPath string, fn *ssa.Function) (*Function, *Er
 }
 
 func (f *Function) GoAssembly() (string, *Error) {
-	f.init()
-	return f.asmFunc(), nil
+	if err := f.init(); err != nil {
+		return "", err
+	}
+	return f.asmFunc()
 }
 
 func (f *Function) initLocals() *Error {
@@ -124,7 +125,8 @@ func (f *Function) asmParams() (string, *Error) {
 				Value:  nil}
 			ops := []*Operand{&opMem, &opReg}
 			// TODO is sizeof data always pointer size?
-			reg := f.allocReg(DataReg, pointerSize)
+			fmt.Println("pointerSize:", pointerSize)
+			reg := f.allocReg(AddrReg, pointerSize)
 			opMem.Value = memFn(param.name, offset)
 			opReg.Value = regFn(reg.name)
 			if a, err := InstAsm(f.instructionset, InstName(MOVQ), ops); err != nil {
@@ -134,7 +136,7 @@ func (f *Function) asmParams() (string, *Error) {
 			}
 
 			// TODO is sizeof length data always pointer size?
-			lenReg := f.allocReg(DataReg, pointerSize)
+			lenReg := f.allocReg(AddrReg, pointerSize)
 			opMem.Value = memFn("len", offset+pointerSize)
 			opReg.Value = regFn(lenReg.name)
 			if a, err := InstAsm(f.instructionset, InstName(MOVQ), ops); err != nil {
@@ -143,6 +145,8 @@ func (f *Function) asmParams() (string, *Error) {
 				asm += a + "\n"
 			}
 			param.extra = paramSlice{offset: offset, reg: reg, regValid: true, lenReg: lenReg, lenRegValid: true}
+		} else {
+			return "", &Error{Err: errors.New("Unsupported param type"), Pos: p.Pos()}
 		}
 		f.params[param.name] = param
 		offset += param.size
@@ -150,17 +154,46 @@ func (f *Function) asmParams() (string, *Error) {
 	return asm, nil
 }
 
-func (f *Function) asmFunc() string {
+func (f *Function) asmFunc() (string, *Error) {
 	fpSize := f.localsSize()
 	funcAsm, err := f.asmParams()
 	if err != nil {
-		log.Fatal(fmt.Sprintf("Error in asmParams, msg:%v", err))
+		return "", err
 	}
-	funcAsm = "        " + funcAsm
+	basicblocksAsm, err2 := f.asmBasicBlocks()
+	if err2 != nil {
+		return "", err2
+	}
+
+	funcAsm = "        " + funcAsm + "    " + basicblocksAsm
 	funcAsm = strings.Replace(funcAsm, "\n", "\n        ", -1)
 	asm := fmt.Sprintf(`TEXT ·%v(SB),NOSPLIT,$%v-$%v
 %v RET`, f.ssa.Name(), fpSize, f.paramsSize(), funcAsm)
+	return asm, nil
+}
+
+func (f *Function) asmBasicBlocks() (string, *Error) {
+	asm := ""
+	for i := 0; i < len(f.ssa.Blocks); i++ {
+		asm += f.asmBasicBlock(f.ssa.Blocks[i])
+	}
+	return asm, nil
+}
+
+func (f *Function) asmBasicBlock(block *ssa.BasicBlock) string {
+	asm := ""
+	for i := 0; i < len(block.Instrs); i++ {
+		asm += f.asmInstr(block.Instrs[i])
+	}
 	return asm
+}
+
+func (f *Function) asmInstr(instr ssa.Instruction) string {
+	if instr == nil {
+		panic("Nil instr in asmInstr")
+	}
+	// TODO
+	return ""
 }
 
 func (f *Function) asmValue(value ssa.Value, dstReg *register, dstVar *varInfo) string {
@@ -187,12 +220,12 @@ func (f *Function) localsSize() int {
 	return size
 }
 
-func (f *Function) init() {
+func (f *Function) init() *Error {
 	f.locals = make(map[string]varInfo)
 	f.params = make(map[string]paramInfo)
 	f.registers = make(map[register]bool)
 	f.initRegs()
-	f.initLocals()
+	return f.initLocals()
 }
 
 func (f *Function) initRegs() {
@@ -201,13 +234,15 @@ func (f *Function) initRegs() {
 	}
 }
 
-func (f *Function) allocReg(t RegType, size int) register {
+// width in bytes
+func (f *Function) allocReg(t RegType, width int) register {
 	var reg register
 	found := false
 	for i := 0; i < len(registers); i++ {
 		r := registers[i]
 		used := f.registers[r]
-		if !used && r.typ == t && r.width == size {
+		// r.width is in bits so multiple width (which is in bytes) by 8
+		if !used && r.typ == t && r.width == width*8 {
 			reg = r
 			found = true
 			break
@@ -216,7 +251,7 @@ func (f *Function) allocReg(t RegType, size int) register {
 	if found {
 		f.registers[reg] = true
 	} else {
-		panic(fmt.Sprintf("couldn't alloc register, type: %v, size: %v", t, size))
+		panic(fmt.Sprintf("couldn't alloc register, type: %v, size: %v", t, width*8))
 	}
 	return reg
 }
@@ -236,6 +271,8 @@ func (f *Function) paramsSize() int {
 
 var pointerSize = 8
 var sliceSize = 24
+var pointerSizeInBits = 8 * 8
+var sliceSizeInBits = 24 * 8
 
 func sizeof(t types.Type) int {
 	switch t.(type) {

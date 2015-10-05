@@ -12,10 +12,17 @@ type register struct {
 type RegType int
 
 const (
+	// integer register
 	DataReg = RegType(iota)
+	// address register
+	AddrReg
+	// Stack pointer register
+	SpReg
+	// xmm register
 	XmmReg
 )
 
+// width in bytes
 const DataRegSize = 8
 const XmmRegSize = 16
 
@@ -23,12 +30,19 @@ const NumDataRegs = 14
 const NumXmmRegs = 16
 
 var registers = []register{
-	{"RAX", DataReg, 64},
-	{"RBX", DataReg, 64},
-	{"RCX", DataReg, 64},
-	{"RDX", DataReg, 64},
-	{"RSI", DataReg, 64},
-	{"RDI", DataReg, 64},
+	{"AL", DataReg, 32},
+	{"CL", DataReg, 32},
+	{"DL", DataReg, 32},
+	{"BL", DataReg, 32},
+
+	{"AX", DataReg, 64},
+	{"CX", DataReg, 64},
+	{"DX", DataReg, 64},
+	{"SI", AddrReg, 64},
+	{"DI", AddrReg, 64},
+	{"BX", AddrReg, 64},
+	{"BP", AddrReg, 64},
+	{"SP", SpReg, 64},
 	{"R8", DataReg, 64},
 	{"R9", DataReg, 64},
 	{"R10", DataReg, 64},

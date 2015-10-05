@@ -56,8 +56,14 @@ func (op OperandType) String() string {
 		return ""
 	case AL:
 		return "AL"
+	case CL:
+		return "AL"
+	case AX:
+		return "AL"
 	case EAX:
 		return "EAX"
+	case RAX:
+		return "RAX"
 
 		// immediate
 	case IMM8:
@@ -68,8 +74,6 @@ func (op OperandType) String() string {
 		return "IMM32"
 	case IMM64:
 		return "IMM64"
-	case IMM128:
-		return "IMM128"
 
 		// register instructions
 	case R8:
@@ -80,8 +84,6 @@ func (op OperandType) String() string {
 		return "R32"
 	case R64:
 		return "R64"
-	case R128:
-		return "R128"
 
 		// memory instructions
 	case M8:
@@ -98,16 +100,14 @@ func (op OperandType) String() string {
 		// xmm instructions
 	case XMM:
 		return "XMM"
+	case XMM0:
+		return "XMM0"
 
 		// jump instructions
 	case REL8:
 		return "REL8"
-	case REL16:
-		return "REL16"
 	case REL32:
 		return "REL32"
-	case REL64:
-		return "REL64"
 	}
 }
 

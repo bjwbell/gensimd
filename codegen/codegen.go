@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
+	"strconv"
 	"strings"
 
 	"golang.org/x/tools/go/types"
@@ -181,8 +182,9 @@ func (f *Function) asmBasicBlocks() (string, *Error) {
 }
 
 func (f *Function) asmBasicBlock(block *ssa.BasicBlock) string {
-	asm := ""
+	asm := strconv.Itoa(block.Index) + ":\n"
 	for i := 0; i < len(block.Instrs); i++ {
+
 		asm += f.asmInstr(block.Instrs[i])
 	}
 	return asm
@@ -193,7 +195,105 @@ func (f *Function) asmInstr(instr ssa.Instruction) string {
 		panic("Nil instr in asmInstr")
 	}
 	// TODO
-	return ""
+	asm := ""
+	switch instr.(type) {
+	default:
+		asm += fmt.Sprintf("Unknown ssa instruction: %v", instr)
+	case *ssa.Alloc:
+		i := instr.(*ssa.Alloc)
+		asm += fmt.Sprintf("ssa.Alloc: %v, name: %v", instr, i.Name())
+	case *ssa.BinOp:
+		i := instr.(*ssa.BinOp)
+		asm += fmt.Sprintf("ssa.BinOp: %v, name: %v", instr, i.Name())
+	case *ssa.Call:
+		i := instr.(*ssa.Call)
+		asm += fmt.Sprintf("ssa.Call: %v, name: %v", instr, i.Name())
+	case *ssa.ChangeInterface:
+		i := instr.(*ssa.ChangeInterface)
+		asm += fmt.Sprintf("ssa.ChangeInterface: %v, name: %v", instr, i.Name())
+	case *ssa.ChangeType:
+		i := instr.(*ssa.ChangeType)
+		asm += fmt.Sprintf("ssa.ChangeType: %v, name: %v", instr, i.Name())
+	case *ssa.Convert:
+		i := instr.(*ssa.Convert)
+		asm += fmt.Sprintf("ssa.Convert: %v, name: %v", instr, i.Name())
+	case *ssa.Defer:
+		asm += fmt.Sprintf("ssa.Defer: %v", instr)
+	case *ssa.Extract:
+		i := instr.(*ssa.Extract)
+		asm += fmt.Sprintf("ssa.Extra: %v, name: %v", instr, i.Name())
+	case *ssa.Field:
+		i := instr.(*ssa.Field)
+		asm += fmt.Sprintf("ssa.Field: %v, name: %v", instr, i.Name())
+	case *ssa.FieldAddr:
+		i := instr.(*ssa.FieldAddr)
+		asm += fmt.Sprintf("ssa.FieldAddr: %v, name: %v", instr, i.Name())
+	case *ssa.Go:
+		asm += fmt.Sprintf("ssa.Go: %v", instr)
+	case *ssa.If:
+		asm += fmt.Sprintf("ssa.If: %v", instr)
+	case *ssa.Index:
+		i := instr.(*ssa.Index)
+		asm += fmt.Sprintf("ssa.Index: %v, name: %v", instr, i.Name())
+	case *ssa.IndexAddr:
+		i := instr.(*ssa.IndexAddr)
+		asm += fmt.Sprintf("ssa.IndexAddr: %v, name: %v", i, i.Name())
+	case *ssa.Jump:
+		asm += fmt.Sprintf("ssa.Jump: %v", instr)
+	case *ssa.Lookup:
+		i := instr.(*ssa.Lookup)
+		asm += fmt.Sprintf("ssa.Lookup: %v, name: %v", instr, i.Name())
+	case *ssa.MakeChan:
+		i := instr.(*ssa.MakeChan)
+		asm += fmt.Sprintf("ssa.MakeChan: %v, name: %v", instr, i.Name())
+	case *ssa.MakeClosure:
+		i := instr.(*ssa.MakeClosure)
+		asm += fmt.Sprintf("ssa.MakeClosure: %v, name: %v", instr, i.Name())
+	case *ssa.MakeInterface:
+		i := instr.(*ssa.MakeInterface)
+		asm += fmt.Sprintf("ssa.MakeInterface: %v, name: %v", instr, i.Name())
+	case *ssa.MakeMap:
+		i := instr.(*ssa.MakeMap)
+		asm += fmt.Sprintf("ssa.MakeMap: %v, name: %v", instr, i.Name())
+	case *ssa.MakeSlice:
+		i := instr.(*ssa.MakeSlice)
+		asm += fmt.Sprintf("ssa.MakeSlice: %v, name: %v", instr, i.Name())
+	case *ssa.MapUpdate:
+		asm += fmt.Sprintf("ssa.MapUpdate: %v", instr)
+	case *ssa.Next:
+		i := instr.(*ssa.Next)
+		asm += fmt.Sprintf("ssa.Next: %v, name: %v", instr, i.Name())
+	case *ssa.Panic:
+		asm += fmt.Sprintf("ssa.Panic: %v", instr)
+	case *ssa.Phi:
+		i := instr.(*ssa.Phi)
+		asm += fmt.Sprintf("ssa.Phi: %v, name: %v", instr, i.Name())
+	case *ssa.Range:
+		i := instr.(*ssa.Range)
+		asm += fmt.Sprintf("ssa.Range: %v, name: %v", instr, i.Name())
+	case *ssa.Return:
+		asm += fmt.Sprintf("ssa.Return: %v", instr)
+	case *ssa.RunDefers:
+		asm += fmt.Sprintf("ssa.RunDefers: %v", instr)
+	case *ssa.Select:
+		i := instr.(*ssa.Select)
+		asm += fmt.Sprintf("ssa.Select: %v, name: %v", instr, i.Name())
+	case *ssa.Send:
+		asm += fmt.Sprintf("ssa.Send: %v", instr)
+	case *ssa.Slice:
+		i := instr.(*ssa.Slice)
+		asm += fmt.Sprintf("ssa.Slice: %v, name: %v", instr, i.Name())
+	case *ssa.Store:
+		i := instr.(*ssa.Store)
+		asm += fmt.Sprintf("ssa.Store: %v, addr: %v, val: %v", instr, i.Addr, i.Val)
+	case *ssa.TypeAssert:
+		i := instr.(*ssa.TypeAssert)
+		asm += fmt.Sprintf("ssa.TypeAssert: %v, name: %v", instr, i.Name())
+	case *ssa.UnOp:
+		i := instr.(*ssa.UnOp)
+		asm += fmt.Sprintf("ssa.UnOp: %v, name: %v", instr, i.Name())
+	}
+	return asm + "\n"
 }
 
 func (f *Function) asmValue(value ssa.Value, dstReg *register, dstVar *varInfo) string {

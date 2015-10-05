@@ -251,7 +251,12 @@ func (f *Function) allocReg(t RegType, width int) register {
 	if found {
 		f.registers[reg] = true
 	} else {
-		panic(fmt.Sprintf("couldn't alloc register, type: %v, size: %v", t, width*8))
+		// any of the data registers can be used as an address register on x86_64
+		if t == AddrReg {
+			return f.allocReg(DataReg, width)
+		} else {
+			panic(fmt.Sprintf("couldn't alloc register, type: %v, size: %v", t, width*8))
+		}
 	}
 	return reg
 }

@@ -105,7 +105,10 @@ func main() {
 				return
 			} else {
 				fmt.Println("found function:", funcName)
-				codegenFn := codegen.CreateFunction("codegen/instructionsetxml/Opcodes/opcodes/x86_64.xml", fn)
+				codegenFn, err := codegen.CreateFunction("codegen/instructionsetxml/Opcodes/opcodes/x86_64.xml", fn)
+				if err != nil {
+					fmt.Printf("Error in codegen.CreateFunction,  msg:\"%v\"", err)
+				}
 				if asm, err := codegenFn.GoAssembly(); err != nil {
 					fmt.Printf("Error creating fn asm, msg:\"%v\"", err)
 				} else {

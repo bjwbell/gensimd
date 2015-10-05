@@ -8,17 +8,11 @@ import (
 	"github.com/bjwbell/gensimd/codegen/instructionsetxml"
 )
 
-func InstAsm(instructionsetXmlPath string, name InstName, ops []*Operand) (string, error) {
-	if set, err := instructionsetxml.LoadInstructionSet(instructionsetXmlPath); err != nil {
-		fmt.Println("ERROR: couldn't get instruction set")
-		fmt.Println("err:", err)
-		return "", err
-	} else {
-		return InstructionSetAsm(set, name, ops)
-	}
+func InstAsm(set *instructionsetxml.Instructionset, name InstName, ops []*Operand) (string, error) {
+	return InstructionSetAsm(set, name, ops)
 }
 
-func InstructionSetAsm(set *instructionsetxml.InstructionSet, name InstName, ops []*Operand) (string, error) {
+func InstructionSetAsm(set *instructionsetxml.Instructionset, name InstName, ops []*Operand) (string, error) {
 	var form *instructionsetxml.InstructionForm
 	for _, inst := range set.Instructions {
 		for _, fm := range inst.Forms {

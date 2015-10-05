@@ -12,17 +12,18 @@ import (
 	"reflect"
 	"unsafe"
 
+	"github.com/bjwbell/gensimd/codegen/instructionsetxml"
 	"github.com/bjwbell/gensimd/simd"
 
 	"golang.org/x/tools/go/ssa"
 )
 
 type Function struct {
-	ssa                   *ssa.Function
-	instructionsetXmlPath string
-	locals                map[string]varInfo
-	params                map[string]paramInfo
-	registers             map[register]bool // maps register to false if unused and true if used
+	ssa            *ssa.Function
+	instructionset *instructionsetxml.Instructionset
+	locals         map[string]varInfo
+	params         map[string]paramInfo
+	registers      map[register]bool // maps register to false if unused and true if used
 }
 
 type varInfo struct {
@@ -56,13 +57,17 @@ type Error struct {
 	Pos token.Pos
 }
 
-func CreateFunction(instructionsetPath string, fn *ssa.Function) *Function {
+func CreateFunction(instructionsetPath string, fn *ssa.Function) (*Function, *Error) {
 	if fn == nil {
-		return nil
+		return nil, &Error{Err: errors.New("Nil function passed in")}
 	}
-	f := Function{ssa: fn, instructionsetXmlPath: instructionsetPath}
+	instructionset, err := instructionsetxml.LoadInstructionset(instructionsetPath)
+	if err != nil {
+		return nil, &Error{Err: err}
+	}
+	f := Function{ssa: fn, instructionset: instructionset}
 	f.init()
-	return &f
+	return &f, nil
 }
 
 func (f *Function) GoAssembly() (string, *Error) {
@@ -122,7 +127,7 @@ func (f *Function) asmParams() (string, *Error) {
 			reg := f.allocReg(DataReg, pointerSize)
 			opMem.Value = memFn(param.name, offset)
 			opReg.Value = regFn(reg.name)
-			if a, err := InstAsm(f.instructionsetXmlPath, InstName(MOVQ), ops); err != nil {
+			if a, err := InstAsm(f.instructionset, InstName(MOVQ), ops); err != nil {
 				return "", &Error{err, p.Pos()}
 			} else {
 				asm += a + "\n"
@@ -132,7 +137,7 @@ func (f *Function) asmParams() (string, *Error) {
 			lenReg := f.allocReg(DataReg, pointerSize)
 			opMem.Value = memFn("len", offset+pointerSize)
 			opReg.Value = regFn(lenReg.name)
-			if a, err := InstAsm(f.instructionsetXmlPath, InstName(MOVQ), ops); err != nil {
+			if a, err := InstAsm(f.instructionset, InstName(MOVQ), ops); err != nil {
 				return "", &Error{err, p.Pos()}
 			} else {
 				asm += a + "\n"

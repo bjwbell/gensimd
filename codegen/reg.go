@@ -1,4 +1,4 @@
-package simd
+package codegen
 
 type register struct {
 	name string

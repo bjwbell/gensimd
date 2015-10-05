@@ -1,0 +1,3 @@
+[submodule "codegen/instructionsetxml/Opcodes"]
+	path = codegen/instructionsetxml/Opcodes
+	url = https://github.com/Maratyszcza/Opcodes

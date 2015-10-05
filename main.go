@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/bjwbell/gensimd/codegen"
 	"github.com/bjwbell/gensimd/simd"
 
 	"go/build"
@@ -104,6 +105,12 @@ func main() {
 				return
 			} else {
 				fmt.Println("found function:", funcName)
+				codegenFn := codegen.CreateFunction("codegen/instructionsetxml/Opcodes/opcodes/x86_64.xml", fn)
+				if asm, err := codegenFn.GoAssembly(); err != nil {
+					fmt.Printf("Error creating fn asm, msg:\"%v\"", err)
+				} else {
+					fmt.Println("fn asm:\n", asm)
+				}
 			}
 		}
 	}

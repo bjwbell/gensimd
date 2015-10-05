@@ -1,9 +1,11 @@
-package simd
+package codegen
 
 import (
 	"errors"
 	"fmt"
 	"go/token"
+	"log"
+	"strings"
 
 	"golang.org/x/tools/go/types"
 
@@ -16,13 +18,14 @@ import (
 )
 
 type Function struct {
-	ssa       *ssa.Function
-	locals    map[string]varinfo
-	params    map[string]paraminfo
-	registers map[register]bool // maps register to false if unused and true if used
+	ssa                   *ssa.Function
+	instructionsetXmlPath string
+	locals                map[string]varInfo
+	params                map[string]paramInfo
+	registers             map[register]bool // maps register to false if unused and true if used
 }
 
-type varinfo struct {
+type varInfo struct {
 	name string
 	// offset from the stack base (SB)
 	offset int
@@ -30,7 +33,7 @@ type varinfo struct {
 	info   *ssa.Alloc
 }
 
-type paraminfo struct {
+type paramInfo struct {
 	name string
 	// offset from the frame pointer (FP)
 	offset int
@@ -53,15 +56,18 @@ type Error struct {
 	Pos token.Pos
 }
 
-func (f *Function) GoAssembly() (string, *Error) {
-	// TODO
-	assembly := ""
-	if err := f.initLocals(); err != nil {
-		return "", err
-	} else {
-
+func CreateFunction(instructionsetPath string, fn *ssa.Function) *Function {
+	if fn == nil {
+		return nil
 	}
-	return assembly, nil
+	f := Function{ssa: fn, instructionsetXmlPath: instructionsetPath}
+	f.init()
+	return &f
+}
+
+func (f *Function) GoAssembly() (string, *Error) {
+	f.init()
+	return f.asmFunc(), nil
 }
 
 func (f *Function) initLocals() *Error {
@@ -72,42 +78,87 @@ func (f *Function) initLocals() *Error {
 			return &Error{Err: errors.New(fmt.Sprintf("Can't heap alloc local, name: %v", local.Name())), Pos: local.Pos()}
 		}
 		size := sizeof(local.Type())
-		v := varinfo{name: local.Name(), offset: offset, size: size, info: local}
+		v := varInfo{name: local.Name(), offset: offset, size: size, info: local}
 		f.locals[v.name] = v
 		offset += size
 	}
 	return nil
 }
 
+func memFn(name string, offset int) func() string {
+	return func() string {
+		return name + "+" +
+			fmt.Sprintf("%v", offset) +
+			"(FP)"
+	}
+}
+
+func regFn(name string) func() string {
+	return func() string {
+		return name
+	}
+}
+
 func (f *Function) asmParams() (string, *Error) {
+	// offset in bytes
 	offset := 0
+	asm := ""
 	for _, p := range f.ssa.Params {
-		param := paraminfo{name: p.Name(), offset: offset, info: p, size: sizeof(p.Type())}
+		param := paramInfo{name: p.Name(), offset: offset, info: p, size: sizeof(p.Type())}
 		// TODO alloc reg based on other param types
-		if slice, ok := p.Type().(*types.Slice); ok {
+		if _, ok := p.Type().(*types.Slice); ok {
+			opMem := Operand{
+				Type:   OperandType(M64),
+				Input:  true,
+				Output: false,
+				Value:  nil}
+			opReg := Operand{
+				Type:   OperandType(R64),
+				Input:  false,
+				Output: true,
+				Value:  nil}
+			ops := []*Operand{&opMem, &opReg}
+			// TODO is sizeof data always pointer size?
 			reg := f.allocReg(DataReg, pointerSize)
+			opMem.Value = memFn(param.name, offset)
+			opReg.Value = regFn(reg.name)
+			if a, err := InstAsm(f.instructionsetXmlPath, InstName(MOVQ), ops); err != nil {
+				return "", &Error{err, p.Pos()}
+			} else {
+				asm += a + "\n"
+			}
+
 			// TODO is sizeof length data always pointer size?
 			lenReg := f.allocReg(DataReg, pointerSize)
-			// TODO add assembly code for MOVs of slice to registers
-			fmt.Println("slice param:", slice)
+			opMem.Value = memFn("len", offset+pointerSize)
+			opReg.Value = regFn(lenReg.name)
+			if a, err := InstAsm(f.instructionsetXmlPath, InstName(MOVQ), ops); err != nil {
+				return "", &Error{err, p.Pos()}
+			} else {
+				asm += a + "\n"
+			}
 			param.extra = paramSlice{offset: offset, reg: reg, regValid: true, lenReg: lenReg, lenRegValid: true}
 		}
 		f.params[param.name] = param
 		offset += param.size
 	}
-	return "", nil
+	return asm, nil
 }
 
 func (f *Function) asmFunc() string {
-	fpSize := f.paramsSize()
-	funcAsm := ""
-	asm := fmt.Sprintf(`TEXT ·%v(SB),$%v-$%v
-	%v
-	RET`, f.ssa.Name(), f.paramsSize(), fpSize, funcAsm)
+	fpSize := f.localsSize()
+	funcAsm, err := f.asmParams()
+	if err != nil {
+		log.Fatal(fmt.Sprintf("Error in asmParams, msg:%v", err))
+	}
+	funcAsm = "        " + funcAsm
+	funcAsm = strings.Replace(funcAsm, "\n", "\n        ", -1)
+	asm := fmt.Sprintf(`TEXT ·%v(SB),NOSPLIT,$%v-$%v
+%v RET`, f.ssa.Name(), fpSize, f.paramsSize(), funcAsm)
 	return asm
 }
 
-func (f *Function) asmValue(value ssa.Value, dstReg *register, dstVar *varinfo) string {
+func (f *Function) asmValue(value ssa.Value, dstReg *register, dstVar *varInfo) string {
 	if dstReg == nil && dstVar == nil {
 		panic("Both dstReg & dstVar are nil!")
 	}
@@ -132,6 +183,9 @@ func (f *Function) localsSize() int {
 }
 
 func (f *Function) init() {
+	f.locals = make(map[string]varInfo)
+	f.params = make(map[string]paramInfo)
+	f.registers = make(map[register]bool)
 	f.initRegs()
 	f.initLocals()
 }
@@ -145,7 +199,9 @@ func (f *Function) initRegs() {
 func (f *Function) allocReg(t RegType, size int) register {
 	var reg register
 	found := false
-	for r, used := range f.registers {
+	for i := 0; i < len(registers); i++ {
+		r := registers[i]
+		used := f.registers[r]
 		if !used && r.typ == t {
 			reg = r
 			found = true
@@ -174,7 +230,7 @@ func (f *Function) paramsSize() int {
 }
 
 var pointerSize = 8
-var sliceSize = 16
+var sliceSize = 24
 
 func sizeof(t types.Type) int {
 	switch t.(type) {

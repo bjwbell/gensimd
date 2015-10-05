@@ -19,6 +19,7 @@ import (
 )
 
 type Function struct {
+	Indent         string
 	ssa            *ssa.Function
 	instructionset *instructionsetxml.Instructionset
 	locals         map[string]varInfo
@@ -66,6 +67,7 @@ func CreateFunction(instructionsetPath string, fn *ssa.Function) (*Function, *Er
 		return nil, &Error{Err: err}
 	}
 	f := Function{ssa: fn, instructionset: instructionset}
+	f.Indent = "        "
 	f.init()
 	return &f, nil
 }
@@ -133,7 +135,7 @@ func (f *Function) asmParams() (string, *Error) {
 			if a, err := InstAsm(f.instructionset, InstName(MOVQ), ops); err != nil {
 				return "", &Error{err, p.Pos()}
 			} else {
-				asm += a + "\n"
+				asm += f.Indent + a + "\n"
 			}
 
 			// TODO is sizeof length data always pointer size?
@@ -143,7 +145,7 @@ func (f *Function) asmParams() (string, *Error) {
 			if a, err := InstAsm(f.instructionset, InstName(MOVQ), ops); err != nil {
 				return "", &Error{err, p.Pos()}
 			} else {
-				asm += a + "\n"
+				asm += f.Indent + a + "\n"
 			}
 			param.extra = paramSlice{offset: offset, reg: reg, regValid: true, lenReg: lenReg, lenRegValid: true}
 		} else {
@@ -166,10 +168,9 @@ func (f *Function) asmFunc() (string, *Error) {
 		return "", err2
 	}
 
-	funcAsm = "        " + funcAsm + "    " + basicblocksAsm
-	funcAsm = strings.Replace(funcAsm, "\n", "\n        ", -1)
-	asm := fmt.Sprintf(`TEXT ·%v(SB),NOSPLIT,$%v-$%v
-%v RET`, f.ssa.Name(), fpSize, f.paramsSize(), funcAsm)
+	funcAsm += basicblocksAsm
+
+	asm := fmt.Sprintf("TEXT ·%v(SB),NOSPLIT,$%v-$%v\n%v", f.ssa.Name(), fpSize, f.paramsSize(), funcAsm)
 	return asm, nil
 }
 
@@ -185,7 +186,7 @@ func (f *Function) asmBasicBlock(block *ssa.BasicBlock) string {
 	asm := strconv.Itoa(block.Index) + ":\n"
 	for i := 0; i < len(block.Instrs); i++ {
 
-		asm += f.asmInstr(block.Instrs[i])
+		asm += f.Indent + f.asmInstr(block.Instrs[i])
 	}
 	return asm
 }

@@ -1,8 +1,12 @@
 package codegen
 
 type register struct {
+	// register name e.g. ax, eax, rax, r15,...
 	name string
-	typ  RegType
+	// type of register, for example xmm register, normal integer register, mmx register, etc.
+	typ RegType
+	// size of register in bits, e.g. eax is 32.
+	width int
 }
 
 type RegType int
@@ -19,34 +23,34 @@ const NumDataRegs = 14
 const NumXmmRegs = 16
 
 var registers = []register{
-	{"AX", DataReg},
-	{"CX", DataReg},
-	{"DX", DataReg},
-	{"BX", DataReg},
-	{"SI", DataReg},
-	{"DI", DataReg},
-	{"R8", DataReg},
-	{"R9", DataReg},
-	{"R10", DataReg},
-	{"R11", DataReg},
-	{"R12", DataReg},
-	{"R13", DataReg},
-	{"R14", DataReg},
-	{"R15", DataReg},
-	{"X0", XmmReg},
-	{"X1", XmmReg},
-	{"X2", XmmReg},
-	{"X3", XmmReg},
-	{"X4", XmmReg},
-	{"X5", XmmReg},
-	{"X6", XmmReg},
-	{"X7", XmmReg},
-	{"X8", XmmReg},
-	{"X9", XmmReg},
-	{"X10", XmmReg},
-	{"X11", XmmReg},
-	{"X12", XmmReg},
-	{"X13", XmmReg},
-	{"X14", XmmReg},
-	{"X15", XmmReg},
+	{"RAX", DataReg, 64},
+	{"RBX", DataReg, 64},
+	{"RCX", DataReg, 64},
+	{"RDX", DataReg, 64},
+	{"RSI", DataReg, 64},
+	{"RDI", DataReg, 64},
+	{"R8", DataReg, 64},
+	{"R9", DataReg, 64},
+	{"R10", DataReg, 64},
+	{"R11", DataReg, 64},
+	{"R12", DataReg, 64},
+	{"R13", DataReg, 64},
+	{"R14", DataReg, 64},
+	{"R15", DataReg, 64},
+	{"X0", XmmReg, 128},
+	{"X1", XmmReg, 128},
+	{"X2", XmmReg, 128},
+	{"X3", XmmReg, 128},
+	{"X4", XmmReg, 128},
+	{"X5", XmmReg, 128},
+	{"X6", XmmReg, 128},
+	{"X7", XmmReg, 128},
+	{"X8", XmmReg, 128},
+	{"X9", XmmReg, 128},
+	{"X10", XmmReg, 128},
+	{"X11", XmmReg, 128},
+	{"X12", XmmReg, 128},
+	{"X13", XmmReg, 128},
+	{"X14", XmmReg, 128},
+	{"X15", XmmReg, 128},
 }

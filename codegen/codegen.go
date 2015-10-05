@@ -207,7 +207,7 @@ func (f *Function) allocReg(t RegType, size int) register {
 	for i := 0; i < len(registers); i++ {
 		r := registers[i]
 		used := f.registers[r]
-		if !used && r.typ == t {
+		if !used && r.typ == t && r.width == size {
 			reg = r
 			found = true
 			break

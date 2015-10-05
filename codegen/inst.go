@@ -1,5 +1,7 @@
 package codegen
 
+import "log"
+
 type Operand struct {
 	Type   OperandType
 	Input  bool
@@ -11,20 +13,26 @@ type Operand struct {
 type OperandType int
 
 const (
+	// al register
 	AL = iota
+	// ax register
+	AX
+	// eax register
 	EAX
+	// rax register
+	RAX
+	// cl register
+	CL
 	// immediate
 	IMM8
 	IMM16
 	IMM32
 	IMM64
-	IMM128
 	// register instructions
 	R8
 	R16
 	R32
 	R64
-	R128
 	// memory instructions
 	M8
 	M16
@@ -32,17 +40,19 @@ const (
 	M64
 	M128
 	// xmm instructions
+	// xmm0 register
+	XMM0
+	// xmm register (xmm0-xmm31)
 	XMM
 	// used for jump instructions
 	REL8
-	REL16
 	REL32
-	REL64
 )
 
 func (op OperandType) String() string {
 	switch int(op) {
 	default:
+		log.Fatalf("Unknown OperandType: \"%v\"", int(op))
 		return ""
 	case AL:
 		return "AL"

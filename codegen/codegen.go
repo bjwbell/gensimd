@@ -39,6 +39,16 @@ func (name *nameInfo) IsSsaLocal() bool {
 	return name.local != nil && name.local.info != nil
 }
 
+func (name *nameInfo) IsPointer() bool {
+	_, ok := name.typ.(*types.Pointer)
+	return ok
+}
+
+func (name *nameInfo) IsArray() bool {
+	_, ok := name.typ.(*types.Array)
+	return ok
+}
+
 type varInfo struct {
 	name string
 	// offset from the stack pointer (SP)
@@ -317,7 +327,6 @@ func (f *Function) asmInstr(instr ssa.Instruction) string {
 		} else {
 			asm += a
 		}
-		asm += f.Indent + fmt.Sprintf("ssa.IndexAddr: %v, name: %v", i, i.Name()) + "\n"
 	case *ssa.Jump:
 		jmp := instr.(*ssa.Jump)
 		asm += f.Indent + strings.Replace(jmp.String(), "jump", "JMP ", -1) + "\n"
@@ -382,41 +391,42 @@ func (f *Function) asmIndexAddrInstr(instr *ssa.IndexAddr) (string, *Error) {
 		return "", &Error{Err: errors.New("asmIndexAddrInstr: nil instr"), Pos: instr.Pos()}
 
 	}
-	fmt.Println("ia.String:", instr.String())
-	fmt.Println("ia.Name:", instr.Name())
-	fmt.Println("ia.Type:", instr.Type())
-	fmt.Println("ia.Index:", instr.Index)
-	fmt.Println("typeof(ia.Index):", reflect.TypeOf(instr.Index).String())
-	fmt.Println("ia.Index.Name:", instr.Index.Name())
-	fmt.Println("ia.X:", instr.X)
-	name := f.ssaNames[instr.Name()]
-	assignmentToReg := f.ssaNames[instr.Name()].reg != nil
-	assignmentToLocal := !assignmentToReg && (f.ssaNames[instr.Name()].local != nil)
+	asm := ""
 	constIndex := false
-	regIndex := false
+	/*regIndex := false
 	localIndex := false
-	paramIndex := false
-	fmt.Println("assignmentToReg:", assignmentToReg)
-	fmt.Println("assignmentToLocal:", assignmentToLocal)
-
-	fmt.Println("constIndex:", constIndex)
-	fmt.Println("regIndex:", regIndex)
-	fmt.Println("localIndex:", localIndex)
-	fmt.Println("paramIndex:", paramIndex)
-
-	if assignmentToLocal {
-		return fmt.Sprintf("IndexAddrInstr assignment to local var:%v, %v", name.local, instr.Name()), nil
+	paramIndex := false*/
+	var cnst *ssa.Const
+	switch instr.Index.(type) {
+	default:
+	case *ssa.Const:
+		constIndex = true
+		cnst = instr.Index.(*ssa.Const)
+	case *ssa.Parameter:
+		/*paramIndex = true
+		param := instr.Index.(*ssa.Parameter)*/
 	}
-
-	if assignmentToReg {
-		// non-pointer type
-		if _, ok := instr.Type().(*types.Pointer); !ok {
-			return fmt.Sprintf("IndexAddrInstr instr.Type() is non-pointer type:%v", instr.Type()), nil
+	assignment := f.ssaNames[instr.Name()]
+	nameInfo := f.ssaNames[instr.X.Name()]
+	// TODO check if nameInfo is pointer, array, struct, etc.
+	//if nameInfo.IsPointer() || nameInfo.IsArray() {
+	if nameInfo.reg != nil {
+		if constIndex {
+			if assignment.reg == nil {
+				reg := f.allocReg(AddrReg, pointerSize)
+				assignment.reg = &reg
+			}
+			tmpReg := f.allocReg(DataReg, pointerSize)
+			size := uint32(sizeof(nameInfo.typ))
+			idx := uint32(cnst.Uint64())
+			asm = asmMoveRegToReg(f.Indent, nameInfo.reg, &tmpReg)
+			asm += asmAddImm32Reg(f.Indent, idx*size, &tmpReg)
+			asm += asmMoveRegToReg(f.Indent, &tmpReg, assignment.reg)
+			f.freeReg(tmpReg)
 		}
 	}
-	// TODO
-
-	return "", nil
+	f.ssaNames[instr.Name()] = assignment
+	return asm, nil
 }
 
 func (f *Function) asmAllocInstr(instr *ssa.Alloc) (string, *Error) {
@@ -452,8 +462,11 @@ func (f *Function) asmAllocInstr(instr *ssa.Alloc) (string, *Error) {
 		if a, err := InstrAsm(f.instructionset, GetInstrType(TLEA), ops); err != nil {
 			return "", &Error{err, instr.Pos()}
 		} else {
+			info.reg = &reg
+			f.ssaNames[instr.Name()] = info
 			return f.Indent + a + "\n", nil
 		}
+
 	}
 }
 

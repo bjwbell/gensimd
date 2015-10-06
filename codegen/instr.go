@@ -1576,3 +1576,27 @@ func asmCopyMemToMem(indent string, srcName string, srcOffset int, srcReg regist
 	asm := indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v+%v(%v)\n", srcName, srcOffset, srcReg.name, dstName, dstOffset, dstReg.name)
 	return asm
 }
+
+func asmMoveRegToReg(indent string, srcReg *register, dstReg *register) string {
+	if srcReg.width != 64 || dstReg.width != 64 {
+		panic("Invalid register width for asmMoveRegToReg")
+	}
+	asm := indent + fmt.Sprintf("MOVQ    %v, %v\n", srcReg.name, dstReg.name)
+	return asm
+}
+
+func asmLoadImm32(indent string, imm32 uint32, dstReg *register) string {
+	if dstReg.width < 32 {
+		panic("Invalid register width for asmLoadImm32")
+	}
+	asm := indent + fmt.Sprintf("LOADQ    $%v, %v\n", imm32, dstReg.name)
+	return asm
+}
+
+func asmAddImm32Reg(indent string, imm32 uint32, dstReg *register) string {
+	if dstReg.width < 32 {
+		panic("Invalid register width for asmAddImm32Reg")
+	}
+	asm := indent + fmt.Sprintf("ADDQ    $%v, %v\n", imm32, dstReg.name)
+	return asm
+}

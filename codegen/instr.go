@@ -1,6 +1,10 @@
 package codegen
 
-import "log"
+import (
+	"errors"
+	"fmt"
+	"log"
+)
 
 type Operand struct {
 	Type   OperandType
@@ -111,7 +115,7 @@ func (op OperandType) String() string {
 	}
 }
 
-type InstName int
+type InstrName int
 
 const (
 	AAA = iota
@@ -1501,6 +1505,71 @@ var InstructionNames = []string{
 	"LAST",
 }
 
-func (name InstName) String() string {
+func (name InstrName) String() string {
 	return InstructionNames[int(name)]
+}
+
+func GetInstrName(name string) (InstrName, error) {
+	for i, n := range InstructionNames {
+		if n == name {
+			return InstrName(i), nil
+		}
+	}
+	return InstrName(0), errors.New(fmt.Sprintf("Couldn't find InstrName for instr:%v", name))
+}
+
+// asmZeroMemory generates "MOVQ $0, name+offset(REG)" instructions
+func asmZeroMemory(indent string, name string, offset int, size int, reg register) string {
+	if reg.width != 64 {
+		panic(fmt.Sprintf("Invalid register width (%v) for asmZeroMemory", reg.width))
+	}
+	if size%(reg.width/8) != 0 {
+		panic(fmt.Sprintf("Size (%v) not multiple of reg.width (%v)", size, reg.width/8))
+	}
+	asm := ""
+	for i := 0; i < size/(reg.width/8); i++ {
+		asm += indent + fmt.Sprintf("MOVQ    $0, %v+%v(%v)\n", name, i*reg.width/8+offset, reg.name)
+	}
+	return asm
+}
+
+func asmCopyRegValueToMemory(indent string, reg register, name string, offset int, memReg register) string {
+	if reg.width != 64 || memReg.width != 64 {
+		panic(fmt.Sprintf("Invalid register width (%v) for asmCopyRegValueToMemory", reg.width))
+	}
+	asm := indent + fmt.Sprintf("MOVQ    %v, %v+%v(%v)\n", reg.name, name, offset, memReg.name)
+	return asm
+}
+
+func asmCopyIndirectRegToMemory(indent string, reg register, regOffset int, name string, memOffset int, memReg register) string {
+	if reg.width != 64 || memReg.width != 64 {
+		panic("Invalid register width for asmCopyIndirectRegToMemory")
+	}
+	asm := indent + fmt.Sprintf("MOVQ    %v(%v), %v+%v(%v)\n", regOffset, reg.name, name, memOffset, memReg.name)
+	return asm
+}
+
+func asmCopyMemoryToReg(indent string, name string, offset int, memReg register, reg register) string {
+	if reg.width != 64 || memReg.width != 64 {
+		panic(fmt.Sprintf("Invalid register width (%v) for asmCopyRegValueToMemory", reg.width))
+	}
+	asm := indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v\n", name, offset, memReg.name, reg.name)
+	return asm
+}
+
+func asmCopyIndirectMemToReg(indent string, name string, memOffset int, memReg register, reg register) string {
+	if reg.width != 64 || memReg.width != 64 {
+		panic("Invalid register width for asmCopyIndirectRegValueToMemory")
+	}
+	asm := indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v\n", name, memOffset, memReg.name, reg.name)
+	asm += indent + fmt.Sprintf("MOVQ    (%v), %v\n", reg.name, reg.name)
+	return asm
+}
+
+func asmCopyMemToMem(indent string, srcName string, srcOffset int, srcReg register, dstName string, dstOffset int, dstReg register) string {
+	if srcReg.width != 64 || dstReg.width != 64 {
+		panic("Invalid register width for asmCopyIndirectRegValueToMemory")
+	}
+	asm := indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v+%v(%v)\n", srcName, srcOffset, srcReg.name, dstName, dstOffset, dstReg.name)
+	return asm
 }

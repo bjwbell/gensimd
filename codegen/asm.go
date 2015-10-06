@@ -8,11 +8,53 @@ import (
 	"github.com/bjwbell/gensimd/codegen/instructionsetxml"
 )
 
-func InstAsm(set *instructionsetxml.Instructionset, name InstName, ops []*Operand) (string, error) {
-	return InstructionSetAsm(set, name, ops)
+func FindInstr(set *instructionsetxml.Instructionset, typ InstrType, ops []*Operand) (InstrName, error) {
+	var instr *instructionsetxml.Instruction
+	var form *instructionsetxml.InstructionForm
+
+	for _, inst := range set.Instructions {
+		if typ.String() == inst.Name {
+			instr = &inst
+			break
+		}
+	}
+	if instr == nil {
+		return 0, errors.New(fmt.Sprintf("Couldn't find match in instructionset for instr:%v", typ.String()))
+	}
+	for _, fm := range instr.Forms {
+		if OperandsMatch(ops, fm.Operands) {
+			form = &fm
+			break
+		}
+
+	}
+	if form == nil {
+		fmt.Println("InstrName:", typ.String())
+		for _, op := range ops {
+			fmt.Println("op:", op)
+		}
+		return 0, errors.New(fmt.Sprintf("No matched instr form for instr:%v", instr))
+	}
+	if instrName, err := GetInstrName(form.GoName); err != nil {
+		return instrName, errors.New(fmt.Sprintf("No InstrName for form.GoName:%v", form.GoName))
+	} else {
+		return instrName, nil
+	}
 }
 
-func InstructionSetAsm(set *instructionsetxml.Instructionset, name InstName, ops []*Operand) (string, error) {
+func InstrAsm(set *instructionsetxml.Instructionset, typ InstrType, ops []*Operand) (string, error) {
+	if instrName, err := FindInstr(set, GetInstrType(TMOV), ops); err != nil {
+		return "", err
+	} else {
+		if a, err := InstructionSetAsm(set, instrName, ops); err != nil {
+			return "", err
+		} else {
+			return a, nil
+		}
+	}
+}
+
+func InstructionSetAsm(set *instructionsetxml.Instructionset, name InstrName, ops []*Operand) (string, error) {
 	var form *instructionsetxml.InstructionForm
 	for _, inst := range set.Instructions {
 		for _, fm := range inst.Forms {
@@ -32,7 +74,7 @@ func InstructionSetAsm(set *instructionsetxml.Instructionset, name InstName, ops
 		}
 	}
 	if form == nil {
-		fmt.Println("InstName:", name.String())
+		fmt.Println("InstrName:", name.String())
 		for _, op := range ops {
 			fmt.Println("op:", op)
 		}

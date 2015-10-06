@@ -5,7 +5,7 @@ type register struct {
 	name string
 	// type of register, for example xmm register, normal integer register, mmx register, etc.
 	typ RegType
-	// size of register in bits, e.g. eax is 32.
+	// width of register in bits, e.g. eax is 32.
 	width int
 }
 
@@ -18,11 +18,13 @@ const (
 	AddrReg
 	// Stack pointer register
 	SpReg
+	// Frame pointer register
+	FpReg
 	// xmm register
 	XmmReg
 )
 
-// width in bytes
+// size in bytes
 const DataRegSize = 8
 const XmmRegSize = 16
 

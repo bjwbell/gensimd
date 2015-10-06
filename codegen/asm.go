@@ -29,7 +29,7 @@ func FindInstr(set *instructionsetxml.Instructionset, typ InstrType, ops []*Oper
 
 	}
 	if form == nil {
-		fmt.Println("InstrName:", typ.String())
+		fmt.Println("Couldn't find instr form match for, InstrName:", typ.String())
 		for _, op := range ops {
 			fmt.Println("op:", op)
 		}
@@ -43,7 +43,7 @@ func FindInstr(set *instructionsetxml.Instructionset, typ InstrType, ops []*Oper
 }
 
 func InstrAsm(set *instructionsetxml.Instructionset, typ InstrType, ops []*Operand) (string, error) {
-	if instrName, err := FindInstr(set, GetInstrType(TMOV), ops); err != nil {
+	if instrName, err := FindInstr(set, typ, ops); err != nil {
 		return "", err
 	} else {
 		if a, err := InstructionSetAsm(set, instrName, ops); err != nil {
@@ -87,18 +87,24 @@ func OperandsMatch(ops []*Operand, xmlOps []instructionsetxml.Operand) bool {
 	if len(ops) != len(xmlOps) {
 		return false
 	}
+	matched := make(map[int]int)
 	for i, xOp := range xmlOps {
-		op := ops[i]
-		opType := strings.ToLower(op.Type.String())
-		xType := strings.ToLower(xOp.Type)
-		if opType != xType {
-			return false
-		}
-		if op.Input == xOp.Input && op.Output == xOp.Output {
-			return false
+		for j, op := range ops {
+			if _, ok := matched[j]; ok {
+				continue
+			}
+			opType := strings.ToLower(op.Type.String())
+			xType := strings.ToLower(xOp.Type)
+			if opType != xType {
+				continue
+			}
+			if op.Input != xOp.Input || op.Output != xOp.Output {
+				continue
+			}
+			matched[j] = i
 		}
 	}
-	return true
+	return len(matched) == len(ops)
 }
 
 func InstructionFormAsm(form *instructionsetxml.InstructionForm, ops []*Operand) string {

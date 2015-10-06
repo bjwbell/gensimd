@@ -24,15 +24,19 @@ type Function struct {
 	ssa            *ssa.Function
 	instructionset *instructionsetxml.Instructionset
 	registers      map[register]bool // maps register to false if unused and true if used
-	ssaNames       map[string]ssaInfo
+	ssaNames       map[string]nameInfo
 }
 
-type ssaInfo struct {
+type nameInfo struct {
 	name  string
 	typ   types.Type
 	reg   *register
 	local *varInfo
 	param *paramInfo
+}
+
+func (name *nameInfo) IsSsaLocal() bool {
+	return name.local != nil && name.local.info != nil
 }
 
 type varInfo struct {
@@ -140,7 +144,7 @@ func (f *Function) asmParams() (string, *Error) {
 			}
 			// TODO is sizeof length data always pointer size?
 			lenReg := f.allocReg(AddrReg, pointerSize)
-			opMem.Value = memFn("len", offset+pointerSize, "FP")
+			opMem.Value = memFn(param.name+"len", offset+pointerSize, "FP")
 			opReg.Value = regFn(lenReg.name)
 			if a, err := InstrAsm(f.instructionset, GetInstrType(TMOV), ops); err != nil {
 				return "", &Error{err, p.Pos()}
@@ -161,14 +165,13 @@ func (f *Function) asmParams() (string, *Error) {
 		} else {
 			return "", &Error{Err: errors.New("Unsupported param type"), Pos: p.Pos()}
 		}
-		f.ssaNames[param.name] = ssaInfo{name: param.name, typ: param.info.Type(), local: nil, param: &param}
+		f.ssaNames[param.name] = nameInfo{name: param.name, typ: param.info.Type(), local: nil, param: &param}
 		offset += param.size
 	}
 	return asm, nil
 }
 
 func (f *Function) asmFunc() (string, *Error) {
-	frameSize := f.localsSize()
 	asm, err := f.asmParams()
 	if err != nil {
 		return "", err
@@ -177,24 +180,29 @@ func (f *Function) asmFunc() (string, *Error) {
 	if err != nil {
 		return "", err
 	}
-	zeroLocals, err := f.asmZeroLocals()
+	zeroSsaLocals, err := f.asmZeroSsaLocals()
 	if err != nil {
 		return "", err
 	}
-
 	basicblocks, err := f.asmBasicBlocks()
 	if err != nil {
 		return "", err
 	}
+	zeroNonSsaLocals, err := f.asmZeroNonSsaLocals()
+	if err != nil {
+		return "", err
+	}
+	frameSize := f.localsSize()
 	asm += zeroRetValue
-	asm += zeroLocals
+	asm += zeroSsaLocals
+	asm += zeroNonSsaLocals
 	asm += basicblocks
 
 	a := fmt.Sprintf("TEXT ·%v(SB),NOSPLIT,$%v-%v\n%v", f.ssa.Name(), frameSize, f.paramsSize()+f.retSize(), asm)
 	return a, nil
 }
 
-func (f *Function) asmZeroLocals() (string, *Error) {
+func (f *Function) asmZeroSsaLocals() (string, *Error) {
 	asm := ""
 	offset := 0
 	locals := f.ssa.Locals
@@ -212,8 +220,20 @@ func (f *Function) asmZeroLocals() (string, *Error) {
 		size := sizeof(typ)
 		asm += asmZeroMemory(f.Indent, local.Name(), offset, size, sp)
 		v := varInfo{name: local.Name(), offset: offset, size: size, info: local}
-		f.ssaNames[v.name] = ssaInfo{name: v.name, typ: typ, reg: nil, local: &v, param: nil}
+		f.ssaNames[v.name] = nameInfo{name: v.name, typ: typ, reg: nil, local: &v, param: nil}
 		offset += size
+	}
+	return asm, nil
+}
+
+func (f *Function) asmZeroNonSsaLocals() (string, *Error) {
+	asm := ""
+	for _, name := range f.ssaNames {
+		if name.local == nil || name.IsSsaLocal() {
+			continue
+		}
+		sp := register{"SP", AddrReg, pointerSize * 8}
+		asm += asmZeroMemory(f.Indent, name.name, name.local.offset, name.local.size, sp)
 	}
 	return asm, nil
 }
@@ -369,25 +389,31 @@ func (f *Function) asmIndexAddrInstr(instr *ssa.IndexAddr) (string, *Error) {
 	fmt.Println("typeof(ia.Index):", reflect.TypeOf(instr.Index).String())
 	fmt.Println("ia.Index.Name:", instr.Index.Name())
 	fmt.Println("ia.X:", instr.X)
+	name := f.ssaNames[instr.Name()]
+	assignmentToReg := f.ssaNames[instr.Name()].reg != nil
+	assignmentToLocal := !assignmentToReg && (f.ssaNames[instr.Name()].local != nil)
+	constIndex := false
+	regIndex := false
+	localIndex := false
+	paramIndex := false
+	fmt.Println("assignmentToReg:", assignmentToReg)
+	fmt.Println("assignmentToLocal:", assignmentToLocal)
 
-	// assignment to local var
-	if info, ok := f.ssaNames[instr.Name()]; ok && info.local != nil {
+	fmt.Println("constIndex:", constIndex)
+	fmt.Println("regIndex:", regIndex)
+	fmt.Println("localIndex:", localIndex)
+	fmt.Println("paramIndex:", paramIndex)
 
-		return fmt.Sprintf("IndexAddrInstr assignment to local var:%v, %v", info.local, instr.Name()), nil
+	if assignmentToLocal {
+		return fmt.Sprintf("IndexAddrInstr assignment to local var:%v, %v", name.local, instr.Name()), nil
 	}
 
-	// assignment to register
-	//
-	//
-
-	// non-pointer type
-	if _, ok := instr.Type().(*types.Pointer); !ok {
-		return fmt.Sprintf("IndexAddrInstr instr.Type() is non-pointer type:%v", instr.Type()), nil
+	if assignmentToReg {
+		// non-pointer type
+		if _, ok := instr.Type().(*types.Pointer); !ok {
+			return fmt.Sprintf("IndexAddrInstr instr.Type() is non-pointer type:%v", instr.Type()), nil
+		}
 	}
-
-	// pointer-type
-	//
-	//
 	// TODO
 
 	return "", nil
@@ -408,15 +434,26 @@ func (f *Function) asmAllocInstr(instr *ssa.Alloc) (string, *Error) {
 	if info.local == nil {
 		panic(fmt.Sprintf("Expect %v to be a local variable", instr.Name()))
 	}
-
-	opMem := Operand{Type: OperandType(M64), Input: true, Output: false, Value: memFn(info.name, info.local.offset, "SP")}
-	reg := f.allocReg(AddrReg, pointerSize)
-	opReg := Operand{Type: OperandType(R64), Input: false, Output: true, Value: regFn(reg.name)}
-	ops := []*Operand{&opMem, &opReg}
-	if a, err := InstrAsm(f.instructionset, GetInstrType(TMOV), ops); err != nil {
-		return "", &Error{err, instr.Pos()}
+	if _, ok := info.typ.(*types.Pointer); ok {
+		opMem := Operand{Type: OperandType(M64), Input: true, Output: false, Value: memFn(info.name, info.local.offset, "SP")}
+		reg := f.allocReg(AddrReg, pointerSize)
+		opReg := Operand{Type: OperandType(R64), Input: false, Output: true, Value: regFn(reg.name)}
+		ops := []*Operand{&opMem, &opReg}
+		if a, err := InstrAsm(f.instructionset, GetInstrType(TMOV), ops); err != nil {
+			return "", &Error{err, instr.Pos()}
+		} else {
+			return f.Indent + a + "\n", nil
+		}
 	} else {
-		return f.Indent + a + "\n", nil
+		opMem := Operand{Type: OperandType(M), Input: true, Output: false, Value: memFn(info.name, info.local.offset, "SP")}
+		reg := f.allocReg(AddrReg, pointerSize)
+		opReg := Operand{Type: OperandType(R64), Input: false, Output: true, Value: regFn(reg.name)}
+		ops := []*Operand{&opMem, &opReg}
+		if a, err := InstrAsm(f.instructionset, GetInstrType(TLEA), ops); err != nil {
+			return "", &Error{err, instr.Pos()}
+		} else {
+			return f.Indent + a + "\n", nil
+		}
 	}
 }
 
@@ -448,7 +485,7 @@ func (f *Function) localsSize() int {
 
 func (f *Function) init() *Error {
 	f.registers = make(map[register]bool)
-	f.ssaNames = make(map[string]ssaInfo)
+	f.ssaNames = make(map[string]nameInfo)
 	f.initRegs()
 	return nil
 }

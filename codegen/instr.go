@@ -38,6 +38,7 @@ const (
 	R32
 	R64
 	// memory instructions
+	M // any size
 	M8
 	M16
 	M32
@@ -90,6 +91,8 @@ func (op OperandType) String() string {
 		return "R64"
 
 		// memory instructions
+	case M:
+		return "M"
 	case M8:
 		return "M8"
 	case M16:

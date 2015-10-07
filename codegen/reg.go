@@ -6,7 +6,7 @@ type register struct {
 	// type of register, for example xmm register, normal integer register, mmx register, etc.
 	typ RegType
 	// width of register in bits, e.g. eax is 32.
-	width int
+	width uint
 }
 
 type RegType int

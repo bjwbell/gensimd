@@ -4,14 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
-	"log"
 	"strconv"
 	"strings"
 
 	"golang.org/x/tools/go/types"
 
 	"reflect"
-	"unsafe"
 
 	"github.com/bjwbell/gensimd/codegen/instructionsetxml"
 	"github.com/bjwbell/gensimd/simd"
@@ -28,11 +26,29 @@ type Function struct {
 }
 
 type nameInfo struct {
-	name  string
-	typ   types.Type
-	reg   *register
+	name string
+	typ  types.Type
+	//reg   *register
 	local *varInfo
 	param *paramInfo
+}
+
+// RegAndOffset returns the register and offset to access the nameInfo memory.
+// For locals the register is the stack pointer (SP) and for params the register
+// is the frame pointer (FP).
+func (name *nameInfo) MemRegOffsetSize() (reg register, offset uint, size uint) {
+	if name.local != nil {
+		reg = register{"SP", AddrReg, 64}
+		offset = name.local.offset
+		size = name.local.size
+	} else if name.param != nil {
+		reg = register{"FP", AddrReg, 64}
+		offset = name.param.offset
+		size = name.param.size
+	} else {
+		panic(fmt.Sprintf("nameInfo (%v) is not a local or param", name))
+	}
+	return
 }
 
 func (name *nameInfo) IsSsaLocal() bool {
@@ -44,27 +60,53 @@ func (name *nameInfo) IsPointer() bool {
 	return ok
 }
 
+func (name *nameInfo) PointerUnderlyingType() types.Type {
+	if !name.IsPointer() {
+		panic(fmt.Sprintf("nameInfo (%v) not pointer type in PointerUnderlyingType", name))
+	}
+	ptrType := name.typ.(*types.Pointer)
+	return ptrType.Elem()
+}
+
 func (name *nameInfo) IsArray() bool {
 	_, ok := name.typ.(*types.Array)
 	return ok
 }
 
+func (name *nameInfo) IsSlice() bool {
+	_, ok := name.typ.(*types.Slice)
+	return ok
+}
+
+func (name *nameInfo) IsBasic() bool {
+	_, ok := name.typ.(*types.Basic)
+	return ok
+}
+
+func (name *nameInfo) IsInteger() bool {
+	if !name.IsBasic() {
+		return false
+	}
+	t := name.typ.(*types.Basic)
+	return t.Info()&types.IsInteger == types.IsInteger
+}
+
 type varInfo struct {
 	name string
 	// offset from the stack pointer (SP)
-	offset int
-	size   int
+	offset uint
+	size   uint
 	info   *ssa.Alloc
-	reg    *register
+	//reg    *register
 }
 
-func (v *varInfo) Reg() (*register, error) {
+/*func (v *varInfo) Reg() (*register, error) {
 	if v.reg != nil {
 		return v.reg, nil
 	} else {
 		return nil, errors.New("varInfo has no reg set")
 	}
-}
+}*/
 
 func (v *varInfo) ssaName() string {
 	return v.info.Name()
@@ -73,31 +115,29 @@ func (v *varInfo) ssaName() string {
 type paramInfo struct {
 	name string
 	// offset from the frame pointer (FP)
-	offset int
-	size   int
+	offset uint
+	size   uint
 	info   *ssa.Parameter
 	extra  interface{}
 }
 
-func (p *paramInfo) Reg() (*register, error) {
+/*func (p *paramInfo) Reg() (*register, error) {
 	if p.extra != nil {
 		return &p.extra.(*paramSlice).reg, nil
 	} else {
 		return nil, errors.New("param p has no register set")
 	}
-}
+}*/
 
 func (p *paramInfo) ssaName() string {
 	return p.info.Name()
 }
 
 type paramSlice struct {
-	offset      int
-	lenOffset   int
-	reg         register
-	regValid    bool
-	lenReg      register
-	lenRegValid bool
+	//offset uint
+	lenOffset uint
+	/*reg       register
+	lenReg    register*/
 }
 
 type Error struct {
@@ -123,7 +163,7 @@ func (f *Function) GoAssembly() (string, *Error) {
 	return f.asmFunc()
 }
 
-func memFn(name string, offset int, regName string) func() string {
+func memFn(name string, offset uint, regName string) func() string {
 	return func() string {
 		return fmt.Sprintf("%v+%v(%v)", name, offset, regName)
 	}
@@ -136,16 +176,17 @@ func regFn(name string) func() string {
 }
 
 func (f *Function) asmParams() (string, *Error) {
-	// offset in bytes
-	offset := 0
+	// offset in bytes from frame pointer (FP)
+	offset := uint(0)
 	asm := ""
+	//var reg *register
 	for _, p := range f.ssa.Params {
 		param := paramInfo{name: p.Name(), offset: offset, info: p, size: sizeof(p.Type())}
 		// TODO alloc reg based on other param types
 		if _, ok := p.Type().(*types.Slice); ok {
-			opMem := Operand{Type: OperandType(M64), Input: true, Output: false, Value: memFn(param.name, offset, "FP")}
-			reg := f.allocReg(AddrReg, pointerSize)
-			opReg := Operand{Type: OperandType(R64), Input: false, Output: true, Value: regFn(reg.name)}
+			/*opMem := Operand{Type: OperandType(M64), Input: true, Output: false, Value: memFn(param.name, offset, "FP")}
+			r := f.allocReg(AddrReg, pointerSize)
+			opReg := Operand{Type: OperandType(R64), Input: false, Output: true, Value: regFn(r.name)}
 			ops := []*Operand{&opMem, &opReg}
 			if a, err := InstrAsm(f.instructionset, GetInstrType(TMOV), ops); err != nil {
 				return "", &Error{err, p.Pos()}
@@ -160,49 +201,60 @@ func (f *Function) asmParams() (string, *Error) {
 				return "", &Error{err, p.Pos()}
 			} else {
 				asm += f.Indent + a + "\n"
-			}
-			param.extra = paramSlice{offset: offset, reg: reg, regValid: true, lenReg: lenReg, lenRegValid: true}
+			}*/
+			param.extra = paramSlice{lenOffset: offset + pointerSize} //,reg: r, lenReg: lenReg}
+			//reg = &r
 		} else if basic, ok := p.Type().(*types.Basic); ok && basic.Kind() == types.Int {
-			opMem := Operand{Type: OperandType(M64), Input: true, Output: false, Value: memFn(param.name, offset, "FP")}
-			reg := f.allocReg(DataReg, intSize())
-			opReg := Operand{Type: OperandType(R64), Input: false, Output: true, Value: regFn(reg.name)}
+			/*opMem := Operand{Type: OperandType(M64), Input: true, Output: false, Value: memFn(param.name, offset, "FP")}
+			r := f.allocReg(DataReg, intSize())
+			opReg := Operand{Type: OperandType(R64), Input: false, Output: true, Value: regFn(r.name)}
 			ops := []*Operand{&opMem, &opReg}
 			if a, err := InstrAsm(f.instructionset, GetInstrType(TMOV), ops); err != nil {
 				return "", &Error{err, p.Pos()}
 			} else {
 				asm += f.Indent + a + "\n"
 			}
+			reg = &r*/
 		} else {
 			return "", &Error{Err: errors.New("Unsupported param type"), Pos: p.Pos()}
 		}
-		f.ssaNames[param.name] = nameInfo{name: param.name, typ: param.info.Type(), local: nil, param: &param}
+		f.ssaNames[param.name] = nameInfo{name: param.name, typ: param.info.Type(),
+			//reg: reg,
+			local: nil, param: &param}
 		offset += param.size
 	}
 	return asm, nil
 }
 
 func (f *Function) asmFunc() (string, *Error) {
-	asm, err := f.asmParams()
+
+	params, err := f.asmParams()
 	if err != nil {
-		return "", err
+		return params, err
 	}
+
 	zeroRetValue, err := f.asmZeroRetValue()
 	if err != nil {
-		return "", err
+		return params + zeroRetValue, err
 	}
+
 	zeroSsaLocals, err := f.asmZeroSsaLocals()
 	if err != nil {
-		return "", err
+		return params + zeroRetValue + zeroSsaLocals, err
 	}
+
 	basicblocks, err := f.asmBasicBlocks()
 	if err != nil {
-		return "", err
+		return params + zeroRetValue + zeroSsaLocals + basicblocks, err
 	}
+
 	zeroNonSsaLocals, err := f.asmZeroNonSsaLocals()
 	if err != nil {
-		return "", err
+		return zeroNonSsaLocals, err
 	}
+
 	frameSize := f.localsSize()
+	asm := params
 	asm += zeroRetValue
 	asm += zeroSsaLocals
 	asm += zeroNonSsaLocals
@@ -214,14 +266,14 @@ func (f *Function) asmFunc() (string, *Error) {
 
 func (f *Function) asmZeroSsaLocals() (string, *Error) {
 	asm := ""
-	offset := 0
+	offset := uint(0)
 	locals := f.ssa.Locals
 	for _, local := range locals {
 		if local.Heap {
 			msg := errors.New(fmt.Sprintf("Can't heap alloc local, name: %v", local.Name()))
 			return "", &Error{Err: msg, Pos: local.Pos()}
 		}
-		sp := register{"SP", AddrReg, pointerSize * 8}
+		sp := register{"SP", AddrReg, pointerSize * uint(8)}
 
 		//local values are always addresses, and have pointer types, so the type
 		//of the allocated variable is actually
@@ -230,10 +282,23 @@ func (f *Function) asmZeroSsaLocals() (string, *Error) {
 		size := sizeof(typ)
 		asm += asmZeroMemory(f.Indent, local.Name(), offset, size, sp)
 		v := varInfo{name: local.Name(), offset: offset, size: size, info: local}
-		f.ssaNames[v.name] = nameInfo{name: v.name, typ: typ, reg: nil, local: &v, param: nil}
+		f.ssaNames[v.name] = nameInfo{name: v.name, typ: typ,
+			//reg: nil,
+			local: &v, param: nil}
 		offset += size
 	}
 	return asm, nil
+}
+
+func (f *Function) asmAllocLocal(name string, typ types.Type) (local nameInfo, err *Error) {
+	v := varInfo{name: name, offset: f.localsSize(), size: sizeof(typ), info: nil}
+	info := nameInfo{name: name, typ: typ, param: nil, local: &v}
+	f.ssaNames[v.name] = info
+	// zeroing the memory is done at the beginning of the function
+	//asmZeroMemory(f.Indent, v.name, v.offset, v.size, sp)
+	local = info
+	err = nil
+	return
 }
 
 func (f *Function) asmZeroNonSsaLocals() (string, *Error) {
@@ -256,181 +321,276 @@ func (f *Function) asmZeroRetValue() (string, *Error) {
 func (f *Function) asmBasicBlocks() (string, *Error) {
 	asm := ""
 	for i := 0; i < len(f.ssa.Blocks); i++ {
-		asm += f.asmBasicBlock(f.ssa.Blocks[i])
+		a, err := f.asmBasicBlock(f.ssa.Blocks[i])
+		asm += a
+		if err != nil {
+			return asm, err
+		}
 	}
 	return asm, nil
 }
 
-func (f *Function) asmBasicBlock(block *ssa.BasicBlock) string {
+func (f *Function) asmBasicBlock(block *ssa.BasicBlock) (string, *Error) {
 	asm := strconv.Itoa(block.Index) + ":\n"
 	for i := 0; i < len(block.Instrs); i++ {
+		a, err := f.asmInstr(block.Instrs[i])
+		asm += a
+		if err != nil {
+			return asm, err
+		}
 
-		asm += f.asmInstr(block.Instrs[i])
 	}
-	return asm
+	return asm, nil
 }
 
-func (f *Function) asmInstr(instr ssa.Instruction) string {
+func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
+
 	if instr == nil {
 		panic("Nil instr in asmInstr")
 	}
 	asm := ""
-	switch instr.(type) {
+
+	switch instr := instr.(type) {
 	default:
-		asm += f.Indent + fmt.Sprintf("Unknown ssa instruction: %v", instr)
+		asm += f.Indent + fmt.Sprintf("Unknown ssa instruction: %v\n", instr)
 	case *ssa.Alloc:
-		i := instr.(*ssa.Alloc)
-		if a, err := f.asmAllocInstr(i); err != nil {
-			log.Fatal("Error in f.asmAllocInstr")
-			return ""
+		if a, err := f.asmAllocInstr(instr); err != nil {
+			//log.Fatal("Error in f.asmAllocInstr")
+			return a, err
 		} else {
 			asm += a
 		}
 	case *ssa.BinOp:
-		i := instr.(*ssa.BinOp)
-		asm += f.Indent + fmt.Sprintf("ssa.BinOp: %v, name: %v", instr, i.Name()) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.BinOp: %v, name: %v\n", instr, instr.Name())
 	case *ssa.Call:
-		i := instr.(*ssa.Call)
-		asm += f.Indent + fmt.Sprintf("ssa.Call: %v, name: %v", instr, i.Name()) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.Call: %v, name: %v\n", instr, instr.Name())
 	case *ssa.ChangeInterface:
-		i := instr.(*ssa.ChangeInterface)
-		asm += f.Indent + fmt.Sprintf("ssa.ChangeInterface: %v, name: %v", instr, i.Name()) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.ChangeInterface: %v, name: %v\n", instr, instr.Name())
 	case *ssa.ChangeType:
-		i := instr.(*ssa.ChangeType)
-		asm += f.Indent + fmt.Sprintf("ssa.ChangeType: %v, name: %v", instr, i.Name()) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.ChangeType: %v, name: %v\n", instr, instr.Name())
 	case *ssa.Convert:
-		i := instr.(*ssa.Convert)
-		asm += f.Indent + fmt.Sprintf("ssa.Convert: %v, name: %v", instr, i.Name()) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.Convert: %v, name: %v\n", instr, instr.Name())
 	case *ssa.Defer:
-		asm += f.Indent + fmt.Sprintf("ssa.Defer: %v", instr) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.Defer: %v\n", instr)
 	case *ssa.Extract:
-		i := instr.(*ssa.Extract)
-		asm += f.Indent + fmt.Sprintf("ssa.Extra: %v, name: %v", instr, i.Name()) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.Extra: %v, name: %v\n", instr, instr.Name())
 	case *ssa.Field:
-		i := instr.(*ssa.Field)
-		asm += f.Indent + fmt.Sprintf("ssa.Field: %v, name: %v", instr, i.Name()) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.Field: %v, name: %v\n", instr, instr.Name())
 	case *ssa.FieldAddr:
-		i := instr.(*ssa.FieldAddr)
-		asm += f.Indent + fmt.Sprintf("ssa.FieldAddr: %v, name: %v", instr, i.Name()) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.FieldAddr: %v, name: %v\n", instr, instr.Name())
 	case *ssa.Go:
-		asm += f.Indent + fmt.Sprintf("ssa.Go: %v", instr) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.Go: %v\n", instr)
 	case *ssa.If:
-		asm += f.Indent + fmt.Sprintf("ssa.If: %v", instr) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.If: %v\n", instr)
 	case *ssa.Index:
-		i := instr.(*ssa.Index)
-		asm += f.Indent + fmt.Sprintf("ssa.Index: %v, name: %v", instr, i.Name()) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.Index: %v, name: %v\n", instr, instr.Name())
 	case *ssa.IndexAddr:
-		i := instr.(*ssa.IndexAddr)
-		if a, err := f.asmIndexAddrInstr(i); err != nil {
-			log.Fatal("Error in f.asmIndexAddrInstr")
-			return ""
+		if a, err := f.asmIndexAddr(instr); err != nil {
+			return a, err
 		} else {
-			asm += f.Indent + fmt.Sprintf("// ssa.IndexAddr: %v, name: %v", i, i.Name()) + "\n"
+			asm += f.Indent + fmt.Sprintf("// ssa.IndexAddr: %v, name: %v\n", instr, instr.Name())
 			asm += a
 		}
 	case *ssa.Jump:
-		jmp := instr.(*ssa.Jump)
-		asm += f.Indent + strings.Replace(jmp.String(), "jump", "JMP ", -1) + "\n"
+		asm += f.Indent + strings.Replace(instr.String(), "jump", "JMP ", -1) + "\n"
 	case *ssa.Lookup:
-		i := instr.(*ssa.Lookup)
-		asm += f.Indent + fmt.Sprintf("ssa.Lookup: %v, name: %v", instr, i.Name()) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.Lookup: %v, name: %v\n", instr, instr.Name())
 	case *ssa.MakeChan:
-		i := instr.(*ssa.MakeChan)
-		asm += f.Indent + fmt.Sprintf("ssa.MakeChan: %v, name: %v", instr, i.Name()) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.MakeChan: %v, name: %v\n", instr, instr.Name())
 	case *ssa.MakeClosure:
-		i := instr.(*ssa.MakeClosure)
-		asm += f.Indent + fmt.Sprintf("ssa.MakeClosure: %v, name: %v", instr, i.Name()) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.MakeClosure: %v, name: %v\n", instr, instr.Name())
 	case *ssa.MakeInterface:
-		i := instr.(*ssa.MakeInterface)
-		asm += f.Indent + fmt.Sprintf("ssa.MakeInterface: %v, name: %v", instr, i.Name()) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.MakeInterface: %v, name: %v\n", instr, instr.Name())
 	case *ssa.MakeMap:
-		i := instr.(*ssa.MakeMap)
-		asm += f.Indent + fmt.Sprintf("ssa.MakeMap: %v, name: %v", instr, i.Name()) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.MakeMap: %v, name: %v\n", instr, instr.Name())
 	case *ssa.MakeSlice:
-		i := instr.(*ssa.MakeSlice)
-		asm += f.Indent + fmt.Sprintf("ssa.MakeSlice: %v, name: %v", instr, i.Name()) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.MakeSlice: %v, name: %v\n", instr, instr.Name())
 	case *ssa.MapUpdate:
-		asm += f.Indent + fmt.Sprintf("ssa.MapUpdate: %v", instr) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.MapUpdate: %v\n", instr)
 	case *ssa.Next:
-		i := instr.(*ssa.Next)
-		asm += f.Indent + fmt.Sprintf("ssa.Next: %v, name: %v", instr, i.Name()) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.Next: %v, name: %v\n", instr, instr.Name())
 	case *ssa.Panic:
 		asm += f.Indent + fmt.Sprintf("ssa.Panic: %v", instr) + "\n"
 	case *ssa.Phi:
-		i := instr.(*ssa.Phi)
-		asm += f.Indent + fmt.Sprintf("ssa.Phi: %v, name: %v", instr, i.Name()) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.Phi: %v, name: %v\n", instr, instr.Name())
 	case *ssa.Range:
-		i := instr.(*ssa.Range)
-		asm += f.Indent + fmt.Sprintf("ssa.Range: %v, name: %v", instr, i.Name()) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.Range: %v, name: %v\n", instr, instr.Name())
 	case *ssa.Return:
 		asm += f.Indent + fmt.Sprintf("ssa.Return: %v", instr) + "\n"
 	case *ssa.RunDefers:
 		asm += f.Indent + fmt.Sprintf("ssa.RunDefers: %v", instr) + "\n"
 	case *ssa.Select:
-		i := instr.(*ssa.Select)
-		asm += f.Indent + fmt.Sprintf("ssa.Select: %v, name: %v", instr, i.Name()) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.Select: %v, name: %v\n", instr, instr.Name())
 	case *ssa.Send:
 		asm += f.Indent + fmt.Sprintf("ssa.Send: %v", instr) + "\n"
 	case *ssa.Slice:
-		i := instr.(*ssa.Slice)
-		asm += f.Indent + fmt.Sprintf("ssa.Slice: %v, name: %v", instr, i.Name()) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.Slice: %v, name: %v\n", instr, instr.Name())
 	case *ssa.Store:
-		i := instr.(*ssa.Store)
-		asm += f.Indent + fmt.Sprintf("ssa.Store: %v, addr: %v, val: %v", instr, i.Addr, i.Val) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.Store: %v, addr: %v, val: %v\n", instr, instr.Addr, instr.Val)
 	case *ssa.TypeAssert:
-		i := instr.(*ssa.TypeAssert)
-		asm += f.Indent + fmt.Sprintf("ssa.TypeAssert: %v, name: %v", instr, i.Name()) + "\n"
+		asm += f.Indent + fmt.Sprintf("ssa.TypeAssert: %v, name: %v\n", instr, instr.Name())
 	case *ssa.UnOp:
-		i := instr.(*ssa.UnOp)
-		asm += f.Indent + fmt.Sprintf("ssa.UnOp: %v, name: %v", instr, i.Name()) + "\n"
+		if a, err := f.asmUnOp(instr); err != nil {
+			return a, err
+		} else {
+			asm += f.Indent + fmt.Sprintf("// ssa.UnOp: %v, name: %v\n", instr, instr.Name())
+			asm += a
+		}
+
 	}
-	return asm
+	return asm, nil
 }
 
-func (f *Function) asmIndexAddrInstr(instr *ssa.IndexAddr) (string, *Error) {
+func (f *Function) asmUnOp(instr *ssa.UnOp) (string, *Error) {
+	switch instr.Op {
+	default:
+		panic(fmt.Sprintf("Unknown Op token (%v) in asmUnOp: \"%v\"", instr.Op, instr))
+	case token.NOT: // logical negation
+		return f.asmUnOpNot(instr)
+	case token.XOR: //bitwise complement
+		return f.asmUnOpXor(instr)
+	case token.SUB: // arithmetic negation
+		return f.asmUnOpSub(instr)
+	case token.MUL: //pointer indirection
+		return f.asmUnOpPointer(instr)
+	}
+}
+
+// logical negation
+func (f *Function) asmUnOpNot(instr *ssa.UnOp) (string, *Error) {
+	// TODO
+	return fmt.Sprintf(f.Indent+"// instr %v\n", instr), nil
+}
+
+//bitwise complement
+func (f *Function) asmUnOpXor(instr *ssa.UnOp) (string, *Error) {
+	// TODO
+	return fmt.Sprintf(f.Indent+"// instr %v\n", instr), nil
+}
+
+// arithmetic negation
+func (f *Function) asmUnOpSub(instr *ssa.UnOp) (string, *Error) {
+	// TODO
+	return fmt.Sprintf(f.Indent+"// instr %v\n", instr), nil
+}
+
+//pointer indirection
+func (f *Function) asmUnOpPointer(instr *ssa.UnOp) (string, *Error) {
+	assignment, ok := f.ssaNames[instr.Name()]
+	xName := instr.X.Name()
+	xInfo, okX := f.ssaNames[xName]
+
+	if !okX {
+		panic(fmt.Sprintf("Unknown name for UnOp X (%v), instr \"(%v)\"", instr.X, instr))
+	}
+	if xInfo.local == nil && xInfo.param == nil && !xInfo.IsPointer() {
+		panic(fmt.Sprintf("In UnOp, X (%v) isn't a pointer, X.type (%v), instr \"(%v)\"", instr.X, instr.X.Type(), instr))
+	}
+	asm := ""
+	if !ok {
+		info, err := f.asmAllocLocal(instr.Name(), instr.Type())
+		if err != nil {
+			panic(fmt.Sprintf("Err in UnOp X (%v), instr \"(%v)\", msg: \"%v\"", instr.X, instr, err))
+		}
+		assignment = info
+		/*if xInfo.local == nil && xInfo.param == nil {
+			assignment.typ = xInfo.PointerUnderlyingType()
+		} else {
+			assignment.typ = xInfo.typ
+		}*/
+	}
+	xReg, xOffset, xSize := xInfo.MemRegOffsetSize()
+	aReg, aOffset, aSize := assignment.MemRegOffsetSize()
+	if xSize != aSize {
+		panic("xSize := aSize in asmUnOpPointer")
+	}
+	size := aSize
+
+	asm += asmMovMemMem(f.Indent, xInfo.name, xOffset, &xReg, assignment.name, aOffset, &aReg, size)
+	f.ssaNames[assignment.name] = assignment
+	return asm, nil
+}
+
+func (f *Function) asmIndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 	if instr == nil {
-		return "", &Error{Err: errors.New("asmIndexAddrInstr: nil instr"), Pos: instr.Pos()}
+		return "", &Error{Err: errors.New("asmIndexAddr: nil instr"), Pos: instr.Pos()}
 
 	}
 	asm := ""
 	constIndex := false
-	/*regIndex := false
-	localIndex := false
-	paramIndex := false*/
+	paramIndex := false
 	var cnst *ssa.Const
+	var param *ssa.Parameter
 	switch instr.Index.(type) {
 	default:
 	case *ssa.Const:
 		constIndex = true
 		cnst = instr.Index.(*ssa.Const)
+		fmt.Println("cnst:", cnst)
 	case *ssa.Parameter:
-		/*paramIndex = true
-		param := instr.Index.(*ssa.Parameter)*/
+		paramIndex = true
+		param = instr.Index.(*ssa.Parameter)
 	}
-	assignment := f.ssaNames[instr.Name()]
-	nameInfo := f.ssaNames[instr.X.Name()]
-	// TODO check if nameInfo is pointer, array, struct, etc.
-	//if nameInfo.IsPointer() || nameInfo.IsArray() {
-	if nameInfo.reg != nil {
-		if constIndex {
-			if assignment.reg == nil {
-				reg := f.allocReg(AddrReg, pointerSize)
-				assignment.reg = &reg
-			}
-			tmpReg := f.allocReg(DataReg, pointerSize)
-			size := uint32(sizeof(nameInfo.typ))
-			idx := uint32(cnst.Uint64())
-			asm = asmMovRegReg(f.Indent, nameInfo.reg, &tmpReg)
-			asm += asmAddImm32Reg(f.Indent, idx*size, &tmpReg)
-			asm += asmMovRegReg(f.Indent, &tmpReg, assignment.reg)
-			f.freeReg(tmpReg)
+
+	xInfo := f.ssaNames[instr.X.Name()]
+
+	// TODO check if xInfo is pointer, array, struct, etc.
+	//if xInfo.IsPointer() || xInfo.IsArray() {
+
+	/*if xInfo.reg == nil {
+		msg := fmt.Sprintf("nil xInfo.reg (%v) in indexaddr op", xInfo.name)
+		return asm, &Error{Err: errors.New(msg), Pos: instr.Pos()}
+	}*/
+
+	assignment, ok := f.ssaNames[instr.Name()]
+	if !ok {
+		local, err := f.asmAllocLocal(instr.Name(), instr.Type())
+		if err != nil {
+			msg := fmt.Sprintf("err in indexaddr op, msg:\"%v\"", err)
+			return asm, &Error{Err: errors.New(msg), Pos: instr.Pos()}
 		}
+		assignment = local
+		f.ssaNames[instr.Name()] = assignment
+	}
+
+	if constIndex {
+		tmpReg := f.allocReg(DataReg, pointerSize)
+		size := uint(sizeofElem(xInfo.typ))
+		idx := uint(cnst.Uint64())
+		xReg, xOffset, _ := xInfo.MemRegOffsetSize()
+		assignmentReg, assignmentOffset, _ := assignment.MemRegOffsetSize()
+		asm += asmLea(f.Indent, xInfo.name, xOffset+idx*size, &xReg, &tmpReg)
+		asm += asmMovRegMem(f.Indent, &tmpReg, assignment.name, &assignmentReg, assignmentOffset)
+		f.freeReg(tmpReg)
+	} else if paramIndex {
+		p := f.ssaNames[param.Name()]
+		tmpReg := f.allocReg(DataReg, pointerSize)
+		tmp2Reg := f.allocReg(DataReg, pointerSize)
+		xReg, xOffset, _ := xInfo.MemRegOffsetSize()
+		pReg, pOffset, pSize := p.MemRegOffsetSize()
+		if pSize != 8 {
+			fmt.Println("instr:", instr)
+			fmt.Println("pSize:", pSize)
+			panic("Index size not 8 bytes in asmIndexAddr")
+		}
+		assignmentReg, assignmentOffset, _ := assignment.MemRegOffsetSize()
+		asm += asmMovMemReg(f.Indent, p.name, pOffset, &pReg, &tmp2Reg)
+		asm += asmLea(f.Indent, xInfo.name, xOffset, &xReg, &tmpReg)
+		asm += asmAddRegReg(f.Indent, &tmpReg, &tmp2Reg)
+		asm += asmMovRegMem(f.Indent, &tmp2Reg, assignment.name, &assignmentReg, assignmentOffset)
+		f.freeReg(tmpReg)
+		f.freeReg(tmp2Reg)
+
+	} else {
+		asm = fmt.Sprintf(f.Indent+"// instr:%v\n", instr)
 	}
 	f.ssaNames[instr.Name()] = assignment
 	return asm, nil
 }
 
 func (f *Function) asmAllocInstr(instr *ssa.Alloc) (string, *Error) {
+	asm := ""
+	var err error
 	if instr == nil {
 		return "", &Error{Err: errors.New("asmAllocInstr: nil instr"), Pos: instr.Pos()}
 
@@ -438,6 +598,7 @@ func (f *Function) asmAllocInstr(instr *ssa.Alloc) (string, *Error) {
 	if instr.Heap {
 		return "", &Error{Err: errors.New("asmAllocInstr: heap alloc"), Pos: instr.Pos()}
 	}
+
 	//Alloc values are always addresses, and have pointer types, so the type
 	//of the allocated variable is actually
 	//Type().Underlying().(*types.Pointer).Elem().
@@ -450,25 +611,26 @@ func (f *Function) asmAllocInstr(instr *ssa.Alloc) (string, *Error) {
 		reg := f.allocReg(AddrReg, pointerSize)
 		opReg := Operand{Type: OperandType(R64), Input: false, Output: true, Value: regFn(reg.name)}
 		ops := []*Operand{&opMem, &opReg}
-		if a, err := InstrAsm(f.instructionset, GetInstrType(TMOV), ops); err != nil {
+		//info.reg = &reg
+		if asm, err = InstrAsm(f.instructionset, GetInstrType(TMOV), ops); err != nil {
 			return "", &Error{err, instr.Pos()}
-		} else {
-			return f.Indent + a + "\n", nil
 		}
+		comment := f.Indent + fmt.Sprintf("// %v = %v\n", info.name, reg.name)
+		asm = comment + f.Indent + asm + "\n"
 	} else {
 		opMem := Operand{Type: OperandType(M), Input: true, Output: false, Value: memFn(info.name, info.local.offset, "SP")}
 		reg := f.allocReg(AddrReg, pointerSize)
+		//info.reg = &reg
 		opReg := Operand{Type: OperandType(R64), Input: false, Output: true, Value: regFn(reg.name)}
 		ops := []*Operand{&opMem, &opReg}
-		if a, err := InstrAsm(f.instructionset, GetInstrType(TLEA), ops); err != nil {
+		if asm, err = InstrAsm(f.instructionset, GetInstrType(TLEA), ops); err != nil {
 			return "", &Error{err, instr.Pos()}
-		} else {
-			info.reg = &reg
-			f.ssaNames[instr.Name()] = info
-			return f.Indent + a + "\n", nil
 		}
-
+		comment := f.Indent + fmt.Sprintf("// &%v = %v\n", info.name, reg.name)
+		asm = comment + f.Indent + asm + "\n"
 	}
+	f.ssaNames[instr.Name()] = info
+	return asm, nil
 }
 
 func (f *Function) asmValue(value ssa.Value, dstReg *register, dstVar *varInfo) string {
@@ -487,8 +649,8 @@ func (f *Function) asmValue(value ssa.Value, dstReg *register, dstVar *varInfo) 
 	return ""
 }
 
-func (f *Function) localsSize() int {
-	size := 0
+func (f *Function) localsSize() uint {
+	size := uint(0)
 	for _, name := range f.ssaNames {
 		if name.local != nil {
 			size += sizeof(name.typ)
@@ -511,7 +673,7 @@ func (f *Function) initRegs() {
 }
 
 // size in bytes
-func (f *Function) allocReg(t RegType, size int) register {
+func (f *Function) allocReg(t RegType, size uint) register {
 	var reg register
 	found := false
 	for i := 0; i < len(registers); i++ {
@@ -537,13 +699,18 @@ func (f *Function) allocReg(t RegType, size int) register {
 	return reg
 }
 
+// zeroReg returns the assembly for zeroing the passed in register
+func (f *Function) zeroReg(r *register) string {
+	return asmZeroReg(f.Indent, r)
+}
+
 func (f *Function) freeReg(reg register) {
 	f.registers[reg] = false
 }
 
 // paramsSize returns the size of the parameters in bytes
-func (f *Function) paramsSize() int {
-	size := 0
+func (f *Function) paramsSize() uint {
+	size := uint(0)
 	for _, p := range f.ssa.Params {
 		size += sizeof(p.Type())
 	}
@@ -551,7 +718,7 @@ func (f *Function) paramsSize() int {
 }
 
 // retSize returns the size of the return value in bytes
-func (f *Function) retSize() int {
+func (f *Function) retSize() uint {
 	results := f.ssa.Signature.Results()
 	if results.Len() == 0 {
 		return 0
@@ -565,94 +732,173 @@ func (f *Function) retSize() int {
 }
 
 // retOffset returns the offset of the return value in bytes
-func (f *Function) retOffset() int {
+func (f *Function) retOffset() uint {
 	return f.paramsSize()
 }
 
-var pointerSize = 8
-var sliceSize = 24
+var pointerSize = uint(8)
+var sliceSize = uint(24)
 
-func sizeof(t types.Type) int {
+type simdInfo struct {
+	name     string
+	size     uint
+	elemSize uint
+}
 
-	switch t.(type) {
+func simdReflect(t reflect.Type) simdInfo {
+	elemSize := uint(0)
+	if t.Kind() == reflect.Array {
+		elemSize = uint(t.Elem().Size())
+	}
+	return simdInfo{t.Name(), uint(t.Size()), elemSize}
+}
+
+func simdTypes() []simdInfo {
+	simdInt := reflect.TypeOf(simd.Int(0))
+	simdInt4 := reflect.TypeOf(simd.Int4{})
+	return []simdInfo{simdReflect(simdInt), simdReflect(simdInt4)}
+}
+
+func isSimd(t types.Type) bool {
+	if t, ok := t.(*types.Named); ok {
+		tname := t.Obj()
+		for _, simdType := range simdTypes() {
+			if tname.Name() == simdType.name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func simdTypeInfo(t types.Type) (simdInfo, error) {
+	if !isSimd(t) {
+		msg := fmt.Sprintf("type (%v) is not simd type", t.String())
+		return simdInfo{}, errors.New(msg)
+	}
+	named := t.(*types.Named)
+	tname := named.Obj()
+	for _, simdType := range simdTypes() {
+		if tname.Name() == simdType.name {
+			return simdType, nil
+		}
+	}
+	msg := fmt.Sprintf("type (%v) couldn't find simd type info", t.String())
+	return simdInfo{}, errors.New(msg)
+}
+
+func simdHasElemSize(t types.Type) bool {
+	if simdInfo, err := simdTypeInfo(t); err == nil {
+		return simdInfo.elemSize > 0
+	} else {
+		msg := fmt.Sprintf("Error in simdHasElemSize, type (%v) is not simd", t.String())
+		panic(msg)
+	}
+}
+
+func simdElemSize(t types.Type) uint {
+	if simdInfo, err := simdTypeInfo(t); err == nil {
+		return simdInfo.elemSize
+	} else {
+		msg := fmt.Sprintf("Error in simdElemSize, type (%v) is not simd", t.String())
+		panic(msg)
+	}
+}
+
+func sizeofElem(t types.Type) uint {
+	var e types.Type
+	switch t := t.(type) {
+	default:
+		panic(fmt.Sprintf("t (%v) not an array or slice type\n", t.String()))
+	case *types.Slice:
+		e = t.Elem()
+	case *types.Array:
+		e = t.Elem()
+	case *types.Named:
+		if isSimd(t) && simdHasElemSize(t) {
+			return simdElemSize(t)
+		}
+		panic(fmt.Sprintf("t (%v), isSimd (%v)\n", t.String(), isSimd(t)))
+	}
+	return sizeof(e)
+}
+
+func sizeof(t types.Type) uint {
+
+	switch t := t.(type) {
 	default:
 		fmt.Println("t:", t)
 		panic("Error unknown type in sizeof")
 	case *types.Tuple:
-		tuple := t.(*types.Tuple)
 		// TODO: fix, usage of reflect is wrong!
-		return int(reflect.TypeOf(tuple).Elem().Size())
+		return uint(reflect.TypeOf(t).Elem().Size())
 	case *types.Basic:
-		basic, _ := t.(*types.Basic)
-		return sizeBasic(basic)
+		return sizeBasic(t)
 	case *types.Pointer:
 		return pointerSize
 	case *types.Slice:
 		return sliceSize
 	case *types.Array:
-		arr, _ := t.(*types.Array)
 		// TODO: fix, calculation most likely wrong
-		return int(arr.Len()) * sizeof(arr.Elem())
+		return uint(t.Len()) * sizeof(t.Elem())
 	case *types.Named:
-		named, _ := t.(*types.Named)
-		tname := named.Obj()
-		i := simd.Int(0)
-		simdInt := reflect.TypeOf(i)
-		var i4 simd.Int4
-		simdInt4 := reflect.TypeOf(i4)
-		switch tname.Name() {
-		default:
-			panic("Error unknown type in sizeof")
-		case simdInt.Name():
-			return int(unsafe.Sizeof(i))
-		case simdInt4.Name():
-			return int(unsafe.Sizeof(i4))
+		if !isSimd(t) {
+
+		}
+		if info, err := simdTypeInfo(t); err != nil {
+			panic(fmt.Sprintf("Error unknown type in sizeof err:\"%v\"", err))
+		} else {
+			return info.size
 		}
 	}
 }
 
-func intSize() int {
-	return int(reflect.TypeOf(int(1)).Size())
+func intSize() uint {
+	return uint(reflect.TypeOf(int(1)).Size())
 }
 
-func uintSize() int {
-	return int(reflect.TypeOf(uint(1)).Size())
+func uintSize() uint {
+	return uint(reflect.TypeOf(uint(1)).Size())
 }
 
-func boolSize() int {
-	return int(reflect.TypeOf(true).Size())
+func boolSize() uint {
+	return uint(reflect.TypeOf(true).Size())
+}
+
+func ptrSize() uint {
+	return pointerSize
 }
 
 // sizeBasic return the size in bytes of a basic type
-func sizeBasic(b *types.Basic) int {
+func sizeBasic(b *types.Basic) uint {
 	switch b.Kind() {
 	default:
 		panic("Unknown basic type")
 	case types.Bool:
-		return int(reflect.TypeOf(true).Size())
+		return uint(reflect.TypeOf(true).Size())
 	case types.Int:
-		return int(reflect.TypeOf(int(1)).Size())
+		return uint(reflect.TypeOf(int(1)).Size())
 	case types.Int8:
-		return int(reflect.TypeOf(int8(1)).Size())
+		return uint(reflect.TypeOf(int8(1)).Size())
 	case types.Int16:
-		return int(reflect.TypeOf(int16(1)).Size())
+		return uint(reflect.TypeOf(int16(1)).Size())
 	case types.Int32:
-		return int(reflect.TypeOf(int32(1)).Size())
+		return uint(reflect.TypeOf(int32(1)).Size())
 	case types.Int64:
-		return int(reflect.TypeOf(int64(1)).Size())
+		return uint(reflect.TypeOf(int64(1)).Size())
 	case types.Uint:
-		return int(reflect.TypeOf(uint(1)).Size())
+		return uint(reflect.TypeOf(uint(1)).Size())
 	case types.Uint8:
-		return int(reflect.TypeOf(uint8(1)).Size())
+		return uint(reflect.TypeOf(uint8(1)).Size())
 	case types.Uint16:
-		return int(reflect.TypeOf(uint16(1)).Size())
+		return uint(reflect.TypeOf(uint16(1)).Size())
 	case types.Uint32:
-		return int(reflect.TypeOf(uint32(1)).Size())
+		return uint(reflect.TypeOf(uint32(1)).Size())
 	case types.Uint64:
-		return int(reflect.TypeOf(uint64(1)).Size())
+		return uint(reflect.TypeOf(uint64(1)).Size())
 	case types.Float32:
-		return int(reflect.TypeOf(float32(1)).Size())
+		return uint(reflect.TypeOf(float32(1)).Size())
 	case types.Float64:
-		return int(reflect.TypeOf(float64(1)).Size())
+		return uint(reflect.TypeOf(float64(1)).Size())
 	}
 }

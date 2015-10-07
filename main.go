@@ -110,7 +110,8 @@ func main() {
 					fmt.Printf("Error in codegen.CreateFunction,  msg:\"%v\"", err)
 				}
 				if asm, err := codegenFn.GoAssembly(); err != nil {
-					fmt.Printf("Error creating fn asm, msg:\"%v\"", err)
+					fmt.Println(asm)
+					fmt.Printf("Error creating fn asm, msg:\"%v\"\n", err)
 				} else {
 					fmt.Println("fn asm:")
 					fmt.Println(asm)

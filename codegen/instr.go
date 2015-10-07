@@ -1569,7 +1569,32 @@ func asmCopyIndirectMemToReg(indent string, name string, memOffset int, memReg r
 	return asm
 }
 
-func asmCopyMemToMem(indent string, srcName string, srcOffset int, srcReg register, dstName string, dstOffset int, dstReg register) string {
+func asmMovRegReg(indent string, srcReg *register, dstReg *register) string {
+	if srcReg.width != 64 || dstReg.width != 64 {
+		panic("Invalid register width for asmMoveRegToReg")
+	}
+	asm := indent + fmt.Sprintf("MOVQ    %v, %v\n", srcReg.name, dstReg.name)
+	return asm
+}
+
+func asmMovRegMem(indent string, srcReg *register, dstName string, dstReg *register, dstOffset int) string {
+	if srcReg.width != 64 || dstReg.width != 64 {
+		panic("Invalid register width for asmMoveRegToReg")
+	}
+	asm := indent + fmt.Sprintf("MOVQ    %v, %v+%v(%v)\n", srcReg.name, dstName, dstOffset, dstReg.name)
+	return asm
+}
+
+func asmMovRegMemIndirect(indent string, srcReg *register, dstName string, dstReg *register, dstOffset int, tmp *register) string {
+	if srcReg.width != 64 || dstReg.width != 64 || tmp.width != 64 {
+		panic("Invalid register width for asmMoveRegToReg")
+	}
+	asm := indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v", dstName, dstOffset, dstReg, tmp)
+	asm += indent + fmt.Sprintf("MOVQ    %v, (%v)\n", srcReg.name, tmp.name)
+	return asm
+}
+
+func asmMovMemMem(indent string, srcName string, srcOffset int, srcReg register, dstName string, dstOffset int, dstReg register) string {
 	if srcReg.width != 64 || dstReg.width != 64 {
 		panic("Invalid register width for asmCopyIndirectRegValueToMemory")
 	}
@@ -1577,11 +1602,48 @@ func asmCopyMemToMem(indent string, srcName string, srcOffset int, srcReg regist
 	return asm
 }
 
-func asmMoveRegToReg(indent string, srcReg *register, dstReg *register) string {
+func asmMovMemReg(indent string, srcName string, srcOffset int, srcReg register, dstReg register) string {
 	if srcReg.width != 64 || dstReg.width != 64 {
-		panic("Invalid register width for asmMoveRegToReg")
+		panic("Invalid register width for asmCopyIndirectRegValueToMemory")
 	}
-	asm := indent + fmt.Sprintf("MOVQ    %v, %v\n", srcReg.name, dstReg.name)
+	asm := indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v\n", srcName, srcOffset, srcReg.name, dstReg.name)
+	return asm
+}
+
+func asmMovMemMemIndirect(indent string, srcName string, srcOffset int, srcReg register, dstName string, dstOffset int, dstReg register, tmp register) string {
+	if srcReg.width != 64 || dstReg.width != 64 {
+		panic("Invalid register width for asmCopyIndirectRegValueToMemory")
+	}
+	asm := indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v", dstName, dstOffset, dstReg, tmp)
+	asm += indent + fmt.Sprintf("MOVQ    %v+%v(%v), (%v)\n", srcName, srcOffset, srcReg.name, tmp)
+	return asm
+}
+
+func asmMovMemIndirectReg(indent string, srcName string, srcOffset int, srcReg register, dstReg register, tmp register) string {
+	if srcReg.width != 64 || dstReg.width != 64 {
+		panic("Invalid register width for asmCopyIndirectRegValueToMemory")
+	}
+	asm := indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v", srcName, srcOffset, srcReg, tmp)
+	asm += indent + fmt.Sprintf("MOVQ    (%v), %v\n", tmp, dstReg.name)
+	return asm
+}
+
+func asmMovMemIndirectMem(indent string, srcName string, srcOffset int, srcReg register, dstName string, dstOffset int, dstReg register, tmp register) string {
+	if srcReg.width != 64 || dstReg.width != 64 {
+		panic("Invalid register width for asmCopyIndirectRegValueToMemory")
+	}
+	asm := indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v", srcName, srcOffset, srcReg, tmp)
+	asm += indent + fmt.Sprintf("MOVQ    (%v), %v+%v(%v)\n", tmp, dstName, dstOffset, dstReg.name)
+	return asm
+}
+
+func asmMovMemIndirectMemIndirect(indent string, srcName string, srcOffset int, srcReg register, dstName string, dstOffset int, dstReg register, tmp1 register, tmp2 register) string {
+	if srcReg.width != 64 || dstReg.width != 64 {
+		panic("Invalid register width for asmCopyIndirectRegValueToMemory")
+	}
+	asm := indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v", srcName, srcOffset, srcReg, tmp1)
+	asm += indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v", dstName, dstOffset, dstReg, tmp2)
+	asm += indent + fmt.Sprintf("MOVQ    (%v), (%v)\n", tmp1.name, tmp2.name)
 	return asm
 }
 

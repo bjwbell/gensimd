@@ -325,6 +325,7 @@ func (f *Function) asmInstr(instr ssa.Instruction) string {
 			log.Fatal("Error in f.asmIndexAddrInstr")
 			return ""
 		} else {
+			asm += f.Indent + fmt.Sprintf("// ssa.IndexAddr: %v, name: %v", i, i.Name()) + "\n"
 			asm += a
 		}
 	case *ssa.Jump:
@@ -419,9 +420,9 @@ func (f *Function) asmIndexAddrInstr(instr *ssa.IndexAddr) (string, *Error) {
 			tmpReg := f.allocReg(DataReg, pointerSize)
 			size := uint32(sizeof(nameInfo.typ))
 			idx := uint32(cnst.Uint64())
-			asm = asmMoveRegToReg(f.Indent, nameInfo.reg, &tmpReg)
+			asm = asmMovRegReg(f.Indent, nameInfo.reg, &tmpReg)
 			asm += asmAddImm32Reg(f.Indent, idx*size, &tmpReg)
-			asm += asmMoveRegToReg(f.Indent, &tmpReg, assignment.reg)
+			asm += asmMovRegReg(f.Indent, &tmpReg, assignment.reg)
 			f.freeReg(tmpReg)
 		}
 	}

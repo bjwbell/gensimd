@@ -361,7 +361,12 @@ func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 			asm += a
 		}
 	case *ssa.BinOp:
-		asm += f.Indent + fmt.Sprintf("ssa.BinOp: %v, name: %v\n", instr, instr.Name())
+		if a, err := f.asmBinOp(instr); err != nil {
+			return a, err
+		} else {
+			asm += f.Indent + fmt.Sprintf("// ssa.BinOp: %v, name: %v\n", instr, instr.Name())
+			asm += a
+		}
 	case *ssa.Call:
 		asm += f.Indent + fmt.Sprintf("ssa.Call: %v, name: %v\n", instr, instr.Name())
 	case *ssa.ChangeInterface:
@@ -436,9 +441,36 @@ func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 			asm += f.Indent + fmt.Sprintf("// ssa.UnOp: %v, name: %v\n", instr, instr.Name())
 			asm += a
 		}
-
 	}
 	return asm, nil
+}
+
+func (f *Function) asmBinOp(instr *ssa.BinOp) (string, *Error) {
+	switch instr.Op {
+	default:
+		panic(fmt.Sprintf("Unknown Op token (%v) in asmUnOp: \"%v\"", instr.Op, instr))
+	case token.ADD, token.SUB, token.MUL, token.QUO, token.REM:
+		return f.asmBinOpArith(instr)
+	case token.AND, token.OR, token.XOR, token.SHL, token.SHR, token.AND_NOT:
+		return f.asmBinOpBitwise(instr)
+	case token.EQL, token.LSS, token.GTR, token.NEQ, token.LEQ, token.GEQ:
+		return f.asmBinOpComparison(instr)
+	}
+}
+
+func (f *Function) asmBinOpArith(instr *ssa.BinOp) (string, *Error) {
+	// TODO
+	return fmt.Sprintf(f.Indent+"//instr %v\n", instr), nil
+}
+
+func (f *Function) asmBinOpComparison(instr *ssa.BinOp) (string, *Error) {
+	// TODO
+	return fmt.Sprintf(f.Indent+"//instr %v\n", instr), nil
+}
+
+func (f *Function) asmBinOpBitwise(instr *ssa.BinOp) (string, *Error) {
+	// TODO
+	return fmt.Sprintf(f.Indent+"//instr %v\n", instr), nil
 }
 
 func (f *Function) asmUnOp(instr *ssa.UnOp) (string, *Error) {

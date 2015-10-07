@@ -164,7 +164,7 @@ func (f *Function) asmParams() (string, *Error) {
 			param.extra = paramSlice{offset: offset, reg: reg, regValid: true, lenReg: lenReg, lenRegValid: true}
 		} else if basic, ok := p.Type().(*types.Basic); ok && basic.Kind() == types.Int {
 			opMem := Operand{Type: OperandType(M64), Input: true, Output: false, Value: memFn(param.name, offset, "FP")}
-			reg := f.allocReg(DataReg, intSize)
+			reg := f.allocReg(DataReg, intSize())
 			opReg := Operand{Type: OperandType(R64), Input: false, Output: true, Value: regFn(reg.name)}
 			ops := []*Operand{&opMem, &opReg}
 			if a, err := InstrAsm(f.instructionset, GetInstrType(TMOV), ops); err != nil {
@@ -573,12 +573,14 @@ var pointerSize = 8
 var sliceSize = 24
 
 func sizeof(t types.Type) int {
+
 	switch t.(type) {
 	default:
 		fmt.Println("t:", t)
 		panic("Error unknown type in sizeof")
 	case *types.Tuple:
 		tuple := t.(*types.Tuple)
+		// TODO: fix, usage of reflect is wrong!
 		return int(reflect.TypeOf(tuple).Elem().Size())
 	case *types.Basic:
 		basic, _ := t.(*types.Basic)
@@ -589,6 +591,7 @@ func sizeof(t types.Type) int {
 		return sliceSize
 	case *types.Array:
 		arr, _ := t.(*types.Array)
+		// TODO: fix, calculation most likely wrong
 		return int(arr.Len()) * sizeof(arr.Elem())
 	case *types.Named:
 		named, _ := t.(*types.Named)
@@ -608,9 +611,17 @@ func sizeof(t types.Type) int {
 	}
 }
 
-var intSize = 8
-var uintSize = 8
-var boolSize = 1
+func intSize() int {
+	return int(reflect.TypeOf(int(1)).Size())
+}
+
+func uintSize() int {
+	return int(reflect.TypeOf(uint(1)).Size())
+}
+
+func boolSize() int {
+	return int(reflect.TypeOf(true).Size())
+}
 
 // sizeBasic return the size in bytes of a basic type
 func sizeBasic(b *types.Basic) int {
@@ -618,30 +629,30 @@ func sizeBasic(b *types.Basic) int {
 	default:
 		panic("Unknown basic type")
 	case types.Bool:
-		return 1
+		return int(reflect.TypeOf(true).Size())
 	case types.Int:
-		return intSize
+		return int(reflect.TypeOf(int(1)).Size())
 	case types.Int8:
-		return 1
+		return int(reflect.TypeOf(int8(1)).Size())
 	case types.Int16:
-		return 2
+		return int(reflect.TypeOf(int16(1)).Size())
 	case types.Int32:
-		return 4
+		return int(reflect.TypeOf(int32(1)).Size())
 	case types.Int64:
-		return 8
+		return int(reflect.TypeOf(int64(1)).Size())
 	case types.Uint:
-		return uintSize
+		return int(reflect.TypeOf(uint(1)).Size())
 	case types.Uint8:
-		return 1
+		return int(reflect.TypeOf(uint8(1)).Size())
 	case types.Uint16:
-		return 2
+		return int(reflect.TypeOf(uint16(1)).Size())
 	case types.Uint32:
-		return 4
+		return int(reflect.TypeOf(uint32(1)).Size())
 	case types.Uint64:
-		return 8
+		return int(reflect.TypeOf(uint64(1)).Size())
 	case types.Float32:
-		return 4
+		return int(reflect.TypeOf(float32(1)).Size())
 	case types.Float64:
-		return 8
+		return int(reflect.TypeOf(float64(1)).Size())
 	}
 }

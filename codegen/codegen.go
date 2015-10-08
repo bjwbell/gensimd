@@ -441,7 +441,11 @@ func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 	case *ssa.Slice:
 		asm += f.Indent + fmt.Sprintf("ssa.Slice: %v, name: %v\n", instr, instr.Name())
 	case *ssa.Store:
-		asm += f.Indent + fmt.Sprintf("ssa.Store: %v, addr: %v, val: %v\n", instr, instr.Addr, instr.Val)
+		if a, err := f.asmStore(instr); err != nil {
+			return a, err
+		} else {
+			asm += a
+		}
 	case *ssa.TypeAssert:
 		asm += f.Indent + fmt.Sprintf("ssa.TypeAssert: %v, name: %v\n", instr, instr.Name())
 	case *ssa.UnOp:
@@ -452,6 +456,48 @@ func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 			asm += a
 		}
 	}
+
+	return asm, nil
+}
+
+func (f *Function) asmStore(instr *ssa.Store) (string, *Error) {
+	var err *Error
+	if err = f.allocValueOnDemand(instr.Val); err != nil {
+		return "", err
+	}
+	if err = f.allocValueOnDemand(instr.Addr); err != nil {
+		return "", err
+	}
+
+	asm := ""
+	asm += f.Indent + fmt.Sprintf("// BEGIN ssa.Store addr name:%v, val name:%v\n", instr.Addr.Name(), instr.Val.Name()) + asm
+	size := f.sizeof(instr.Val)
+	iterations := size / intSize()
+
+	if size > intSize() {
+		if size%intSize() != 0 {
+			panic(fmt.Sprintf("size (%v) not multiple of intSize (%v) in asmStore", size, intSize()))
+		}
+	}
+
+	valReg := f.allocReg(DataReg, intSize())
+
+	for i := uint(0); i < iterations; i++ {
+		offset := i * intSize()
+		a, err := f.asmLoadValue(instr.Val, offset, intSize(), &valReg)
+		if err != nil {
+			return a, err
+		}
+		asm += a
+		a, err = f.asmStoreReg(&valReg, instr.Addr, offset)
+		if err != nil {
+			return a, err
+		}
+		asm += a
+	}
+
+	f.freeReg(valReg)
+	asm += f.Indent + fmt.Sprintf("// END ssa.Store addr name:%v, val name:%v\n", instr.Addr.Name(), instr.Val.Name())
 	return asm, nil
 }
 
@@ -484,7 +530,7 @@ func (f *Function) asmBinOp(instr *ssa.BinOp) (string, *Error) {
 	f.freeReg(*regX)
 	f.freeReg(*regY)
 	f.freeReg(regVal)
-	asm = fmt.Sprintf(f.Indent+"//instr %v\n", instr) + asm
+	asm = fmt.Sprintf(f.Indent+" //instr %v\n", instr) + asm
 	return asm, nil
 }
 
@@ -505,12 +551,12 @@ func (f *Function) asmBinOpLoadXY(instr *ssa.BinOp) (asm string, x *register, y 
 	ytmp := f.allocReg(DataReg, f.sizeof(instr.Y))
 	y = &ytmp
 	asm = ""
-	if a, err := f.asmLoadValue(instr.X, x); err != nil {
+	if a, err := f.asmLoadValue(instr.X, 0, f.sizeof(instr.X), x); err != nil {
 		return "", nil, nil, err
 	} else {
 		asm += a
 	}
-	if a, err := f.asmLoadValue(instr.Y, y); err != nil {
+	if a, err := f.asmLoadValue(instr.Y, 0, f.sizeof(instr.Y), y); err != nil {
 		return "", nil, nil, err
 	} else {
 		asm += a
@@ -534,7 +580,7 @@ func (f *Function) sizeofConst(cnst *ssa.Const) uint {
 	return sizeof(cnst.Type())
 }
 
-func (f *Function) asmLoadValue(val ssa.Value, reg *register) (string, *Error) {
+func (f *Function) asmLoadValue(val ssa.Value, offset uint, size uint, reg *register) (string, *Error) {
 	if _, ok := val.(*ssa.Const); ok {
 		return f.asmLoadConstValue(val.(*ssa.Const), reg)
 	}
@@ -543,11 +589,24 @@ func (f *Function) asmLoadValue(val ssa.Value, reg *register) (string, *Error) {
 		panic(fmt.Sprintf("Unknown name (%v) in asmLoadValue, value (%v)\n", val.Name(), val))
 	}
 	// TODO handle non 64 bit values
-	r, offset, size := info.MemRegOffsetSize()
-	if size != 8 {
+	r, roffset, rsize := info.MemRegOffsetSize()
+	if (rsize%8) != 0 || size != 8 {
 		panic(fmt.Sprintf("Non 64bit sized (%v) value in asmLoadValue, value (%v), name (%v)\n", size, val, val.Name()))
 	}
-	return asmMovMemReg(f.Indent, info.name, offset, &r, reg), nil
+	return asmMovMemReg(f.Indent, info.name, roffset+offset, &r, reg), nil
+}
+
+func (f *Function) asmStoreReg(reg *register, addr ssa.Value, offset uint) (string, *Error) {
+	info, ok := f.ssaNames[addr.Name()]
+	if !ok {
+		panic(fmt.Sprintf("Unknown name (%v) in asmStoreReg, addr (%v)\n", addr.Name(), addr))
+	}
+	// TODO handle non 64 bit values
+	r, roffset, rsize := info.MemRegOffsetSize()
+	if (rsize % 8) != 0 {
+		panic(fmt.Sprintf("Non multiple of 8 byte sized (%v) value in asmStoreReg, addr (%v), name (%v)\n", rsize, addr, addr.Name()))
+	}
+	return asmMovRegMem(f.Indent, reg, info.name, &r, offset+roffset), nil
 }
 
 func (f *Function) asmLoadConstValue(cnst *ssa.Const, r *register) (string, *Error) {
@@ -809,7 +868,7 @@ func (f *Function) allocReg(t RegType, size uint) register {
 		if t == AddrReg {
 			return f.allocReg(DataReg, size)
 		} else {
-			panic(fmt.Sprintf("couldn't alloc register, type: %v, width in bits: %v", t, size*8))
+			panic(fmt.Sprintf("couldn't alloc register, type: %v, width in bits: %v, size in bytes:%v", t, size*8, size))
 		}
 	}
 	return reg

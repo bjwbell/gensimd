@@ -755,8 +755,8 @@ func (f *Function) asmStoreReg(reg *register, addr ssa.Value, offset uint) (stri
 }
 
 func (f *Function) asmLoadConstValue(cnst *ssa.Const, r *register) (string, *Error) {
-	cnstValue := uint32(cnst.Uint64())
-	return asmLoadImm32(f.Indent, cnstValue, r), nil
+	cnstValue := cnst.Uint64()
+	return asmMovImm64Reg(f.Indent, cnstValue, r), nil
 }
 
 func (f *Function) asmUnOp(instr *ssa.UnOp) (string, *Error) {

@@ -413,7 +413,7 @@ func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 	case *ssa.Panic:
 		caseAsm = f.Indent + fmt.Sprintf("ssa.Panic: %v", instr) + "\n"
 	case *ssa.Phi:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.Phi: %v, name: %v\n", instr, instr.Name())
+		caseAsm, caseErr = f.asmPhi(instr)
 	case *ssa.Range:
 		caseAsm = f.Indent + fmt.Sprintf("ssa.Range: %v, name: %v\n", instr, instr.Name())
 	case *ssa.Return:
@@ -432,7 +432,6 @@ func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 		caseAsm = f.Indent + fmt.Sprintf("ssa.TypeAssert: %v, name: %v\n", instr, instr.Name())
 	case *ssa.UnOp:
 		caseAsm, caseErr = f.asmUnOp(instr)
-		caseAsm += f.Indent + fmt.Sprintf("// ssa.UnOp: %v, name: %v\n", instr, instr.Name())
 	}
 
 	if caseErr != nil {
@@ -441,6 +440,14 @@ func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 		asm += caseAsm
 	}
 
+	return asm, nil
+}
+
+func (f *Function) asmPhi(phi *ssa.Phi) (string, *Error) {
+	asm := f.Indent
+	asm += fmt.Sprintf("// BEGIN ssa.Phi, name (%v), comment (%v), value (%v)\n", phi.Name(), phi.Comment, phi) + asm
+
+	asm += f.Indent + fmt.Sprintf("// END ssa.Phi, %v\n", phi)
 	return asm, nil
 }
 

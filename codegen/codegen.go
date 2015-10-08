@@ -467,14 +467,38 @@ func (f *Function) asmIf(instr *ssa.If) (string, *Error) {
 		err := errors.New(fmt.Sprintf("asmIf: unhandled case, cond (%v)", instr.Cond))
 		return "", &Error{Err: err, Pos: instr.Pos()}
 	} else {
+		a, err := f.asmJumpPreamble(instr.Block().Index, fblock)
+		if err != nil {
+			return "", err
+		}
+		asm += a
 		r, offset, _ := info.MemRegOffsetSize()
 		asm += asmCmpMemImm32(f.Indent, info.name, uint32(offset), &r, uint32(0))
 		asm += f.Indent + "JEQ    " + "block" + strconv.Itoa(fblock) + "\n"
+		a, err = f.asmJumpPreamble(instr.Block().Index, tblock)
+		if err != nil {
+			return "", err
+		}
+		asm += a
 		asm += f.Indent + "JMP    " + "block" + strconv.Itoa(tblock) + "\n"
 
 	}
 	asm = f.Indent + fmt.Sprintf("// BEGIN ssa.If, %v\n", instr) + asm
 	asm += f.Indent + fmt.Sprintf("// END ssa.If, %v\n", instr)
+	return asm, nil
+}
+
+func (f *Function) asmJumpPreamble(blockIndex, jmpIndex int) (string, *Error) {
+	asm := ""
+	phiInfos := f.phiInfo[blockIndex][jmpIndex]
+	for _, phiInfo := range phiInfos {
+		store := ssa.Store{Addr: phiInfo.phi, Val: phiInfo.value}
+		if a, err := f.asmStore(&store); err != nil {
+			return asm, err
+		} else {
+			asm += a
+		}
+	}
 	return asm, nil
 }
 
@@ -486,15 +510,11 @@ func (f *Function) asmJump(jmp *ssa.Jump) (string, *Error) {
 	} else {
 		panic("asmJump: malformed CFG")
 	}
-	phiInfos := f.phiInfo[jmp.Block().Index][block]
-	for _, phiInfo := range phiInfos {
-		store := ssa.Store{Addr: phiInfo.phi, Val: phiInfo.value}
-		if a, err := f.asmStore(&store); err != nil {
-			return asm, err
-		} else {
-			asm += a
-		}
+	a, err := f.asmJumpPreamble(jmp.Block().Index, block)
+	if err != nil {
+		return "", err
 	}
+	asm += a
 	asm += f.Indent + "JMP block" + strconv.Itoa(block) + "\n"
 	asm = f.Indent + "// BEGIN ssa.Jump\n" + asm
 	asm += f.Indent + "// END ssa.Jump\n"

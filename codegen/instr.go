@@ -1733,11 +1733,11 @@ func asmMulRegReg(indent string, src *register, dst *register) string {
 		panic("Invalid rax or rdx register width in asmMulRegReg")
 	}
 	// rax is the implicit destination for MULQ
-	asm := indent + asmMovRegReg(indent, dst, rax)
+	asm := asmMovRegReg(indent, dst, rax)
 	// the low order part of the result is stored in rax and the high order part
 	// is stored in rdx
 	asm += indent + fmt.Sprintf("MULQ    %v\n", src.name)
-	asm += indent + asmMovRegReg(indent, rax, dst)
+	asm += asmMovRegReg(indent, rax, dst)
 	return asm
 }
 

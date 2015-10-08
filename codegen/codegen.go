@@ -302,6 +302,7 @@ func (f *Function) asmAllocLocal(name string, typ types.Type) (local nameInfo, e
 	f.ssaNames[v.name] = info
 	// zeroing the memory is done at the beginning of the function
 	//asmZeroMemory(f.Indent, v.name, v.offset, v.size, sp)
+	fmt.Println(fmt.Sprintf("ALLOC LOCAL: name %v, type %v\n", name, typ))
 	local = info
 	err = nil
 	return
@@ -943,6 +944,13 @@ func (f *Function) retOffset() uint {
 
 func (f *Function) allocValueOnDemand(v ssa.Value) *Error {
 	_, ok := f.ssaNames[v.Name()]
+	if ok {
+		return nil
+	}
+	switch v.(type) {
+	case *ssa.Const:
+		return nil
+	}
 	if !ok {
 		local, err := f.asmAllocLocal(v.Name(), v.Type())
 		if err != nil {

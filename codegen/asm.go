@@ -19,7 +19,7 @@ func FindInstr(set *instructionsetxml.Instructionset, typ InstrType, ops []*Oper
 		}
 	}
 	if instr == nil {
-		return 0, errors.New(fmt.Sprintf("Couldn't find match in instructionset for instr:%v", typ.String()))
+		return 0, fmt.Errorf("Couldn't find match in instructionset for instr:%v", typ.String())
 	}
 	for _, fm := range instr.Forms {
 		if OperandsMatch(ops, fm.Operands) {
@@ -33,10 +33,10 @@ func FindInstr(set *instructionsetxml.Instructionset, typ InstrType, ops []*Oper
 		for _, op := range ops {
 			fmt.Println("op:", op)
 		}
-		return 0, errors.New(fmt.Sprintf("No matched instr form for instr:%v", instr))
+		return 0, fmt.Errorf("No matched instr form for instr:%v", instr)
 	}
 	if instrName, err := GetInstrName(form.GoName); err != nil {
-		return instrName, errors.New(fmt.Sprintf("No InstrName for form.GoName:%v", form.GoName))
+		return instrName, fmt.Errorf("No InstrName for form.GoName:%v", form.GoName)
 	} else {
 		return instrName, nil
 	}

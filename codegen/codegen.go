@@ -279,7 +279,8 @@ func (f *Function) asmZeroSsaLocals() (string, *Error) {
 	locals := f.ssa.Locals
 	for _, local := range locals {
 		if local.Heap {
-			msg := errors.New(fmt.Sprintf("Can't heap alloc local, name: %v", local.Name()))
+
+			msg := fmt.Errorf("Can't heap alloc local, name: %v", local.Name())
 			return "", &Error{Err: msg, Pos: local.Pos()}
 		}
 		sp := getRegister(REG_SP)
@@ -464,7 +465,7 @@ func (f *Function) asmIf(instr *ssa.If) (string, *Error) {
 		panic("asmIf: malformed CFG")
 	}
 	if info, ok := f.ssaNames[instr.Cond.Name()]; !ok {
-		err := errors.New(fmt.Sprintf("asmIf: unhandled case, cond (%v)", instr.Cond))
+		err := fmt.Errorf("asmIf: unhandled case, cond (%v)", instr.Cond)
 		return "", &Error{Err: err, Pos: instr.Pos()}
 	} else {
 		a, err := f.asmJumpPreamble(instr.Block().Index, fblock)
@@ -869,8 +870,8 @@ func (f *Function) asmIndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 	if !ok {
 		local, err := f.asmAllocLocal(instr.Name(), instr.Type())
 		if err != nil {
-			msg := fmt.Sprintf("err in indexaddr op, msg:\"%v\"", err)
-			return asm, &Error{Err: errors.New(msg), Pos: instr.Pos()}
+			msg := fmt.Errorf("err in indexaddr op, msg:\"%v\"", err)
+			return asm, &Error{Err: msg, Pos: instr.Pos()}
 		}
 		assignment = local
 		f.ssaNames[instr.Name()] = assignment
@@ -1085,8 +1086,8 @@ func (f *Function) allocValueOnDemand(v ssa.Value) *Error {
 	if !ok {
 		local, err := f.asmAllocLocal(v.Name(), v.Type())
 		if err != nil {
-			msg := fmt.Sprintf("err in allocValueOnDemand, msg:\"%v\"", err)
-			return &Error{Err: errors.New(msg), Pos: v.Pos()}
+			msg := fmt.Errorf("err in allocValueOnDemand, msg:\"%v\"", err)
+			return &Error{Err: msg, Pos: v.Pos()}
 		}
 		f.ssaNames[v.Name()] = local
 	}
@@ -1130,8 +1131,8 @@ func isSimd(t types.Type) bool {
 
 func simdTypeInfo(t types.Type) (simdInfo, error) {
 	if !isSimd(t) {
-		msg := fmt.Sprintf("type (%v) is not simd type", t.String())
-		return simdInfo{}, errors.New(msg)
+		msg := fmt.Errorf("type (%v) is not simd type", t.String())
+		return simdInfo{}, msg
 	}
 	named := t.(*types.Named)
 	tname := named.Obj()
@@ -1140,8 +1141,8 @@ func simdTypeInfo(t types.Type) (simdInfo, error) {
 			return simdType, nil
 		}
 	}
-	msg := fmt.Sprintf("type (%v) couldn't find simd type info", t.String())
-	return simdInfo{}, errors.New(msg)
+	msg := fmt.Errorf("type (%v) couldn't find simd type info", t.String())
+	return simdInfo{}, msg
 }
 
 func simdHasElemSize(t types.Type) bool {

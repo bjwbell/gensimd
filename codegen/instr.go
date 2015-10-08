@@ -1,7 +1,6 @@
 package codegen
 
 import (
-	"errors"
 	"fmt"
 	"go/token"
 	"log"
@@ -1523,7 +1522,7 @@ func GetInstrName(name string) (InstrName, error) {
 			return InstrName(i), nil
 		}
 	}
-	return InstrName(0), errors.New(fmt.Sprintf("Couldn't find InstrName for instr:%v", name))
+	return InstrName(0), fmt.Errorf("Couldn't find InstrName for instr:%v", name)
 }
 
 // asmZeroMemory generates "MOVQ $0, name+offset(REG)" instructions

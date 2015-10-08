@@ -697,9 +697,10 @@ func (f *Function) asmUnOpPointer(instr *ssa.UnOp) (string, *Error) {
 		panic("xSize := aSize in asmUnOpPointer")
 	}
 	size := aSize
-
-	asm += asmMovMemMem(f.Indent, xInfo.name, xOffset, &xReg, assignment.name, aOffset, &aReg, size)
+	tmp := f.allocReg(DataReg, DataRegSize)
+	asm += asmMovMemIndirectMem(f.Indent, xInfo.name, xOffset, &xReg, assignment.name, aOffset, &aReg, size, &tmp)
 	f.ssaNames[assignment.name] = assignment
+	f.freeReg(tmp)
 	return asm, nil
 }
 

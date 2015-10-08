@@ -269,24 +269,8 @@ func (f *Function) asmFunc() (string, *Error) {
 	asm += zeroSsaLocals
 	asm += zeroNonSsaLocals
 	asm += basicblocks
-	asm = f.fixupJumps(asm)
 	a := fmt.Sprintf("TEXT ·%v(SB),NOSPLIT,$%v-%v\n%v", f.ssa.Name(), frameSize, f.paramsSize()+f.retSize(), asm)
 	return a, nil
-}
-
-func (f *Function) fixupJumps(asm string) string {
-	// map from block index to block offsets
-	blockOffsets := f.findBlockOffsets(asm)
-	// TODO
-	fmt.Println("blockOffsets:", blockOffsets)
-	return asm
-}
-func (f *Function) findBlockOffsets(asm string) *Error {
-	// TODO
-	if asm == "" {
-		return nil
-	}
-	return nil
 }
 
 func (f *Function) asmZeroSsaLocals() (string, *Error) {
@@ -365,7 +349,7 @@ func (f *Function) asmBasicBlocks() (string, *Error) {
 }
 
 func (f *Function) asmBasicBlock(block *ssa.BasicBlock) (string, *Error) {
-	asm := strconv.Itoa(block.Index) + ":\n"
+	asm := "block" + strconv.Itoa(block.Index) + ":\n"
 	for i := 0; i < len(block.Instrs); i++ {
 		a, err := f.asmInstr(block.Instrs[i])
 		asm += a
@@ -485,8 +469,8 @@ func (f *Function) asmIf(instr *ssa.If) (string, *Error) {
 	} else {
 		r, offset, _ := info.MemRegOffsetSize()
 		asm += asmCmpMemImm32(f.Indent, info.name, uint32(offset), &r, uint32(0))
-		asm += f.Indent + "JEQ    " + "{" + strconv.Itoa(fblock) + "}" + "\n"
-		asm += f.Indent + "JMP    " + "{" + strconv.Itoa(tblock) + "}" + "\n"
+		asm += f.Indent + "JEQ    " + "block" + strconv.Itoa(fblock) + "\n"
+		asm += f.Indent + "JMP    " + "block" + strconv.Itoa(tblock) + "\n"
 
 	}
 	asm = f.Indent + fmt.Sprintf("// BEGIN ssa.If, %v\n", instr) + asm
@@ -511,7 +495,7 @@ func (f *Function) asmJump(jmp *ssa.Jump) (string, *Error) {
 			asm += a
 		}
 	}
-	asm += f.Indent + "JMP {" + strconv.Itoa(block) + "}\n"
+	asm += f.Indent + "JMP block" + strconv.Itoa(block) + "\n"
 	asm = f.Indent + "// BEGIN ssa.Jump\n" + asm
 	asm += f.Indent + "// END ssa.Jump\n"
 	return asm, nil

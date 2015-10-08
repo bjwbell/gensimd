@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 
@@ -43,6 +44,7 @@ func fileName(pathName string) string {
 
 func main() {
 	var ssaDump = flag.Bool("ssa", false, "dump ssa representation")
+	var outputFile = flag.String("o", "", "write Go Assembly to file")
 	flag.Parse()
 	args := flag.Args()
 	file := os.ExpandEnv("$GOFILE")
@@ -119,10 +121,20 @@ func main() {
 					fmt.Println(asm)
 					fmt.Printf("Error creating fn asm, msg:\"%v\"\n", err)
 				} else {
-					fmt.Println("fn asm:")
-					fmt.Println(asm)
+					if *outputFile == "" {
+						fmt.Println(asm)
+					} else {
+						writeFile(*outputFile, asm)
+					}
 				}
 			}
 		}
+	}
+}
+
+func writeFile(filename, contents string) {
+
+	if err := ioutil.WriteFile(filename, []byte(contents), 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing to file, error msg \"%v\"\n", err)
 	}
 }

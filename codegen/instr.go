@@ -1903,3 +1903,8 @@ func asmCmpOp(indent string, op token.Token, x *register, y *register, result *r
 	}
 	return asm
 }
+
+func asmRet(indent string) string {
+	asm := indent + fmt.Sprintf("RET\n")
+	return asm
+}

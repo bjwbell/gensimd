@@ -359,104 +359,105 @@ func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 		panic("Nil instr in asmInstr")
 	}
 	asm := ""
-
+	caseAsm := ""
+	var caseErr *Error
 	switch instr := instr.(type) {
 	default:
-		asm += f.Indent + fmt.Sprintf("Unknown ssa instruction: %v\n", instr)
+		caseAsm = f.Indent + fmt.Sprintf("Unknown ssa instruction: %v\n", instr)
 	case *ssa.Alloc:
-		if a, err := f.asmAllocInstr(instr); err != nil {
-			//log.Fatal("Error in f.asmAllocInstr")
-			return a, err
-		} else {
-			asm += a
-		}
+		caseAsm, caseErr = f.asmAllocInstr(instr)
 	case *ssa.BinOp:
-		if a, err := f.asmBinOp(instr); err != nil {
-			return a, err
-		} else {
-			asm += f.Indent + fmt.Sprintf("// ssa.BinOp: %v, name: %v\n", instr, instr.Name())
-			asm += a
-		}
+		caseAsm, caseErr = f.asmBinOp(instr)
 	case *ssa.Call:
-		asm += f.Indent + fmt.Sprintf("ssa.Call: %v, name: %v\n", instr, instr.Name())
+		caseAsm = f.Indent + fmt.Sprintf("ssa.Call: %v, name: %v\n", instr, instr.Name())
 	case *ssa.ChangeInterface:
-		asm += f.Indent + fmt.Sprintf("ssa.ChangeInterface: %v, name: %v\n", instr, instr.Name())
+		caseAsm = f.Indent + fmt.Sprintf("ssa.ChangeInterface: %v, name: %v\n", instr, instr.Name())
 	case *ssa.ChangeType:
-		asm += f.Indent + fmt.Sprintf("ssa.ChangeType: %v, name: %v\n", instr, instr.Name())
+		caseAsm = f.Indent + fmt.Sprintf("ssa.ChangeType: %v, name: %v\n", instr, instr.Name())
 	case *ssa.Convert:
-		asm += f.Indent + fmt.Sprintf("ssa.Convert: %v, name: %v\n", instr, instr.Name())
+		caseAsm = f.Indent + fmt.Sprintf("ssa.Convert: %v, name: %v\n", instr, instr.Name())
 	case *ssa.Defer:
-		asm += f.Indent + fmt.Sprintf("ssa.Defer: %v\n", instr)
+		caseAsm = f.Indent + fmt.Sprintf("ssa.Defer: %v\n", instr)
 	case *ssa.Extract:
-		asm += f.Indent + fmt.Sprintf("ssa.Extra: %v, name: %v\n", instr, instr.Name())
+		caseAsm = f.Indent + fmt.Sprintf("ssa.Extra: %v, name: %v\n", instr, instr.Name())
 	case *ssa.Field:
-		asm += f.Indent + fmt.Sprintf("ssa.Field: %v, name: %v\n", instr, instr.Name())
+		caseAsm = f.Indent + fmt.Sprintf("ssa.Field: %v, name: %v\n", instr, instr.Name())
 	case *ssa.FieldAddr:
-		asm += f.Indent + fmt.Sprintf("ssa.FieldAddr: %v, name: %v\n", instr, instr.Name())
+		caseAsm = f.Indent + fmt.Sprintf("ssa.FieldAddr: %v, name: %v\n", instr, instr.Name())
 	case *ssa.Go:
-		asm += f.Indent + fmt.Sprintf("ssa.Go: %v\n", instr)
+		caseAsm = f.Indent + fmt.Sprintf("ssa.Go: %v\n", instr)
 	case *ssa.If:
-		asm += f.Indent + fmt.Sprintf("ssa.If: %v\n", instr)
+		caseAsm = f.Indent + fmt.Sprintf("ssa.If: %v\n", instr)
 	case *ssa.Index:
-		asm += f.Indent + fmt.Sprintf("ssa.Index: %v, name: %v\n", instr, instr.Name())
+		caseAsm = f.Indent + fmt.Sprintf("ssa.Index: %v, name: %v\n", instr, instr.Name())
 	case *ssa.IndexAddr:
-		if a, err := f.asmIndexAddr(instr); err != nil {
-			return a, err
-		} else {
-			asm += f.Indent + fmt.Sprintf("// ssa.IndexAddr: %v, name: %v\n", instr, instr.Name())
-			asm += a
-		}
+		caseAsm, caseErr = f.asmIndexAddr(instr)
 	case *ssa.Jump:
-		asm += f.Indent + strings.Replace(instr.String(), "jump", "JMP ", -1) + "\n"
+		caseAsm = f.Indent + strings.Replace(instr.String(), "jump", "JMP ", -1) + "\n"
 	case *ssa.Lookup:
-		asm += f.Indent + fmt.Sprintf("ssa.Lookup: %v, name: %v\n", instr, instr.Name())
+		caseAsm = f.Indent + fmt.Sprintf("ssa.Lookup: %v, name: %v\n", instr, instr.Name())
 	case *ssa.MakeChan:
-		asm += f.Indent + fmt.Sprintf("ssa.MakeChan: %v, name: %v\n", instr, instr.Name())
+		caseAsm = f.Indent + fmt.Sprintf("ssa.MakeChan: %v, name: %v\n", instr, instr.Name())
 	case *ssa.MakeClosure:
-		asm += f.Indent + fmt.Sprintf("ssa.MakeClosure: %v, name: %v\n", instr, instr.Name())
+		caseAsm = f.Indent + fmt.Sprintf("ssa.MakeClosure: %v, name: %v\n", instr, instr.Name())
 	case *ssa.MakeInterface:
-		asm += f.Indent + fmt.Sprintf("ssa.MakeInterface: %v, name: %v\n", instr, instr.Name())
+		caseAsm = f.Indent + fmt.Sprintf("ssa.MakeInterface: %v, name: %v\n", instr, instr.Name())
 	case *ssa.MakeMap:
-		asm += f.Indent + fmt.Sprintf("ssa.MakeMap: %v, name: %v\n", instr, instr.Name())
+		caseAsm = f.Indent + fmt.Sprintf("ssa.MakeMap: %v, name: %v\n", instr, instr.Name())
 	case *ssa.MakeSlice:
-		asm += f.Indent + fmt.Sprintf("ssa.MakeSlice: %v, name: %v\n", instr, instr.Name())
+		caseAsm = f.Indent + fmt.Sprintf("ssa.MakeSlice: %v, name: %v\n", instr, instr.Name())
 	case *ssa.MapUpdate:
-		asm += f.Indent + fmt.Sprintf("ssa.MapUpdate: %v\n", instr)
+		caseAsm = f.Indent + fmt.Sprintf("ssa.MapUpdate: %v\n", instr)
 	case *ssa.Next:
-		asm += f.Indent + fmt.Sprintf("ssa.Next: %v, name: %v\n", instr, instr.Name())
+		caseAsm = f.Indent + fmt.Sprintf("ssa.Next: %v, name: %v\n", instr, instr.Name())
 	case *ssa.Panic:
-		asm += f.Indent + fmt.Sprintf("ssa.Panic: %v", instr) + "\n"
+		caseAsm = f.Indent + fmt.Sprintf("ssa.Panic: %v", instr) + "\n"
 	case *ssa.Phi:
-		asm += f.Indent + fmt.Sprintf("ssa.Phi: %v, name: %v\n", instr, instr.Name())
+		caseAsm = f.Indent + fmt.Sprintf("ssa.Phi: %v, name: %v\n", instr, instr.Name())
 	case *ssa.Range:
-		asm += f.Indent + fmt.Sprintf("ssa.Range: %v, name: %v\n", instr, instr.Name())
+		caseAsm = f.Indent + fmt.Sprintf("ssa.Range: %v, name: %v\n", instr, instr.Name())
 	case *ssa.Return:
-		asm += f.Indent + fmt.Sprintf("ssa.Return: %v", instr) + "\n"
+		caseAsm, caseErr = f.asmReturn(instr)
 	case *ssa.RunDefers:
-		asm += f.Indent + fmt.Sprintf("ssa.RunDefers: %v", instr) + "\n"
+		caseAsm = f.Indent + fmt.Sprintf("ssa.RunDefers: %v", instr) + "\n"
 	case *ssa.Select:
-		asm += f.Indent + fmt.Sprintf("ssa.Select: %v, name: %v\n", instr, instr.Name())
+		caseAsm = f.Indent + fmt.Sprintf("ssa.Select: %v, name: %v\n", instr, instr.Name())
 	case *ssa.Send:
-		asm += f.Indent + fmt.Sprintf("ssa.Send: %v", instr) + "\n"
+		caseAsm = f.Indent + fmt.Sprintf("ssa.Send: %v", instr) + "\n"
 	case *ssa.Slice:
-		asm += f.Indent + fmt.Sprintf("ssa.Slice: %v, name: %v\n", instr, instr.Name())
+		caseAsm = f.Indent + fmt.Sprintf("ssa.Slice: %v, name: %v\n", instr, instr.Name())
 	case *ssa.Store:
-		if a, err := f.asmStore(instr); err != nil {
-			return a, err
-		} else {
-			asm += a
-		}
+		caseAsm, caseErr = f.asmStore(instr)
 	case *ssa.TypeAssert:
-		asm += f.Indent + fmt.Sprintf("ssa.TypeAssert: %v, name: %v\n", instr, instr.Name())
+		caseAsm = f.Indent + fmt.Sprintf("ssa.TypeAssert: %v, name: %v\n", instr, instr.Name())
 	case *ssa.UnOp:
-		if a, err := f.asmUnOp(instr); err != nil {
-			return a, err
-		} else {
-			asm += f.Indent + fmt.Sprintf("// ssa.UnOp: %v, name: %v\n", instr, instr.Name())
-			asm += a
-		}
+		caseAsm, caseErr = f.asmUnOp(instr)
+		caseAsm += f.Indent + fmt.Sprintf("// ssa.UnOp: %v, name: %v\n", instr, instr.Name())
 	}
 
+	if caseErr != nil {
+		return caseAsm, caseErr
+	} else {
+		asm += caseAsm
+	}
+
+	return asm, nil
+}
+
+func (f *Function) asmReturn(ret *ssa.Return) (string, *Error) {
+	asm, err := f.asmResetStackPointer()
+	if err != nil {
+		return "", err
+	}
+	asm = f.Indent + "// BEGIN ssa.Return\n" + asm
+	asm += asmRet(f.Indent)
+	asm += f.Indent + "// END ssa.Return\n"
+	return asm, nil
+}
+
+func (f *Function) asmResetStackPointer() (string, *Error) {
+	sp := getRegister(REG_SP)
+	asm := asmAddImm32Reg(f.Indent, uint32(f.localsSize()), sp)
 	return asm, nil
 }
 
@@ -529,8 +530,16 @@ func (f *Function) asmBinOp(instr *ssa.BinOp) (string, *Error) {
 	}
 	f.freeReg(*regX)
 	f.freeReg(*regY)
+	a, err := f.asmStoreReg(&regVal, instr, 0)
+	if err != nil {
+		return asm, err
+	} else {
+		asm += a
+	}
 	f.freeReg(regVal)
-	asm = fmt.Sprintf(f.Indent+" //instr %v\n", instr) + asm
+
+	asm = fmt.Sprintf(f.Indent+"// BEGIN ssa.BinOp, %v = %v\n", instr.Name(), instr) + asm
+	asm += fmt.Sprintf(f.Indent+"// END ssa.BinOp, %v = %v\n", instr.Name(), instr)
 	return asm, nil
 }
 
@@ -603,6 +612,10 @@ func (f *Function) asmStoreReg(reg *register, addr ssa.Value, offset uint) (stri
 	}
 	// TODO handle non 64 bit values
 	r, roffset, rsize := info.MemRegOffsetSize()
+	// byte sized values are not supported
+	if rsize == 1 {
+		rsize = 8
+	}
 	if (rsize % 8) != 0 {
 		panic(fmt.Sprintf("Non multiple of 8 byte sized (%v) value in asmStoreReg, addr (%v), name (%v)\n", rsize, addr, addr.Name()))
 	}
@@ -615,18 +628,24 @@ func (f *Function) asmLoadConstValue(cnst *ssa.Const, r *register) (string, *Err
 }
 
 func (f *Function) asmUnOp(instr *ssa.UnOp) (string, *Error) {
+	var err *Error
+	asm := ""
 	switch instr.Op {
 	default:
 		panic(fmt.Sprintf("Unknown Op token (%v) in asmUnOp: \"%v\"", instr.Op, instr))
 	case token.NOT: // logical negation
-		return f.asmUnOpNot(instr)
+		asm, err = f.asmUnOpNot(instr)
 	case token.XOR: //bitwise complement
-		return f.asmUnOpXor(instr)
+		asm, err = f.asmUnOpXor(instr)
 	case token.SUB: // arithmetic negation
-		return f.asmUnOpSub(instr)
+		asm, err = f.asmUnOpSub(instr)
 	case token.MUL: //pointer indirection
-		return f.asmUnOpPointer(instr)
+		asm, err = f.asmUnOpPointer(instr)
 	}
+	asm = f.Indent + fmt.Sprintf("// BEGIN ssa.UnOp: %v = %v\n", instr.Name(), instr) + asm
+	asm += f.Indent + fmt.Sprintf("// END ssa.UnOp: %v = %v\n", instr.Name(), instr)
+	return asm, err
+
 }
 
 // logical negation
@@ -754,9 +773,11 @@ func (f *Function) asmIndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 		f.freeReg(tmp2Reg)
 
 	} else {
-		asm = fmt.Sprintf(f.Indent+"// instr:%v\n", instr)
+		asm = fmt.Sprintf(f.Indent+"// Unsupported ssa.IndexAddr:%v\n", instr)
 	}
 	f.ssaNames[instr.Name()] = assignment
+	asm = f.Indent + fmt.Sprintf("// BEGIN ssa.IndexAddr: %v = %v\n", instr.Name(), instr) + asm
+	asm += f.Indent + fmt.Sprintf("// END ssa.IndexAddr: %v = %v\n", instr.Name(), instr)
 	return asm, nil
 }
 

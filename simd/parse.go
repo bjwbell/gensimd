@@ -41,7 +41,6 @@ func fileDir(f *File) string {
 	} else {
 		dir = strings.Join(split[0:len(split)-2], "/") // + "/"
 	}
-	fmt.Println("dir:", dir)
 	return dir
 }
 

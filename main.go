@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 
@@ -26,7 +27,7 @@ func filePath(pathName string) string {
 	} else if len(split) == 2 {
 		dir = split[0] + "/"
 	} else {
-		dir = strings.Join(split[0:len(split)-2], "/") // + "/"
+		dir = strings.Join(split[0:len(split)-2], "/")
 	}
 	return dir
 }
@@ -57,11 +58,9 @@ func main() {
 		funcName = args[1]
 	}
 	f, err := simd.ParseFile(file)
-	if err == nil {
-		fmt.Println("Parsed: ", file)
-	} else {
-		fmt.Println(fmt.Sprintf("Error parsing file \"%v\", error: %v", file, err))
-		return
+	if err != nil {
+		msg := "Error parsing file \"%v\", error msg \"%v\""
+		log.Fatalf(msg, file, err)
 	}
 
 	filePkgName := f.Pkg.Name()
@@ -85,8 +84,7 @@ func main() {
 	// Load, parse and type-check
 	iprog, err := conf.Load()
 	if err != nil {
-		fmt.Println("err:", err)
-		return
+		log.Fatalf("conf.Load, error msg \"%v\"", err)
 	}
 
 	// Create and build SSA-form program representation.
@@ -96,30 +94,32 @@ func main() {
 	}
 	prog := ssautil.CreateProgram(iprog, builderMode)
 	if prog == nil {
-		fmt.Println("prog == nil")
+		log.Fatalf("Couldn't create ssa representation")
 	}
 	// Build and display only the initial packages (and synthetic wrappers)
 	for _, info := range iprog.InitialPackages() {
 		prog.Package(info.Pkg).Build()
 	}
 
-	// TODO generate assembly instructions
-
+	opcodefile := "codegen/instructionsetxml/Opcodes/opcodes/x86_64.xml"
+	foundpkg := false
+	foundfn := false
 	for _, pkg := range prog.AllPackages() {
 		if pkg.Pkg.Path() == filePkgPath+"/" && pkg.Pkg.Name() == filePkgName {
-			fmt.Println("found filePkgName:", filePkgName)
+			foundpkg = true
 			if fn := pkg.Func(funcName); fn == nil {
-				fmt.Println(fmt.Printf("Error function \"%v\" not found in \"%v\" package", funcName, filePkgName))
-				return
+				msg := "Function \"%v\" not found in package \"%v\""
+				log.Fatalf(msg, funcName, filePkgName)
 			} else {
-				fmt.Println("found function:", funcName)
-				codegenFn, err := codegen.CreateFunction("codegen/instructionsetxml/Opcodes/opcodes/x86_64.xml", fn)
+				foundfn = true
+				codegenFn, err := codegen.CreateFunction(opcodefile, fn)
 				if err != nil {
-					fmt.Printf("Error in codegen.CreateFunction,  msg:\"%v\"", err)
+					msg := "codegen.CreateFunction,  error msg \"%v\""
+					log.Fatalf(msg, err)
 				}
 				if asm, err := codegenFn.GoAssembly(); err != nil {
-					fmt.Println(asm)
-					fmt.Printf("Error creating fn asm, msg:\"%v\"\n", err)
+					msg := "Error creating fn asm, error msg \"%v\"\n"
+					log.Fatalf(msg, err)
 				} else {
 					if *outputFile == "" {
 						fmt.Println(asm)
@@ -130,11 +130,18 @@ func main() {
 			}
 		}
 	}
+	if !foundpkg {
+		msg := "Didn't find package, \"%v\", for function \"%v\""
+		log.Fatalf(msg, filePkgName, funcName)
+
+	} else if foundpkg && !foundfn {
+		msg := "Didn't find function, \"%v\", in package \"%v\""
+		log.Fatalf(msg, funcName, filePkgName)
+	}
 }
 
 func writeFile(filename, contents string) {
-
 	if err := ioutil.WriteFile(filename, []byte(contents), 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing to file, error msg \"%v\"\n", err)
+		log.Fatalf("Error writing to file, error msg \"%v\"\n", err)
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"go/token"
 	"strconv"
-	"strings"
 
 	"golang.org/x/tools/go/types"
 
@@ -270,9 +269,24 @@ func (f *Function) asmFunc() (string, *Error) {
 	asm += zeroSsaLocals
 	asm += zeroNonSsaLocals
 	asm += basicblocks
-
+	asm = f.fixupJumps(asm)
 	a := fmt.Sprintf("TEXT ·%v(SB),NOSPLIT,$%v-%v\n%v", f.ssa.Name(), frameSize, f.paramsSize()+f.retSize(), asm)
 	return a, nil
+}
+
+func (f *Function) fixupJumps(asm string) string {
+	// map from block index to block offsets
+	blockOffsets := f.findBlockOffsets(asm)
+	// TODO
+	fmt.Println("blockOffsets:", blockOffsets)
+	return asm
+}
+func (f *Function) findBlockOffsets(asm string) *Error {
+	// TODO
+	if asm == "" {
+		return nil
+	}
+	return nil
 }
 
 func (f *Function) asmZeroSsaLocals() (string, *Error) {
@@ -457,7 +471,6 @@ func (f *Function) asmIf(instr *ssa.If) (string, *Error) {
 	asm := ""
 	// Be robust against malformed CFG.
 	tblock, fblock := -1, -1
-	tblockOffset, fblockOffset := -1, -1
 	if instr.Block() != nil && len(instr.Block().Succs) == 2 {
 		tblock = instr.Block().Succs[0].Index
 		fblock = instr.Block().Succs[1].Index
@@ -472,8 +485,8 @@ func (f *Function) asmIf(instr *ssa.If) (string, *Error) {
 	} else {
 		r, offset, _ := info.MemRegOffsetSize()
 		asm += asmCmpMemImm32(f.Indent, info.name, uint32(offset), &r, uint32(0))
-		asm += f.Indent + "JEQ    " + strconv.Itoa(fblockOffset) + "\n"
-		asm += f.Indent + "JMP    " + strconv.Itoa(tblockOffset) + "\n"
+		asm += f.Indent + "JEQ    " + "{" + strconv.Itoa(fblock) + "}" + "\n"
+		asm += f.Indent + "JMP    " + "{" + strconv.Itoa(tblock) + "}" + "\n"
 
 	}
 	asm = f.Indent + fmt.Sprintf("// BEGIN ssa.If, %v\n", instr) + asm
@@ -498,7 +511,7 @@ func (f *Function) asmJump(jmp *ssa.Jump) (string, *Error) {
 			asm += a
 		}
 	}
-	asm += f.Indent + strings.Replace(jmp.String(), "jump", "JMP ", -1) + "\n"
+	asm += f.Indent + "JMP {" + strconv.Itoa(block) + "}\n"
 	asm = f.Indent + "// BEGIN ssa.Jump\n" + asm
 	asm += f.Indent + "// END ssa.Jump\n"
 	return asm, nil

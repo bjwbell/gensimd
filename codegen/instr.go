@@ -3,6 +3,7 @@ package codegen
 import (
 	"errors"
 	"fmt"
+	"go/token"
 	"log"
 )
 
@@ -16,6 +17,8 @@ type Operand struct {
 
 type OperandType int
 
+// the list of operand types is from Marat Dukhan's
+// https://github.com/Maratyszcza/Opcodes
 const (
 	// al register
 	AL = iota
@@ -120,6 +123,8 @@ func (op OperandType) String() string {
 
 type InstrName int
 
+// the list of instruction names is from Marat Dukhan's
+// https://github.com/Maratyszcza/Opcodes
 const (
 	AAA = iota
 	AAD
@@ -1522,12 +1527,12 @@ func GetInstrName(name string) (InstrName, error) {
 }
 
 // asmZeroMemory generates "MOVQ $0, name+offset(REG)" instructions
-func asmZeroMemory(indent string, name string, offset uint, size uint, reg register) string {
+func asmZeroMemory(indent string, name string, offset uint, size uint, reg *register) string {
 	if reg.width != 64 {
 		panic(fmt.Sprintf("Invalid register width (%v) for asmZeroMemory", reg.width))
 	}
 	if size%(reg.width/8) != 0 {
-		panic(fmt.Sprintf("Size (%v) not multiple of reg.width (%v)", size, reg.width/8))
+		panic(fmt.Sprintf("Size (%v) not multiple of reg.size (%v), {reg.width (%v)}", size, reg.width/8, reg.width))
 	}
 	asm := ""
 	for i := uint(0); i < size/(reg.width/uint(8)); i++ {
@@ -1662,7 +1667,7 @@ func asmLoadImm32(indent string, imm32 uint32, dstReg *register) string {
 	if dstReg.width < 32 {
 		panic("Invalid register width for asmLoadImm32")
 	}
-	asm := indent + fmt.Sprintf("LOADQ    $%v, %v\n", imm32, dstReg.name)
+	asm := indent + fmt.Sprintf("LOADQ   $%v, %v\n", imm32, dstReg.name)
 	return asm
 }
 
@@ -1690,10 +1695,211 @@ func asmAddRegReg(indent string, srcReg *register, dstReg *register) string {
 	return asm
 }
 
-func asmMultImm32RegReg(indent string, imm32 uint32, srcReg *register, dstReg *register) string {
+func asmSubRegReg(indent string, srcReg *register, dstReg *register) string {
+	if dstReg.width != srcReg.width || srcReg.width != 64 {
+		panic("Invalid register width for asmSubRegReg")
+	}
+	asm := indent + fmt.Sprintf("SUBQ    %v, %v\n", srcReg.name, dstReg.name)
+	return asm
+}
+
+func asmMulImm32RegReg(indent string, imm32 uint32, srcReg *register, dstReg *register) string {
 	if dstReg.width < 32 {
-		panic("Invalid register width for asmAddImm32Reg")
+		panic("Invalid register width for asmMulImm32RegReg")
 	}
 	asm := indent + fmt.Sprintf("IMUL3Q    $%v, %v, %v\n", imm32, srcReg.name, dstReg.name)
+	return asm
+}
+
+// asmMulRegReg multiplies the src register by the dst register and stores
+// the result in the dst register. Overflow is discarded
+func asmMulRegReg(indent string, src *register, dst *register) string {
+	if dst.width != 64 {
+		panic("Invalid register width for asmMulRegReg")
+	}
+	rax := getRegister(REG_AX)
+	rdx := getRegister(REG_DX)
+	if rax.width != 64 || rdx.width != 64 {
+		panic("Invalid rax or rdx register width in asmMulRegReg")
+	}
+	// rax is the implicit destination for MULQ
+	asm := indent + asmMovRegReg(indent, dst, rax)
+	// the low order part of the result is stored in rax and the high order part
+	// is stored in rdx
+	asm += indent + fmt.Sprintf("MULQ    %v\n", src.name)
+	asm += indent + asmMovRegReg(indent, rax, dst)
+	return asm
+}
+
+// asmDivRegReg divides the "dividend" register by the "divisor" register and stores
+// the quotient in rax and the remainder in rdx
+func asmDivRegReg(indent string, dividend *register, divisor *register) (asm string, rax *register, rdx *register) {
+	if dividend.width != 64 || divisor.width != 64 {
+		panic("Invalid register width for asmDivRegReg")
+	}
+	rax = getRegister(REG_AX)
+	rdx = getRegister(REG_DX)
+	if rax.width != 64 || rdx.width != 64 {
+		panic("Invalid rax or rdx register width in asmMulRegReg")
+	}
+	// rdx:rax are the upper and lower parts of the dividend respectively,
+	// and rdx:rax are the implicit destination of DIVQ
+	asm = ""
+	asm += indent + asmZeroReg(indent, rdx)
+	asm += indent + asmMovRegReg(indent, dividend, rax)
+	// the low order part of the result is stored in rax and the high order part
+	// is stored in rdx
+	asm += indent + fmt.Sprintf("MULQ    %v\n", divisor.name)
+	return asm, rax, rdx
+}
+
+func asmArithOp(indent string, op token.Token, x *register, y *register, result *register) string {
+	if x.width != 64 || y.width != 64 || result.width != 64 {
+		panic("Invalid register width in asmArithOp")
+	}
+	asm := ""
+	switch op {
+	default:
+		panic(fmt.Sprintf("Unknown Op token (%v) in asmArithOp", op))
+	case token.ADD:
+		asm += asmMovRegReg(indent, x, result)
+		asm += asmAddRegReg(indent, y, result)
+	case token.SUB:
+		asm += asmMovRegReg(indent, x, result)
+		asm += asmSubRegReg(indent, y, result)
+	case token.MUL:
+		asm += asmMovRegReg(indent, x, result)
+		asm += asmMulRegReg(indent, y, result)
+	case token.QUO, token.REM:
+		// the quotient is stored in rax and
+		// the remainder is stored in rdx.
+		var rax, rdx *register
+		a, rax, rdx := asmDivRegReg(indent, x, y)
+		asm += a
+		if op == token.QUO {
+			asm += asmMovRegReg(indent, rax, result)
+		} else {
+			asm += asmMovRegReg(indent, rdx, result)
+		}
+	}
+	return asm
+}
+
+// asmAndRegReg AND's the src register by the dst register and stores
+// the result in the dst register.
+func asmAndRegReg(indent string, src *register, dst *register) string {
+	if src.width != 64 || dst.width != 64 {
+		panic("Invalid register width for asmAndRegReg")
+	}
+	asm := indent + fmt.Sprintf("ANDQ    %v, %v\n", src.name, dst.name)
+	return asm
+}
+
+func asmOrRegReg(indent string, src *register, dst *register) string {
+	if src.width != 64 || dst.width != 64 {
+		panic("Invalid register width for asmOrRegReg")
+	}
+	asm := indent + fmt.Sprintf("ORQ    %v, %v\n", src.name, dst.name)
+	return asm
+}
+
+func asmXorRegReg(indent string, src *register, dst *register) string {
+	if src.width != 64 || dst.width != 64 {
+		panic("Invalid register width for asmXorRegReg")
+	}
+	asm := indent + fmt.Sprintf("XORQ    %v, %v\n", src.name, dst.name)
+	return asm
+}
+
+func asmShlRegReg(indent string, src *register, shiftAmount *register) string {
+	if src.width != 64 {
+		panic("Invalid register width for asmShlRegReg")
+	}
+	cx := getRegister(REG_CX)
+	asm := indent + asmMovRegReg(indent, shiftAmount, cx)
+	asm += indent + fmt.Sprintf("SHLQ    %v\n", src.name)
+	return asm
+}
+
+func asmShrRegReg(indent string, src *register, shiftAmount *register) string {
+	if src.width != 64 {
+		panic("Invalid register width for asmShrRegReg")
+	}
+	cx := getRegister(REG_CX)
+	asm := indent + asmMovRegReg(indent, shiftAmount, cx)
+	asm += indent + fmt.Sprintf("SHRQ    %v\n", src.name)
+	return asm
+}
+
+func asmAndNotRegReg(indent string, src *register, dst *register) string {
+	if src.width != 64 || dst.width != 64 {
+		panic("Invalid register width for asmAndNotRegReg")
+	}
+	asm := fmt.Sprintf("XORQ	$-1, %v", dst)
+	asm += indent + asmAndRegReg(indent, src, dst)
+	return asm
+}
+
+func asmBitwiseOp(indent string, op token.Token, x *register, y *register, result *register) string {
+	if x.width != 64 || y.width != 64 || result.width != 64 {
+		panic("Invalid register width in asmBitwiseOp")
+	}
+	asm := ""
+	switch op {
+	default:
+		panic(fmt.Sprintf("Unknown Op token (%v) in asmBitwiseOp", op))
+	case token.AND:
+		asm = asmMovRegReg(indent, y, result)
+		asm += asmAndRegReg(indent, x, result)
+	case token.OR:
+		asm = asmMovRegReg(indent, y, result)
+		asm += asmOrRegReg(indent, x, result)
+	case token.XOR:
+		asm = asmMovRegReg(indent, y, result)
+		asm += asmXorRegReg(indent, x, result)
+	case token.SHL:
+		asm = asmMovRegReg(indent, x, result)
+		asm += asmShlRegReg(indent, result, y)
+	case token.SHR:
+		asm = asmMovRegReg(indent, x, result)
+		asm += asmShrRegReg(indent, result, y)
+	case token.AND_NOT:
+		asm = asmMovRegReg(indent, x, result)
+		asm += asmAndNotRegReg(indent, y, result)
+	}
+	return asm
+}
+
+func asmCmpRegReg(indent string, x *register, y *register) string {
+	if x.width != 64 || y.width != 64 {
+		panic("Invalid register width for asmCmpRegReg")
+	}
+	asm := fmt.Sprintf("CMPQ	%v, %v\n", x.name, y.name)
+	return asm
+
+}
+
+func asmCmpOp(indent string, op token.Token, x *register, y *register, result *register) string {
+	if x.width != 64 || y.width != 64 || result.width != 64 {
+		panic("Invalid register width in asmCmpOp")
+	}
+	asm := ""
+	asm += indent + asmCmpRegReg(indent, x, y)
+	switch op {
+	default:
+		panic(fmt.Sprintf("Unknown Op token (%v) in asmComparisonOp", op))
+	case token.EQL:
+		asm += indent + fmt.Sprintf("SETEQ   %v\n", result.name)
+	case token.NEQ:
+		asm += indent + fmt.Sprintf("SETNEQ  %v\n", result.name)
+	case token.LEQ:
+		asm += indent + fmt.Sprintf("SETLS   %v\n", result.name)
+	case token.GEQ:
+		asm += indent + fmt.Sprintf("SETCC   %v\n", result.name)
+	case token.LSS:
+		asm += indent + fmt.Sprintf("SETCS   %v\n", result.name)
+	case token.GTR:
+		asm += indent + fmt.Sprintf("SETHI   %v\n", result.name)
+	}
 	return asm
 }

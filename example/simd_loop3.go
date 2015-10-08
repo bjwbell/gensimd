@@ -6,13 +6,14 @@ package main
 
 import "github.com/bjwbell/gensimd/simd"
 
-func simd_loop1(v4 *[4]int) int {
+func simd_loop3(v4 *[4]int) int {
 	var tmp int
 	var ret int
 	var tmp2 simd.Int4
 	tmp = 4
 	x := v4[0]
-	y := v4[1]
+	y := x + v4[1]
+	y = x + 1
 	v := simd.Int4(*v4)
 	for i := 0; i < 10; i++ {
 		tmp2 = simd.Int4Add(v, v)

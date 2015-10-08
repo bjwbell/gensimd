@@ -21,7 +21,7 @@ type Function struct {
 	Indent         string
 	ssa            *ssa.Function
 	instructionset *instructionsetxml.Instructionset
-	registers      map[register]bool // maps register to false if unused and true if used
+	registers      map[string]bool // maps register to false if unused and true if used
 	ssaNames       map[string]nameInfo
 }
 
@@ -38,11 +38,12 @@ type nameInfo struct {
 // is the frame pointer (FP).
 func (name *nameInfo) MemRegOffsetSize() (reg register, offset uint, size uint) {
 	if name.local != nil {
-		reg = register{"SP", AddrReg, 64}
+
+		reg = *getRegister(REG_SP)
 		offset = name.local.offset
 		size = name.local.size
 	} else if name.param != nil {
-		reg = register{"FP", AddrReg, 64}
+		reg = *getRegister(REG_FP)
 		offset = name.param.offset
 		size = name.param.size
 	} else {
@@ -273,7 +274,7 @@ func (f *Function) asmZeroSsaLocals() (string, *Error) {
 			msg := errors.New(fmt.Sprintf("Can't heap alloc local, name: %v", local.Name()))
 			return "", &Error{Err: msg, Pos: local.Pos()}
 		}
-		sp := register{"SP", AddrReg, pointerSize * uint(8)}
+		sp := getRegister(REG_SP)
 
 		//local values are always addresses, and have pointer types, so the type
 		//of the allocated variable is actually
@@ -291,6 +292,11 @@ func (f *Function) asmZeroSsaLocals() (string, *Error) {
 }
 
 func (f *Function) asmAllocLocal(name string, typ types.Type) (local nameInfo, err *Error) {
+	size := sizeof(typ)
+	//single byte size not supported
+	if size == 1 {
+		size = 8
+	}
 	v := varInfo{name: name, offset: f.localsSize(), size: sizeof(typ), info: nil}
 	info := nameInfo{name: name, typ: typ, param: nil, local: &v}
 	f.ssaNames[v.name] = info
@@ -307,14 +313,18 @@ func (f *Function) asmZeroNonSsaLocals() (string, *Error) {
 		if name.local == nil || name.IsSsaLocal() {
 			continue
 		}
-		sp := register{"SP", AddrReg, pointerSize * 8}
+		sp := getRegister(REG_SP)
+		// single byte size is not supported
+		if name.local.size == 1 {
+			name.local.size = 8
+		}
 		asm += asmZeroMemory(f.Indent, name.name, name.local.offset, name.local.size, sp)
 	}
 	return asm, nil
 }
 
 func (f *Function) asmZeroRetValue() (string, *Error) {
-	asm := asmZeroMemory(f.Indent, "~ret", f.retOffset(), f.retSize(), register{"FP", AddrReg, pointerSize * 8})
+	asm := asmZeroMemory(f.Indent, "~ret", f.retOffset(), f.retSize(), getRegister(REG_FP))
 	return asm, nil
 }
 
@@ -446,31 +456,103 @@ func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 }
 
 func (f *Function) asmBinOp(instr *ssa.BinOp) (string, *Error) {
+	if err := f.allocValueOnDemand(instr); err != nil {
+		return "", err
+	}
+	var regX, regY *register
+	var regVal register
+	// comparison op results are size 1 byte, but that's not supported
+	if f.sizeof(instr) == 1 {
+		regVal = f.allocReg(DataReg, 8*f.sizeof(instr))
+	} else {
+		regVal = f.allocReg(DataReg, f.sizeof(instr))
+	}
+	asm, regX, regY, err := f.asmBinOpLoadXY(instr)
+	if err != nil {
+		return asm, err
+	}
 	switch instr.Op {
 	default:
-		panic(fmt.Sprintf("Unknown Op token (%v) in asmUnOp: \"%v\"", instr.Op, instr))
+		panic(fmt.Sprintf("Unknown op (%v) in asmBinOp", instr.Op))
 	case token.ADD, token.SUB, token.MUL, token.QUO, token.REM:
-		return f.asmBinOpArith(instr)
+		asm += asmArithOp(f.Indent, instr.Op, regX, regY, &regVal)
 	case token.AND, token.OR, token.XOR, token.SHL, token.SHR, token.AND_NOT:
-		return f.asmBinOpBitwise(instr)
-	case token.EQL, token.LSS, token.GTR, token.NEQ, token.LEQ, token.GEQ:
-		return f.asmBinOpComparison(instr)
+		asm += asmBitwiseOp(f.Indent, instr.Op, regX, regY, &regVal)
+	case token.EQL, token.NEQ, token.LEQ, token.GEQ, token.LSS, token.GTR:
+		asm += asmCmpOp(f.Indent, instr.Op, regX, regY, &regVal)
 	}
+	f.freeReg(*regX)
+	f.freeReg(*regY)
+	f.freeReg(regVal)
+	asm = fmt.Sprintf(f.Indent+"//instr %v\n", instr) + asm
+	return asm, nil
 }
 
-func (f *Function) asmBinOpArith(instr *ssa.BinOp) (string, *Error) {
-	// TODO
-	return fmt.Sprintf(f.Indent+"//instr %v\n", instr), nil
+func (f *Function) asmBinOpLoadXY(instr *ssa.BinOp) (asm string, x *register, y *register, err *Error) {
+
+	if err = f.allocValueOnDemand(instr); err != nil {
+		return "", nil, nil, err
+	}
+	if err = f.allocValueOnDemand(instr.X); err != nil {
+		return "", nil, nil, err
+	}
+	if err = f.allocValueOnDemand(instr.Y); err != nil {
+		return "", nil, nil, err
+	}
+
+	xtmp := f.allocReg(DataReg, f.sizeof(instr.X))
+	x = &xtmp
+	ytmp := f.allocReg(DataReg, f.sizeof(instr.Y))
+	y = &ytmp
+	asm = ""
+	if a, err := f.asmLoadValue(instr.X, x); err != nil {
+		return "", nil, nil, err
+	} else {
+		asm += a
+	}
+	if a, err := f.asmLoadValue(instr.Y, y); err != nil {
+		return "", nil, nil, err
+	} else {
+		asm += a
+	}
+	return asm, x, y, nil
 }
 
-func (f *Function) asmBinOpComparison(instr *ssa.BinOp) (string, *Error) {
-	// TODO
-	return fmt.Sprintf(f.Indent+"//instr %v\n", instr), nil
+func (f *Function) sizeof(val ssa.Value) uint {
+	if _, ok := val.(*ssa.Const); ok {
+		return f.sizeofConst(val.(*ssa.Const))
+	}
+	info, ok := f.ssaNames[val.Name()]
+	if !ok {
+		panic(fmt.Sprintf("Unknown name (%v) in asmLoadValue, value (%v)\n", val.Name(), val))
+	}
+	_, _, size := info.MemRegOffsetSize()
+	return size
 }
 
-func (f *Function) asmBinOpBitwise(instr *ssa.BinOp) (string, *Error) {
-	// TODO
-	return fmt.Sprintf(f.Indent+"//instr %v\n", instr), nil
+func (f *Function) sizeofConst(cnst *ssa.Const) uint {
+	return sizeof(cnst.Type())
+}
+
+func (f *Function) asmLoadValue(val ssa.Value, reg *register) (string, *Error) {
+	if _, ok := val.(*ssa.Const); ok {
+		return f.asmLoadConstValue(val.(*ssa.Const), reg)
+	}
+	info, ok := f.ssaNames[val.Name()]
+	if !ok {
+		panic(fmt.Sprintf("Unknown name (%v) in asmLoadValue, value (%v)\n", val.Name(), val))
+	}
+	// TODO handle non 64 bit values
+	r, offset, size := info.MemRegOffsetSize()
+	if size != 8 {
+		panic(fmt.Sprintf("Non 64bit sized (%v) value in asmLoadValue, value (%v), name (%v)\n", size, val, val.Name()))
+	}
+	return asmMovMemReg(f.Indent, info.name, offset, &r, reg), nil
+}
+
+func (f *Function) asmLoadConstValue(cnst *ssa.Const, r *register) (string, *Error) {
+	cnstValue := uint32(cnst.Uint64())
+	return asmLoadImm32(f.Indent, cnstValue, r), nil
 }
 
 func (f *Function) asmUnOp(instr *ssa.UnOp) (string, *Error) {
@@ -558,7 +640,6 @@ func (f *Function) asmIndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 	case *ssa.Const:
 		constIndex = true
 		cnst = instr.Index.(*ssa.Const)
-		fmt.Println("cnst:", cnst)
 	case *ssa.Parameter:
 		paramIndex = true
 		param = instr.Index.(*ssa.Parameter)
@@ -622,7 +703,7 @@ func (f *Function) asmIndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 
 func (f *Function) asmAllocInstr(instr *ssa.Alloc) (string, *Error) {
 	asm := ""
-	var err error
+	//var err error
 	if instr == nil {
 		return "", &Error{Err: errors.New("asmAllocInstr: nil instr"), Pos: instr.Pos()}
 
@@ -639,18 +720,18 @@ func (f *Function) asmAllocInstr(instr *ssa.Alloc) (string, *Error) {
 		panic(fmt.Sprintf("Expect %v to be a local variable", instr.Name()))
 	}
 	if _, ok := info.typ.(*types.Pointer); ok {
-		opMem := Operand{Type: OperandType(M64), Input: true, Output: false, Value: memFn(info.name, info.local.offset, "SP")}
+		/*opMem := Operand{Type: OperandType(M64), Input: true, Output: false, Value: memFn(info.name, info.local.offset, "SP")}
 		reg := f.allocReg(AddrReg, pointerSize)
 		opReg := Operand{Type: OperandType(R64), Input: false, Output: true, Value: regFn(reg.name)}
 		ops := []*Operand{&opMem, &opReg}
-		//info.reg = &reg
+		info.reg = &reg
 		if asm, err = InstrAsm(f.instructionset, GetInstrType(TMOV), ops); err != nil {
 			return "", &Error{err, instr.Pos()}
 		}
 		comment := f.Indent + fmt.Sprintf("// %v = %v\n", info.name, reg.name)
-		asm = comment + f.Indent + asm + "\n"
+		asm = comment + f.Indent + asm + "\n"*/
 	} else {
-		opMem := Operand{Type: OperandType(M), Input: true, Output: false, Value: memFn(info.name, info.local.offset, "SP")}
+		/*opMem := Operand{Type: OperandType(M), Input: true, Output: false, Value: memFn(info.name, info.local.offset, "SP")}
 		reg := f.allocReg(AddrReg, pointerSize)
 		//info.reg = &reg
 		opReg := Operand{Type: OperandType(R64), Input: false, Output: true, Value: regFn(reg.name)}
@@ -659,7 +740,7 @@ func (f *Function) asmAllocInstr(instr *ssa.Alloc) (string, *Error) {
 			return "", &Error{err, instr.Pos()}
 		}
 		comment := f.Indent + fmt.Sprintf("// &%v = %v\n", info.name, reg.name)
-		asm = comment + f.Indent + asm + "\n"
+		asm = comment + f.Indent + asm + "\n"*/
 	}
 	f.ssaNames[instr.Name()] = info
 	return asm, nil
@@ -692,7 +773,7 @@ func (f *Function) localsSize() uint {
 }
 
 func (f *Function) init() *Error {
-	f.registers = make(map[register]bool)
+	f.registers = make(map[string]bool)
 	f.ssaNames = make(map[string]nameInfo)
 	f.initRegs()
 	return nil
@@ -700,7 +781,7 @@ func (f *Function) init() *Error {
 
 func (f *Function) initRegs() {
 	for _, r := range registers {
-		f.registers[r] = false
+		f.registers[r.name] = false
 	}
 }
 
@@ -710,7 +791,10 @@ func (f *Function) allocReg(t RegType, size uint) register {
 	found := false
 	for i := 0; i < len(registers); i++ {
 		r := registers[i]
-		used := f.registers[r]
+		if f.excludeReg(&r) {
+			continue
+		}
+		used := f.registers[r.name]
 		// r.width is in bits so multiple size (which is in bytes) by 8
 		if !used && r.typ == t && r.width == size*8 {
 			reg = r
@@ -719,16 +803,25 @@ func (f *Function) allocReg(t RegType, size uint) register {
 		}
 	}
 	if found {
-		f.registers[reg] = true
+		f.registers[reg.name] = true
 	} else {
 		// any of the data registers can be used as an address register on x86_64
 		if t == AddrReg {
 			return f.allocReg(DataReg, size)
 		} else {
-			panic(fmt.Sprintf("couldn't alloc register, type: %v, size: %v", t, size*8))
+			panic(fmt.Sprintf("couldn't alloc register, type: %v, width in bits: %v", t, size*8))
 		}
 	}
 	return reg
+}
+
+func (f *Function) excludeReg(reg *register) bool {
+	for _, r := range excludedRegisters {
+		if r.name == reg.name {
+			return true
+		}
+	}
+	return false
 }
 
 // zeroReg returns the assembly for zeroing the passed in register
@@ -737,7 +830,7 @@ func (f *Function) zeroReg(r *register) string {
 }
 
 func (f *Function) freeReg(reg register) {
-	f.registers[reg] = false
+	f.registers[reg.name] = false
 }
 
 // paramsSize returns the size of the parameters in bytes
@@ -759,13 +852,25 @@ func (f *Function) retSize() uint {
 		panic("Functions with more than one return value not supported")
 	}
 	size := sizeof(results)
-	fmt.Println("retSize:", size)
 	return size
 }
 
 // retOffset returns the offset of the return value in bytes
 func (f *Function) retOffset() uint {
 	return f.paramsSize()
+}
+
+func (f *Function) allocValueOnDemand(v ssa.Value) *Error {
+	_, ok := f.ssaNames[v.Name()]
+	if !ok {
+		local, err := f.asmAllocLocal(v.Name(), v.Type())
+		if err != nil {
+			msg := fmt.Sprintf("err in allocValueOnDemand, msg:\"%v\"", err)
+			return &Error{Err: errors.New(msg), Pos: v.Pos()}
+		}
+		f.ssaNames[v.Name()] = local
+	}
+	return nil
 }
 
 var pointerSize = uint(8)

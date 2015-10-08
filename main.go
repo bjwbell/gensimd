@@ -58,6 +58,7 @@ func main() {
 		fmt.Println("Parsed: ", file)
 	} else {
 		fmt.Println(fmt.Sprintf("Error parsing file \"%v\", error: %v", file, err))
+		return
 	}
 
 	filePkgName := f.Pkg.Name()

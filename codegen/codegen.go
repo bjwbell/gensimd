@@ -17,12 +17,19 @@ import (
 	"golang.org/x/tools/go/ssa"
 )
 
+type phiInfo struct {
+	name  string
+	value ssa.Value
+}
+
 type Function struct {
 	Indent         string
 	ssa            *ssa.Function
 	instructionset *instructionsetxml.Instructionset
 	registers      map[string]bool // maps register to false if unused and true if used
 	ssaNames       map[string]nameInfo
+	// map from block index to the successor block indexes that need phi vars set
+	phiInfo map[int]map[int][]phiInfo
 }
 
 type nameInfo struct {
@@ -244,6 +251,10 @@ func (f *Function) asmFunc() (string, *Error) {
 		return params + zeroRetValue + zeroSsaLocals, err
 	}
 
+	if err := f.computePhi(); err != nil {
+		return "", err
+	}
+
 	basicblocks, err := f.asmBasicBlocks()
 	if err != nil {
 		return params + zeroRetValue + zeroSsaLocals + basicblocks, err
@@ -443,10 +454,56 @@ func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 	return asm, nil
 }
 
-func (f *Function) asmPhi(phi *ssa.Phi) (string, *Error) {
-	asm := f.Indent
-	asm += fmt.Sprintf("// BEGIN ssa.Phi, name (%v), comment (%v), value (%v)\n", phi.Name(), phi.Comment, phi) + asm
+func (f *Function) computePhi() *Error {
+	for i := 0; i < len(f.ssa.Blocks); i++ {
+		if err := f.computeBasicBlockPhi(f.ssa.Blocks[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
+func (f *Function) computeBasicBlockPhi(block *ssa.BasicBlock) *Error {
+	for i := 0; i < len(block.Instrs); i++ {
+		instr := block.Instrs[i]
+		switch instr := instr.(type) {
+		default:
+			break
+		case *ssa.Phi:
+			if err := f.computePhiInstr(instr); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (f *Function) computePhiInstr(phi *ssa.Phi) *Error {
+	blockIndex := phi.Block().Index
+	for i, edge := range phi.Edges {
+		// Be robust against malformed CFG.
+		edgeBlock := -1
+		if phi.Block() != nil && i < len(phi.Block().Preds) {
+			edgeBlock = phi.Block().Preds[i].Index
+		}
+		if edgeBlock == -1 {
+			panic("computePhiInstr: malformed CFG")
+		}
+		if _, ok := f.phiInfo[edgeBlock]; !ok {
+			f.phiInfo[edgeBlock] = make(map[int][]phiInfo)
+		}
+		f.phiInfo[edgeBlock][blockIndex] = append(f.phiInfo[edgeBlock][blockIndex], phiInfo{name: phi.Name(), value: edge})
+	}
+	return nil
+}
+
+func (f *Function) asmPhi(phi *ssa.Phi) (string, *Error) {
+	if err := f.allocValueOnDemand(phi); err != nil {
+		return "", err
+	}
+	asm := f.Indent
+	asm += fmt.Sprintf("// BEGIN ssa.Phi, name (%v), comment (%v), value (%v)\n", phi.Name(), phi.Comment, phi)
+	//asm += ??
 	asm += f.Indent + fmt.Sprintf("// END ssa.Phi, %v\n", phi)
 	return asm, nil
 }
@@ -863,6 +920,7 @@ func (f *Function) localsSize() uint {
 func (f *Function) init() *Error {
 	f.registers = make(map[string]bool)
 	f.ssaNames = make(map[string]nameInfo)
+	f.phiInfo = make(map[int]map[int][]phiInfo)
 	f.initRegs()
 	return nil
 }

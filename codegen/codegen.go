@@ -302,7 +302,6 @@ func (f *Function) asmAllocLocal(name string, typ types.Type) (local nameInfo, e
 	f.ssaNames[v.name] = info
 	// zeroing the memory is done at the beginning of the function
 	//asmZeroMemory(f.Indent, v.name, v.offset, v.size, sp)
-	fmt.Println(fmt.Sprintf("ALLOC LOCAL: name %v, type %v\n", name, typ))
 	local = info
 	err = nil
 	return

@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
+	"math"
 	"strconv"
+	"strings"
 
 	"golang.org/x/tools/go/types"
 
@@ -265,10 +267,12 @@ func (f *Function) asmFunc() (string, *Error) {
 
 	frameSize := f.localsSize()
 	asm := params
+	asm += f.asmSetStackPointer()
 	asm += zeroRetValue
 	asm += zeroSsaLocals
 	asm += zeroNonSsaLocals
 	asm += basicblocks
+	asm = f.fixupRets(asm)
 	a := fmt.Sprintf("TEXT ·%v(SB),NOSPLIT,$%v-%v\n%v", f.ssa.Name(), frameSize, f.paramsSize()+f.retSize(), asm)
 	return a, nil
 }
@@ -300,20 +304,18 @@ func (f *Function) asmZeroSsaLocals() (string, *Error) {
 	return asm, nil
 }
 
-func (f *Function) asmAllocLocal(name string, typ types.Type) (local nameInfo, err *Error) {
+func (f *Function) asmAllocLocal(name string, typ types.Type) (nameInfo, *Error) {
 	size := sizeof(typ)
 	//single byte size not supported
 	if size == 1 {
 		size = 8
 	}
-	v := varInfo{name: name, offset: f.localsSize(), size: sizeof(typ), info: nil}
+	v := varInfo{name: name, offset: uint(f.localsSize()), size: size, info: nil}
 	info := nameInfo{name: name, typ: typ, param: nil, local: &v}
 	f.ssaNames[v.name] = info
 	// zeroing the memory is done at the beginning of the function
 	//asmZeroMemory(f.Indent, v.name, v.offset, v.size, sp)
-	local = info
-	err = nil
-	return
+	return info, nil
 }
 
 func (f *Function) asmZeroNonSsaLocals() (string, *Error) {
@@ -576,21 +578,31 @@ func (f *Function) asmPhi(phi *ssa.Phi) (string, *Error) {
 	return asm, nil
 }
 
+var dummySpSize = uint32(math.MaxUint32)
+
 func (f *Function) asmReturn(ret *ssa.Return) (string, *Error) {
-	asm, err := f.asmResetStackPointer()
-	if err != nil {
-		return "", err
-	}
+	asm := asmResetStackPointer(f.Indent, dummySpSize)
 	asm = f.Indent + "// BEGIN ssa.Return\n" + asm
 	asm += asmRet(f.Indent)
 	asm += f.Indent + "// END ssa.Return\n"
 	return asm, nil
 }
 
-func (f *Function) asmResetStackPointer() (string, *Error) {
+func asmResetStackPointer(indent string, size uint32) string {
 	sp := getRegister(REG_SP)
-	asm := asmAddImm32Reg(f.Indent, uint32(f.localsSize()), sp)
-	return asm, nil
+	return asmAddImm32Reg(indent, size, sp)
+}
+
+func (f *Function) fixupRets(asm string) string {
+	old := asmResetStackPointer(f.Indent, dummySpSize)
+	new := asmResetStackPointer(f.Indent, f.localsSize())
+	return strings.Replace(asm, old, new, -1)
+}
+
+func (f *Function) asmSetStackPointer() string {
+	sp := getRegister(REG_SP)
+	asm := asmSubImm32Reg(f.Indent, uint32(f.localsSize()), sp)
+	return asm
 }
 
 func (f *Function) asmStore(instr *ssa.Store) (string, *Error) {
@@ -829,10 +841,12 @@ func (f *Function) asmUnOpPointer(instr *ssa.UnOp) (string, *Error) {
 		panic("xSize := aSize in asmUnOpPointer")
 	}
 	size := aSize
-	tmp := f.allocReg(DataReg, DataRegSize)
-	asm += asmMovMemIndirectMem(f.Indent, xInfo.name, xOffset, &xReg, assignment.name, aOffset, &aReg, size, &tmp)
+	tmp1 := f.allocReg(DataReg, DataRegSize)
+	tmp2 := f.allocReg(DataReg, DataRegSize)
+	asm += asmMovMemIndirectMem(f.Indent, xInfo.name, xOffset, &xReg, assignment.name, aOffset, &aReg, size, &tmp1, &tmp2)
 	f.ssaNames[assignment.name] = assignment
-	f.freeReg(tmp)
+	f.freeReg(tmp1)
+	f.freeReg(tmp2)
 	return asm, nil
 }
 
@@ -975,11 +989,11 @@ func (f *Function) asmValue(value ssa.Value, dstReg *register, dstVar *varInfo) 
 	return ""
 }
 
-func (f *Function) localsSize() uint {
-	size := uint(0)
+func (f *Function) localsSize() uint32 {
+	size := uint32(0)
 	for _, name := range f.ssaNames {
 		if name.local != nil {
-			size += sizeof(name.typ)
+			size += uint32(name.local.size)
 		}
 	}
 	return size

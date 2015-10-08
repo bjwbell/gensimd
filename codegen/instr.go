@@ -1566,9 +1566,9 @@ func asmMovRegMem(indent string, srcReg *register, dstName string, dstReg *regis
 
 func asmMovRegMemIndirect(indent string, srcReg *register, dstName string, dstReg *register, dstOffset int, tmp *register) string {
 	if srcReg.width != 64 || dstReg.width != 64 || tmp.width != 64 {
-		panic("Invalid register width for asmMoveRegToReg")
+		panic("Invalid register width for asmMovRegMemIndirect")
 	}
-	asm := indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v", dstName, dstOffset, dstReg, tmp)
+	asm := indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v\n", dstName, dstOffset, dstReg, tmp)
 	asm += indent + fmt.Sprintf("MOVQ    %v, (%v)\n", srcReg.name, tmp.name)
 	return asm
 }
@@ -1586,7 +1586,7 @@ func asmMovMemMem(indent string, srcName string, srcOffset uint, srcReg *registe
 
 func asmMovMemReg(indent string, srcName string, srcOffset uint, srcReg *register, dstReg *register) string {
 	if srcReg.width != 64 || dstReg.width != 64 {
-		panic("Invalid register width for asmCopyIndirectRegValueToMemory")
+		panic("Invalid register width for asmMovMemReg")
 	}
 	asm := indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v\n", srcName, srcOffset, srcReg.name, dstReg.name)
 	return asm
@@ -1594,9 +1594,9 @@ func asmMovMemReg(indent string, srcName string, srcOffset uint, srcReg *registe
 
 func asmMovMemMemIndirect(indent string, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, tmp *register) string {
 	if srcReg.width != 64 || dstReg.width != 64 {
-		panic("Invalid register width for asmCopyIndirectRegValueToMemory")
+		panic("Invalid register width for asmMovMemMemIndirect")
 	}
-	asm := indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v", dstName, dstOffset, dstReg, tmp)
+	asm := indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v\n", dstName, dstOffset, dstReg, tmp)
 	asm += indent + fmt.Sprintf("MOVQ    %v+%v(%v), (%v)\n", srcName, srcOffset, srcReg.name, tmp)
 	return asm
 }
@@ -1605,26 +1605,41 @@ func asmMovMemIndirectReg(indent string, srcName string, srcOffset int, srcReg *
 	if srcReg.width != 64 || dstReg.width != 64 || tmp.width != 64 {
 		panic("Invalid register width for asmMovMemIndirectReg")
 	}
-	asm := indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v", srcName, srcOffset, srcReg, tmp)
-	asm += indent + fmt.Sprintf("MOVQ    (%v), %v\n", tmp, dstReg.name)
+	asm := indent
+	asm += fmt.Sprintf("MOVQ    %v+%v(%v), %v\n", srcName, srcOffset, srcReg, tmp)
+
+	asm += indent
+	asm += fmt.Sprintf("MOVQ    (%v), %v\n", tmp, dstReg.name)
 	return asm
 }
 
-func asmMovMemIndirectMem(indent string, srcName string, srcOffset uint, srcReg *register, dstName string, dstOffset uint, dstReg *register, size uint, tmp *register) string {
-	if srcReg.width != 64 || dstReg.width != 64 || tmp.width != 64 {
+func asmMovMemIndirectMem(indent string, srcName string, srcOffset uint, srcReg *register, dstName string, dstOffset uint, dstReg *register, size uint, tmp1 *register, tmp2 *register) string {
+	if tmp1.width != tmp2.width || tmp1.width != 64 {
+		panic("Mismatched register widths in asmMovMemIndirectMem")
+	}
+	if srcReg.width != 64 || dstReg.width != 64 {
 		panic("Invalid register width for asmMovMemIndirectMem")
 	}
-	if size%(tmp.width/8) != 0 {
+	if size%(tmp1.width/8) != 0 {
 		panic("Invalid size in asmMovMemIndirectMem")
 	}
 	asm := ""
-	for i := uint(0); i < size/(tmp.width/8); i++ {
+	for i := uint(0); i < size/(tmp1.width/8); i++ {
+
 		asm += indent
-		asm += fmt.Sprintf("MOVQ    %v+%v(%v), %v\n", srcName, srcOffset, srcReg.name, tmp.name)
+		asm += fmt.Sprintf("MOVQ    %v+%v(%v), %v\n",
+			srcName, srcOffset, srcReg.name, tmp1.name)
+
 		asm += indent
-		asm += fmt.Sprintf("MOVQ    (%v), %v+%v(%v)\n", tmp.name, dstName, dstOffset, dstReg.name)
-		srcOffset += (tmp.width / 8)
-		dstOffset += (tmp.width / 8)
+		asm += fmt.Sprintf("MOVQ    (%v), %v\n",
+			tmp1.name, tmp2.name)
+
+		asm += indent
+		asm += fmt.Sprintf("MOVQ    %v, %v+%v(%v)\n",
+			tmp2.name, dstName, dstOffset, dstReg.name)
+
+		srcOffset += (tmp1.width / 8)
+		dstOffset += (tmp1.width / 8)
 	}
 	return asm
 }
@@ -1633,8 +1648,8 @@ func asmMovMemIndirectMemIndirect(indent string, srcName string, srcOffset int, 
 	if srcReg.width != 64 || dstReg.width != 64 {
 		panic("Invalid register width for asmCopyIndirectRegValueToMemory")
 	}
-	asm := indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v", srcName, srcOffset, srcReg, tmp1)
-	asm += indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v", dstName, dstOffset, dstReg, tmp2)
+	asm := indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v\n", srcName, srcOffset, srcReg, tmp1)
+	asm += indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v\n", dstName, dstOffset, dstReg, tmp2)
 	asm += indent + fmt.Sprintf("MOVQ    (%v), (%v)\n", tmp1.name, tmp2.name)
 	return asm
 }
@@ -1668,6 +1683,14 @@ func asmAddImm32Reg(indent string, imm32 uint32, dstReg *register) string {
 		panic("Invalid register width for asmAddImm32Reg")
 	}
 	asm := indent + fmt.Sprintf("ADDQ    $%v, %v\n", imm32, dstReg.name)
+	return asm
+}
+
+func asmSubImm32Reg(indent string, imm32 uint32, dstReg *register) string {
+	if dstReg.width < 32 {
+		panic("Invalid register width for asmSubImm32Reg")
+	}
+	asm := indent + fmt.Sprintf("SUBQ    $%v, %v\n", imm32, dstReg.name)
 	return asm
 }
 
@@ -1819,7 +1842,7 @@ func asmAndNotRegReg(indent string, src *register, dst *register) string {
 	if src.width != 64 || dst.width != 64 {
 		panic("Invalid register width for asmAndNotRegReg")
 	}
-	asm := fmt.Sprintf("XORQ	$-1, %v", dst)
+	asm := fmt.Sprintf("XORQ	$-1, %v\n", dst)
 	asm += indent + asmAndRegReg(indent, src, dst)
 	return asm
 }

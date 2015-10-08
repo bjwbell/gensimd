@@ -335,7 +335,7 @@ func (f *Function) asmZeroNonSsaLocals() (string, *Error) {
 }
 
 func (f *Function) asmZeroRetValue() (string, *Error) {
-	asm := asmZeroMemory(f.Indent, "~ret", f.retOffset(), f.retSize(), getRegister(REG_FP))
+	asm := asmZeroMemory(f.Indent, retName(), f.retOffset(), f.retSize(), getRegister(REG_FP))
 	return asm, nil
 }
 
@@ -583,9 +583,28 @@ var dummySpSize = uint32(math.MaxUint32)
 func (f *Function) asmReturn(ret *ssa.Return) (string, *Error) {
 	asm := asmResetStackPointer(f.Indent, dummySpSize)
 	asm = f.Indent + "// BEGIN ssa.Return\n" + asm
+	if a, err := f.asmCopyToRet(ret.Results); err != nil {
+		return "", err
+	} else {
+		asm += a
+	}
 	asm += asmRet(f.Indent)
 	asm += f.Indent + "// END ssa.Return\n"
 	return asm, nil
+}
+
+func (f *Function) asmCopyToRet(val []ssa.Value) (string, *Error) {
+	if len(val) == 0 {
+		return "", nil
+	}
+	if len(val) > 1 {
+		err := Error{
+			Err: fmt.Errorf("Multiple return values not supported"),
+			Pos: 0}
+		return "", &err
+	}
+	retAddr := nameInfo{name: retName(), typ: f.retType(), local: nil, param: f.retParam()}
+	return f.asmStoreValAddr(val[0], &retAddr)
 }
 
 func asmResetStackPointer(indent string, size uint32) string {
@@ -603,6 +622,48 @@ func (f *Function) asmSetStackPointer() string {
 	sp := getRegister(REG_SP)
 	asm := asmSubImm32Reg(f.Indent, uint32(f.localsSize()), sp)
 	return asm
+}
+
+func (f *Function) asmStoreValAddr(val ssa.Value, addr *nameInfo) (string, *Error) {
+	var err *Error
+	if err = f.allocValueOnDemand(val); err != nil {
+		return "", err
+	}
+	if addr.local == nil && addr.param == nil {
+		msg := fmt.Errorf("In asmStoreValAddr invalid addr \"%v\"", addr)
+		return "", &Error{Err: msg, Pos: 0}
+	}
+
+	asm := ""
+	asm += f.Indent + fmt.Sprintf("// BEGIN asmStoreValAddr addr name:%v, val name:%v\n", addr.name, val.Name()) + asm
+	size := f.sizeof(val)
+	iterations := size / intSize()
+
+	if size > intSize() {
+		if size%intSize() != 0 {
+			panic(fmt.Sprintf("size (%v) not multiple of intSize (%v) in asmStore", size, intSize()))
+		}
+	}
+
+	valReg := f.allocReg(DataReg, intSize())
+
+	for i := uint(0); i < iterations; i++ {
+		offset := i * intSize()
+		a, err := f.asmLoadValue(val, offset, intSize(), &valReg)
+		if err != nil {
+			return a, err
+		}
+		asm += a
+		a, err = f.asmStoreReg(&valReg, addr, offset)
+		if err != nil {
+			return a, err
+		}
+		asm += a
+	}
+
+	f.freeReg(valReg)
+	asm += f.Indent + fmt.Sprintf("// END asmStoreValAddr addr name:%v, val name:%v\n", addr.name, val.Name())
+	return asm, nil
 }
 
 func (f *Function) asmStore(instr *ssa.Store) (string, *Error) {
@@ -634,7 +695,12 @@ func (f *Function) asmStore(instr *ssa.Store) (string, *Error) {
 			return a, err
 		}
 		asm += a
-		a, err = f.asmStoreReg(&valReg, instr.Addr, offset)
+		addr, ok := f.ssaNames[instr.Addr.Name()]
+		if !ok {
+			panic(fmt.Sprintf("Unknown name (%v) in asmStore, addr (%v)\n", instr.Addr.Name(), instr.Addr))
+		}
+
+		a, err = f.asmStoreReg(&valReg, &addr, offset)
 		if err != nil {
 			return a, err
 		}
@@ -674,7 +740,13 @@ func (f *Function) asmBinOp(instr *ssa.BinOp) (string, *Error) {
 	}
 	f.freeReg(*regX)
 	f.freeReg(*regY)
-	a, err := f.asmStoreReg(&regVal, instr, 0)
+
+	addr, ok := f.ssaNames[instr.Name()]
+	if !ok {
+		panic(fmt.Sprintf("Unknown name (%v) in asmBinOp, instr (%v)\n", instr.Name(), instr))
+	}
+
+	a, err := f.asmStoreReg(&regVal, &addr, 0)
 	if err != nil {
 		return asm, err
 	} else {
@@ -749,21 +821,17 @@ func (f *Function) asmLoadValue(val ssa.Value, offset uint, size uint, reg *regi
 	return asmMovMemReg(f.Indent, info.name, roffset+offset, &r, reg), nil
 }
 
-func (f *Function) asmStoreReg(reg *register, addr ssa.Value, offset uint) (string, *Error) {
-	info, ok := f.ssaNames[addr.Name()]
-	if !ok {
-		panic(fmt.Sprintf("Unknown name (%v) in asmStoreReg, addr (%v)\n", addr.Name(), addr))
-	}
+func (f *Function) asmStoreReg(reg *register, addr *nameInfo, offset uint) (string, *Error) {
 	// TODO handle non 64 bit values
-	r, roffset, rsize := info.MemRegOffsetSize()
+	r, roffset, rsize := addr.MemRegOffsetSize()
 	// byte sized values are not supported
 	if rsize == 1 {
 		rsize = 8
 	}
 	if (rsize % 8) != 0 {
-		panic(fmt.Sprintf("Non multiple of 8 byte sized (%v) value in asmStoreReg, addr (%v), name (%v)\n", rsize, addr, addr.Name()))
+		panic(fmt.Sprintf("Non multiple of 8 byte sized (%v) value in asmStoreReg, addr (%v), name (%v)\n", rsize, addr, addr.name))
 	}
-	return asmMovRegMem(f.Indent, reg, info.name, &r, offset+roffset), nil
+	return asmMovRegMem(f.Indent, reg, addr.name, &r, offset+roffset), nil
 }
 
 func (f *Function) asmLoadConstValue(cnst *ssa.Const, r *register) (string, *Error) {
@@ -1070,16 +1138,29 @@ func (f *Function) paramsSize() uint {
 	return size
 }
 
-// retSize returns the size of the return value in bytes
-func (f *Function) retSize() uint {
+func retName() string {
+	return "ret0"
+}
+
+// retType gives the return type
+func (f *Function) retType() types.Type {
 	results := f.ssa.Signature.Results()
 	if results.Len() == 0 {
-		return 0
+		return nil
 	}
 	if results.Len() > 1 {
 		panic("Functions with more than one return value not supported")
 	}
-	size := sizeof(results)
+	return results.At(0).Type()
+}
+
+func (f *Function) retParam() *paramInfo {
+	return &paramInfo{name: retName(), offset: f.retOffset(), size: f.retSize(), info: nil, extra: nil}
+}
+
+// retSize returns the size of the return value in bytes
+func (f *Function) retSize() uint {
+	size := sizeof(f.retType())
 	return size
 }
 

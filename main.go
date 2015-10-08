@@ -42,6 +42,7 @@ func fileName(pathName string) string {
 }
 
 func main() {
+	var ssaDump = flag.Bool("ssa", false, "dump ssa representation")
 	flag.Parse()
 	args := flag.Args()
 	file := os.ExpandEnv("$GOFILE")
@@ -87,7 +88,11 @@ func main() {
 	}
 
 	// Create and build SSA-form program representation.
-	prog := ssautil.CreateProgram(iprog, ssa.PrintFunctions)
+	builderMode := ssa.SanityCheckFunctions
+	if *ssaDump {
+		builderMode = ssa.PrintFunctions
+	}
+	prog := ssautil.CreateProgram(iprog, builderMode)
 	if prog == nil {
 		fmt.Println("prog == nil")
 	}

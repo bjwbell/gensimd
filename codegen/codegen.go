@@ -18,8 +18,8 @@ import (
 )
 
 type phiInfo struct {
-	name  string
 	value ssa.Value
+	phi   *ssa.Phi
 }
 
 type Function struct {
@@ -45,7 +45,6 @@ type nameInfo struct {
 // is the frame pointer (FP).
 func (name *nameInfo) MemRegOffsetSize() (reg register, offset uint, size uint) {
 	if name.local != nil {
-
 		reg = *getRegister(REG_SP)
 		offset = name.local.offset
 		size = name.local.size
@@ -404,7 +403,7 @@ func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 	case *ssa.IndexAddr:
 		caseAsm, caseErr = f.asmIndexAddr(instr)
 	case *ssa.Jump:
-		caseAsm = f.Indent + strings.Replace(instr.String(), "jump", "JMP ", -1) + "\n"
+		caseAsm, caseErr = f.asmJump(instr)
 	case *ssa.Lookup:
 		caseAsm = f.Indent + fmt.Sprintf("ssa.Lookup: %v, name: %v\n", instr, instr.Name())
 	case *ssa.MakeChan:
@@ -454,6 +453,29 @@ func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 	return asm, nil
 }
 
+func (f *Function) asmJump(jmp *ssa.Jump) (string, *Error) {
+	asm := ""
+	block := -1
+	if jmp.Block() != nil && len(jmp.Block().Succs) == 1 {
+		block = jmp.Block().Succs[0].Index
+	} else {
+		panic("asmJump: malformed CFG")
+	}
+	phiInfos := f.phiInfo[jmp.Block().Index][block]
+	for _, phiInfo := range phiInfos {
+		store := ssa.Store{Addr: phiInfo.phi, Val: phiInfo.value}
+		if a, err := f.asmStore(&store); err != nil {
+			return asm, err
+		} else {
+			asm += a
+		}
+	}
+	asm += f.Indent + strings.Replace(jmp.String(), "jump", "JMP ", -1) + "\n"
+	asm = f.Indent + "// BEGIN ssa.Jump\n" + asm
+	asm += f.Indent + "// END ssa.Jump\n"
+	return asm, nil
+}
+
 func (f *Function) computePhi() *Error {
 	for i := 0; i < len(f.ssa.Blocks); i++ {
 		if err := f.computeBasicBlockPhi(f.ssa.Blocks[i]); err != nil {
@@ -492,7 +514,7 @@ func (f *Function) computePhiInstr(phi *ssa.Phi) *Error {
 		if _, ok := f.phiInfo[edgeBlock]; !ok {
 			f.phiInfo[edgeBlock] = make(map[int][]phiInfo)
 		}
-		f.phiInfo[edgeBlock][blockIndex] = append(f.phiInfo[edgeBlock][blockIndex], phiInfo{name: phi.Name(), value: edge})
+		f.phiInfo[edgeBlock][blockIndex] = append(f.phiInfo[edgeBlock][blockIndex], phiInfo{value: edge, phi: phi})
 	}
 	return nil
 }

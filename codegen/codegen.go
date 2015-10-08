@@ -397,7 +397,7 @@ func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 	case *ssa.Go:
 		caseAsm = f.Indent + fmt.Sprintf("ssa.Go: %v\n", instr)
 	case *ssa.If:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.If: %v\n", instr)
+		caseAsm, caseErr = f.asmIf(instr)
 	case *ssa.Index:
 		caseAsm = f.Indent + fmt.Sprintf("ssa.Index: %v, name: %v\n", instr, instr.Name())
 	case *ssa.IndexAddr:
@@ -450,6 +450,34 @@ func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 		asm += caseAsm
 	}
 
+	return asm, nil
+}
+
+func (f *Function) asmIf(instr *ssa.If) (string, *Error) {
+	asm := ""
+	// Be robust against malformed CFG.
+	tblock, fblock := -1, -1
+	tblockOffset, fblockOffset := -1, -1
+	if instr.Block() != nil && len(instr.Block().Succs) == 2 {
+		tblock = instr.Block().Succs[0].Index
+		fblock = instr.Block().Succs[1].Index
+
+	}
+	if tblock == -1 || fblock == -1 {
+		panic("asmIf: malformed CFG")
+	}
+	if info, ok := f.ssaNames[instr.Cond.Name()]; !ok {
+		err := errors.New(fmt.Sprintf("asmIf: unhandled case, cond (%v)", instr.Cond))
+		return "", &Error{Err: err, Pos: instr.Pos()}
+	} else {
+		r, offset, _ := info.MemRegOffsetSize()
+		asm += asmCmpMemImm32(f.Indent, info.name, uint32(offset), &r, uint32(0))
+		asm += f.Indent + "JEQ    " + strconv.Itoa(fblockOffset) + "\n"
+		asm += f.Indent + "JMP    " + strconv.Itoa(tblockOffset) + "\n"
+
+	}
+	asm = f.Indent + fmt.Sprintf("// BEGIN ssa.If, %v\n", instr) + asm
+	asm += f.Indent + fmt.Sprintf("// END ssa.If, %v\n", instr)
 	return asm, nil
 }
 

@@ -1889,6 +1889,15 @@ func asmCmpRegReg(indent string, x *register, y *register) string {
 
 }
 
+func asmCmpMemImm32(indent string, name string, offset uint32, r *register, imm32 uint32) string {
+	if r.width != 64 {
+		panic("Invalid register width for asmCmpMemImm32")
+	}
+	asm := indent + fmt.Sprintf("CMPQ	%v+%v(%v), $%v\n", name, offset, r.name, imm32)
+	return asm
+
+}
+
 func asmCmpOp(indent string, op token.Token, x *register, y *register, result *register) string {
 	if x.width != 64 || y.width != 64 || result.width != 64 {
 		panic("Invalid register width in asmCmpOp")

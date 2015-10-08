@@ -14,6 +14,11 @@ func simd_loop2(v4 []int, idx int) {
 	tmp = 4
 	x := v4[idx]
 	y := v4[idx+1]
+	if tmp == 3 {
+		x = 11
+	} else {
+		x = 22
+	}
 	for i := 0; i < 10; i++ {
 		tmp = x*3 + 6*y
 	}

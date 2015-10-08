@@ -46,16 +46,12 @@ func fileName(pathName string) string {
 func main() {
 	var ssaDump = flag.Bool("ssa", false, "dump ssa representation")
 	var outputFile = flag.String("o", "", "write Go Assembly to file")
+	var inputFile = flag.String("file", "", "input file")
+	var fnname = flag.String("fnname", "", "function name")
 	flag.Parse()
-	args := flag.Args()
 	file := os.ExpandEnv("$GOFILE")
-	funcName := ""
-	if len(args) == 1 {
-		funcName = args[0]
-
-	} else if len(args) == 2 {
-		file = args[0]
-		funcName = args[1]
+	if *inputFile != "" {
+		file = *inputFile
 	}
 	f, err := simd.ParseFile(file)
 	if err != nil {
@@ -107,9 +103,9 @@ func main() {
 	for _, pkg := range prog.AllPackages() {
 		if pkg.Pkg.Path() == filePkgPath+"/" && pkg.Pkg.Name() == filePkgName {
 			foundpkg = true
-			if fn := pkg.Func(funcName); fn == nil {
+			if fn := pkg.Func(*fnname); fn == nil {
 				msg := "Function \"%v\" not found in package \"%v\""
-				log.Fatalf(msg, funcName, filePkgName)
+				log.Fatalf(msg, fnname, filePkgName)
 			} else {
 				foundfn = true
 				codegenFn, err := codegen.CreateFunction(opcodefile, fn)
@@ -132,11 +128,11 @@ func main() {
 	}
 	if !foundpkg {
 		msg := "Didn't find package, \"%v\", for function \"%v\""
-		log.Fatalf(msg, filePkgName, funcName)
+		log.Fatalf(msg, filePkgName, fnname)
 
 	} else if foundpkg && !foundfn {
 		msg := "Didn't find function, \"%v\", in package \"%v\""
-		log.Fatalf(msg, funcName, filePkgName)
+		log.Fatalf(msg, fnname, filePkgName)
 	}
 }
 

@@ -24,6 +24,8 @@ type phiInfo struct {
 }
 
 type Function struct {
+	// output function name
+	outfn          string
 	Indent         string
 	ssa            *ssa.Function
 	instructionset *instructionsetxml.Instructionset
@@ -153,7 +155,7 @@ type Error struct {
 	Pos token.Pos
 }
 
-func CreateFunction(instructionsetPath string, fn *ssa.Function) (*Function, *Error) {
+func CreateFunction(instructionsetPath string, fn *ssa.Function, outfn string) (*Function, *Error) {
 	if fn == nil {
 		return nil, &Error{Err: errors.New("Nil function passed in")}
 	}
@@ -161,7 +163,7 @@ func CreateFunction(instructionsetPath string, fn *ssa.Function) (*Function, *Er
 	if err != nil {
 		return nil, &Error{Err: err}
 	}
-	f := Function{ssa: fn, instructionset: instructionset}
+	f := Function{ssa: fn, instructionset: instructionset, outfn: outfn}
 	f.Indent = "        "
 	f.init()
 	return &f, nil
@@ -273,8 +275,23 @@ func (f *Function) asmFunc() (string, *Error) {
 	asm += zeroNonSsaLocals
 	asm += basicblocks
 	asm = f.fixupRets(asm)
-	a := fmt.Sprintf("TEXT ·%v(SB),NOSPLIT,$%v-%v\n%v", f.ssa.Name(), frameSize, f.paramsSize()+f.retSize(), asm)
+	a := fmt.Sprintf("TEXT ·%v(SB),NOSPLIT,$%v-%v\n%v", f.outfname(), frameSize, f.paramsSize()+f.retSize(), asm)
 	return a, nil
+}
+
+func (f *Function) GoProto() string {
+	pkgname := "package " + f.ssa.Package().Pkg.Name() + "\n"
+	fnproto := "func " + f.outfname() + "(" + strings.TrimPrefix(f.ssa.Signature.String(), "func(")
+	proto := pkgname + "\n"
+	proto += fnproto + "\n"
+	return proto
+}
+
+func (f *Function) outfname() string {
+	if f.outfn != "" {
+		return f.outfn
+	}
+	return f.ssa.Name()
 }
 
 func (f *Function) asmZeroSsaLocals() (string, *Error) {

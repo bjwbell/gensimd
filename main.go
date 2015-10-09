@@ -48,10 +48,18 @@ func main() {
 	var outputFile = flag.String("o", "", "write Go Assembly to file")
 	var inputFile = flag.String("file", "", "input file")
 	var fnname = flag.String("fnname", "", "function name")
+	var outfn = flag.String("outfn", "", "output function name")
+	var goprotofile = flag.String("goprotofile", "", "output file for function prototype")
 	flag.Parse()
 	file := os.ExpandEnv("$GOFILE")
 	if *inputFile != "" {
 		file = *inputFile
+	}
+	if *outfn == "" {
+		*outfn = "gensimd_" + *fnname
+	}
+	if *goprotofile == "" {
+		*goprotofile = strings.TrimSuffix(file, ".go") + "_gensimd.go"
 	}
 	f, err := simd.ParseFile(file)
 	if err != nil {
@@ -108,18 +116,19 @@ func main() {
 				log.Fatalf(msg, fnname, filePkgName)
 			} else {
 				foundfn = true
-				codegenFn, err := codegen.CreateFunction(opcodefile, fn)
+				fn, err := codegen.CreateFunction(opcodefile, fn, *outfn)
 				if err != nil {
 					msg := "codegen.CreateFunction,  error msg \"%v\""
 					log.Fatalf(msg, err)
 				}
-				if asm, err := codegenFn.GoAssembly(); err != nil {
+				if asm, err := fn.GoAssembly(); err != nil {
 					msg := "Error creating fn asm, error msg \"%v\"\n"
 					log.Fatalf(msg, err)
 				} else {
 					if *outputFile == "" {
 						fmt.Println(asm)
 					} else {
+						writeFile(*goprotofile, fn.GoProto())
 						writeFile(*outputFile, asm)
 					}
 				}

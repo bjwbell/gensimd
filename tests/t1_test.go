@@ -39,27 +39,19 @@ func test4() int {
 }
 
 func TestT1(t *testing.T) {
-	t.Log("Test...test1() == 5\n")
-
 	if test0Simd() != test0() {
-		t.Fail()
+		t.Errorf("test0Simd (%v) != test0 (%v)", test0Simd(), test0())
 	}
-
 	if test1Simd() != test1() {
-		t.Fail()
+		t.Errorf("test1Simd (%v) != test1 (%v)", test1Simd(), test1())
 	}
-
 	if test2Simd() != test2() {
-		t.Fail()
+		t.Errorf("test2Simd (%v) != test2 (%v)", test2Simd(), test2())
 	}
-
 	if test3Simd() != test3() {
-		t.Fail()
+		t.Errorf("test3Simd (%v) != test3 (%v)", test3Simd(), test3())
 	}
-
 	if test4Simd() != test4() {
-		t.Fail()
+		t.Errorf("test4Simd (%v) != test4 (%v)", test4Simd(), test4())
 	}
-
-	t.Log("Test...T2\n")
 }

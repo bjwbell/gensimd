@@ -43,7 +43,7 @@ type nameInfo struct {
 // RegAndOffset returns the register and offset to access the nameInfo memory.
 // For locals the register is the stack pointer (SP) and for params the register
 // is the frame pointer (FP).
-func (name *nameInfo) MemRegOffsetSize() (reg register, offset uint, size uint) {
+func (name *nameInfo) MemRegOffsetSize() (reg register, offset int, size uint) {
 	if name.local != nil {
 		reg = *getRegister(REG_SP)
 		offset = name.local.offset
@@ -101,7 +101,7 @@ func (name *nameInfo) IsInteger() bool {
 type varInfo struct {
 	name string
 	// offset from the stack pointer (SP)
-	offset uint
+	offset int
 	size   uint
 	info   *ssa.Alloc
 }
@@ -113,7 +113,7 @@ func (v *varInfo) ssaName() string {
 type paramInfo struct {
 	name string
 	// offset from the frame pointer (FP)
-	offset uint
+	offset int
 	size   uint
 	info   *ssa.Parameter
 	extra  interface{}
@@ -124,7 +124,7 @@ func (p *paramInfo) ssaName() string {
 }
 
 type paramSlice struct {
-	lenOffset uint
+	lenOffset int
 }
 
 type Error struct {
@@ -160,20 +160,20 @@ func regFn(name string) func() string {
 
 func (f *Function) asmParams() (string, *Error) {
 	// offset in bytes from frame pointer (FP)
-	offset := uint(0)
+	offset := int(0)
 	asm := ""
 	for _, p := range f.ssa.Params {
 		param := paramInfo{name: p.Name(), offset: offset, info: p, size: sizeof(p.Type())}
 		// TODO alloc reg based on other param types
 		if _, ok := p.Type().(*types.Slice); ok {
-			param.extra = paramSlice{lenOffset: offset + pointerSize}
+			param.extra = paramSlice{lenOffset: offset + int(pointerSize)}
 		} else if basic, ok := p.Type().(*types.Basic); ok && basic.Kind() == types.Int {
 		} else {
 			return "", &Error{Err: errors.New("Unsupported param type"), Pos: p.Pos()}
 		}
 		f.ssaNames[param.name] = nameInfo{name: param.name, typ: param.info.Type(),
 			local: nil, param: &param}
-		offset += param.size
+		offset += int(param.size)
 	}
 	return asm, nil
 }
@@ -238,7 +238,7 @@ func (f *Function) outfname() string {
 
 func (f *Function) asmZeroSsaLocals() (string, *Error) {
 	asm := ""
-	offset := uint(0)
+	offset := int(0)
 	locals := f.ssa.Locals
 	for _, local := range locals {
 		if local.Heap {
@@ -257,7 +257,7 @@ func (f *Function) asmZeroSsaLocals() (string, *Error) {
 		v := varInfo{name: local.Name(), offset: offset, size: size, info: local}
 		f.ssaNames[v.name] = nameInfo{name: v.name, typ: typ, local: &v, param: nil}
 
-		offset += size
+		offset += int(size)
 	}
 	return asm, nil
 }
@@ -268,7 +268,7 @@ func (f *Function) asmAllocLocal(name string, typ types.Type) (nameInfo, *Error)
 	if size == 1 {
 		size = 8
 	}
-	v := varInfo{name: name, offset: uint(f.localsSize()), size: size, info: nil}
+	v := varInfo{name: name, offset: -int(f.localsSize()) - int(size), size: size, info: nil}
 	info := nameInfo{name: name, typ: typ, param: nil, local: &v}
 	f.ssaNames[v.name] = info
 	// zeroing the memory is done at the beginning of the function
@@ -433,7 +433,7 @@ func (f *Function) asmIf(instr *ssa.If) (string, *Error) {
 		}
 		asm += a
 		r, offset, _ := info.MemRegOffsetSize()
-		asm += asmCmpMemImm32(f.Indent, info.name, uint32(offset), &r, uint32(0))
+		asm += asmCmpMemImm32(f.Indent, info.name, int32(offset), &r, uint32(0))
 		asm += f.Indent + "JEQ    " + "block" + strconv.Itoa(fblock) + "\n"
 		a, err = f.asmJumpPreamble(instr.Block().Index, tblock)
 		if err != nil {
@@ -563,8 +563,9 @@ func (f *Function) asmCopyToRet(val []ssa.Value) (string, *Error) {
 }
 
 func asmResetStackPointer(indent string, size uint32) string {
-	sp := getRegister(REG_SP)
-	return asmAddImm32Reg(indent, size, sp)
+	/*sp := getRegister(REG_SP)
+	return asmAddImm32Reg(indent, size, sp)*/
+	return ""
 }
 
 func (f *Function) fixupRets(asm string) string {
@@ -574,9 +575,10 @@ func (f *Function) fixupRets(asm string) string {
 }
 
 func (f *Function) asmSetStackPointer() string {
-	sp := getRegister(REG_SP)
+	/*sp := getRegister(REG_SP)
 	asm := asmSubImm32Reg(f.Indent, uint32(f.localsSize()), sp)
-	return asm
+	return asm*/
+	return ""
 }
 
 func (f *Function) asmStoreValAddr(val ssa.Value, addr *nameInfo) (string, *Error) {
@@ -602,8 +604,8 @@ func (f *Function) asmStoreValAddr(val ssa.Value, addr *nameInfo) (string, *Erro
 
 	valReg := f.allocReg(DataReg, intSize())
 
-	for i := uint(0); i < iterations; i++ {
-		offset := i * intSize()
+	for i := int(0); i < int(iterations); i++ {
+		offset := i * int(intSize())
 		a, err := f.asmLoadValue(val, offset, intSize(), &valReg)
 		if err != nil {
 			return a, err
@@ -644,7 +646,7 @@ func (f *Function) asmStore(instr *ssa.Store) (string, *Error) {
 	valReg := f.allocReg(DataReg, intSize())
 
 	for i := uint(0); i < iterations; i++ {
-		offset := i * intSize()
+		offset := int(i * intSize())
 		a, err := f.asmLoadValue(instr.Val, offset, intSize(), &valReg)
 		if err != nil {
 			return a, err
@@ -760,7 +762,7 @@ func (f *Function) sizeofConst(cnst *ssa.Const) uint {
 	return sizeof(cnst.Type())
 }
 
-func (f *Function) asmLoadValue(val ssa.Value, offset uint, size uint, reg *register) (string, *Error) {
+func (f *Function) asmLoadValue(val ssa.Value, offset int, size uint, reg *register) (string, *Error) {
 	if _, ok := val.(*ssa.Const); ok {
 		return f.asmLoadConstValue(val.(*ssa.Const), reg)
 	}
@@ -776,7 +778,7 @@ func (f *Function) asmLoadValue(val ssa.Value, offset uint, size uint, reg *regi
 	return asmMovMemReg(f.Indent, info.name, roffset+offset, &r, reg), nil
 }
 
-func (f *Function) asmStoreReg(reg *register, addr *nameInfo, offset uint) (string, *Error) {
+func (f *Function) asmStoreReg(reg *register, addr *nameInfo, offset int) (string, *Error) {
 	// TODO handle non 64 bit values
 	r, roffset, rsize := addr.MemRegOffsetSize()
 	// byte sized values are not supported
@@ -920,7 +922,7 @@ func (f *Function) asmIndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 		idx := uint(cnst.Uint64())
 		xReg, xOffset, _ := xInfo.MemRegOffsetSize()
 		assignmentReg, assignmentOffset, _ := assignment.MemRegOffsetSize()
-		asm += asmLea(f.Indent, xInfo.name, xOffset+idx*size, &xReg, &tmpReg)
+		asm += asmLea(f.Indent, xInfo.name, xOffset+int(idx*size), &xReg, &tmpReg)
 		asm += asmMovRegMem(f.Indent, &tmpReg, assignment.name, &assignmentReg, assignmentOffset)
 		f.freeReg(tmpReg)
 	} else if paramIndex {
@@ -1099,8 +1101,8 @@ func (f *Function) retSize() uint {
 }
 
 // retOffset returns the offset of the return value in bytes
-func (f *Function) retOffset() uint {
-	return f.paramsSize()
+func (f *Function) retOffset() int {
+	return int(f.paramsSize())
 }
 
 func (f *Function) allocValueOnDemand(v ssa.Value) *Error {

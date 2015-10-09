@@ -20,7 +20,7 @@ type OperandType int
 // https://github.com/Maratyszcza/Opcodes
 const (
 	// al register
-	AL = iota
+	AL OperandType = iota
 	// ax register
 	AX
 	// eax register
@@ -57,7 +57,7 @@ const (
 )
 
 func (op OperandType) String() string {
-	switch int(op) {
+	switch op {
 	default:
 		log.Fatalf("Unknown OperandType: \"%v\"", int(op))
 		return ""

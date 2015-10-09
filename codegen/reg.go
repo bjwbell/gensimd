@@ -77,7 +77,7 @@ const (
 )
 
 var registers = []register{
-	{"AL", AL, DataReg, 32},
+	{"AL", REG_AL, DataReg, 32},
 	{"CL", REG_CL, DataReg, 32},
 	{"DL", REG_DL, DataReg, 32},
 	{"BL", REG_BL, DataReg, 32},

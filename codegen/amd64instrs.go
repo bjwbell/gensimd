@@ -3,12 +3,16 @@ package codegen
 import "fmt"
 
 type InstrType struct {
-	typ  int
-	name string
+	enumeration x86_64
+	name        string
 }
 
+type x86_64 int
+
+// the list of instruction names is from Marat Dukhan's
+// https://github.com/Maratyszcza/Opcodes
 const (
-	TADC = iota
+	TADC x86_64 = iota
 	TADCX
 	TADD
 	TADDPD
@@ -2442,17 +2446,17 @@ var instrTypes = []InstrType{
 	{TXORPD, "Bitwise Logical XOR for Double-Precision Floating-Point Values"},
 	{TXORPS, "Bitwise Logical XOR for Single-Precision Floating-Point Values"}}
 
-func GetInstrType(typ int) InstrType {
-	for _, instr := range instrTypes {
-		if instr.typ == typ {
-			return instr
+func GetInstrType(instr x86_64) InstrType {
+	for _, inst := range instrTypes {
+		if inst.enumeration == instr {
+			return inst
 		}
 	}
-	panic(fmt.Sprintf("Couldn't find matching InstrType in GetInstrType, typ:%v", typ))
+	panic(fmt.Sprintf("Couldn't find matching InstrType in GetInstrType, instr:%v", instr))
 }
 
 func (instr InstrType) String() string {
-	switch instr.typ {
+	switch instr.enumeration {
 	default:
 		return "Unknown Instr!!"
 	case TADC:

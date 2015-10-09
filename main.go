@@ -45,30 +45,30 @@ func fileName(pathName string) string {
 
 func main() {
 	var ssaDump = flag.Bool("ssa", false, "dump ssa representation")
-	var outputFile = flag.String("o", "", "write Go Assembly to file")
-	var inputFile = flag.String("file", "", "input file")
-	var fnname = flag.String("fname", "", "function name")
-	var outfn = flag.String("outfname", "", "output function name")
+	var output = flag.String("o", "", "write Go Assembly to file")
+	var f = flag.String("f", "", "input file")
+	var fnname = flag.String("fn", "", "function name")
+	var outfn = flag.String("outfn", "", "output function name")
 	var goprotofile = flag.String("goprotofile", "", "output file for function prototype")
 
 	flag.Parse()
 	file := os.ExpandEnv("$GOFILE")
 
-	if *inputFile != "" {
-		file = *inputFile
+	if *f != "" {
+		file = *f
 	}
 	if *outfn == "" {
 		*outfn = "gensimd_" + *fnname
 	}
 
-	f, err := simd.ParseFile(file)
+	parsed, err := simd.ParseFile(file)
 	if err != nil {
 		msg := "Error parsing file \"%v\", error msg \"%v\""
 		log.Fatalf(msg, file, err)
 	}
 
-	filePkgName := f.Pkg.Name()
-	filePkgPath := f.Pkg.Path()
+	filePkgName := parsed.Pkg.Name()
+	filePkgPath := parsed.Pkg.Path()
 	conf := loader.Config{Build: &build.Default}
 
 	// Choose types.Sizes from conf.Build.
@@ -125,13 +125,13 @@ func main() {
 					msg := "Error creating fn asm, error msg \"%v\"\n"
 					log.Fatalf(msg, err)
 				} else {
-					if *outputFile == "" {
+					if *output == "" {
 						fmt.Println(asm)
 					} else {
 						if *goprotofile != "" {
 							writeFile(*goprotofile, fn.GoProto())
 						}
-						writeFile(*outputFile, asm)
+						writeFile(*output, asm)
 					}
 				}
 			}

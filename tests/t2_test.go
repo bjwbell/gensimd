@@ -10,27 +10,27 @@ func t2test2Simd(int) int
 func t2test3Simd(int) int
 func t2test4Simd(int) int
 
-//go:generate gensimd -fname "t2test0" -outfname "t2test0Simd" -file "$GOFILE" -o "t2test0.s"
+//go:generate gensimd -fn "t2test0" -outfn "t2test0Simd" -f "$GOFILE" -o "t2test0.s"
 func t2test0(x int) int {
 	return x
 }
 
-//go:generate gensimd -fname "t2test1" -outfname "t2test1Simd" -file "$GOFILE" -o "t2test1.s"
+//go:generate gensimd -fn "t2test1" -outfn "t2test1Simd" -f "$GOFILE" -o "t2test1.s"
 func t2test1(x int) int {
 	return x + 1
 }
 
-//go:generate gensimd -fname "t2test2" -outfname "t2test2Simd" -file "$GOFILE" -o "t2test2.s"
+//go:generate gensimd -fn "t2test2" -outfn "t2test2Simd" -f "$GOFILE" -o "t2test2.s"
 func t2test2(x int) int {
 	return x * 2
 }
 
-//go:generate gensimd -fname "t2test3" -outfname "t2test3Simd" -file "$GOFILE" -o "t2test3.s"
+//go:generate gensimd -fn "t2test3" -outfn "t2test3Simd" -f "$GOFILE" -o "t2test3.s"
 func t2test3(x int) int {
 	return x / 3
 }
 
-//go:generate gensimd -fname "t2test4" -outfname "t2test4Simd" -file "$GOFILE" -o "t2test4.s"
+//go:generate gensimd -fn "t2test4" -outfn "t2test4Simd" -f "$GOFILE" -o "t2test4.s"
 func t2test4(x int) int {
 	return x * x
 }

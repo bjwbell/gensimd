@@ -13,27 +13,27 @@ func test2Simd() int
 func test3Simd() int
 func test4Simd() int
 
-//go:generate gensimd -fname "test0" -outfname "test0Simd" -file "$GOFILE" -o "test0.s"
+//go:generate gensimd -fn "test0" -outfn "test0Simd" -f "$GOFILE" -o "test0.s"
 func test0() int {
 	return 0
 }
 
-//go:generate gensimd -fname "test1" -outfname "test1Simd" -file "$GOFILE" -o "test1.s"
+//go:generate gensimd -fn "test1" -outfn "test1Simd" -f "$GOFILE" -o "test1.s"
 func test1() int {
 	return 1
 }
 
-//go:generate gensimd -fname "test2" -outfname "test2Simd" -file "$GOFILE" -o "test2.s"
+//go:generate gensimd -fn "test2" -outfn "test2Simd" -f "$GOFILE" -o "test2.s"
 func test2() int {
 	return 2
 }
 
-//go:generate gensimd -fname "test3" -outfname "test3Simd" -file "$GOFILE" -o "test3.s"
+//go:generate gensimd -fn "test3" -outfn "test3Simd" -f "$GOFILE" -o "test3.s"
 func test3() int {
 	return 256
 }
 
-//go:generate gensimd -fname "test4" -outfname "test4Simd" -file "$GOFILE" -o "test4.s"
+//go:generate gensimd -fn "test4" -outfn "test4Simd" -f "$GOFILE" -o "test4.s"
 func test4() int {
 	return math.MaxInt64
 }

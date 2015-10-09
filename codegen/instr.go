@@ -125,7 +125,7 @@ type InstrName int
 // the list of instruction names is from Marat Dukhan's
 // https://github.com/Maratyszcza/Opcodes
 const (
-	AAA = iota
+	AAA InstrName = iota
 	AAD
 	AAM
 	AAS

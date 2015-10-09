@@ -37,9 +37,9 @@ func fileDir(f *File) string {
 	if len(split) == 1 {
 		dir = "."
 	} else if len(split) == 2 {
-		dir = split[0]
+		dir = split[0] + "/"
 	} else {
-		dir = strings.Join(split[0:len(split)-2], "/") // + "/"
+		dir = strings.Join(split[0:len(split)-2], "/") + "/"
 	}
 	return dir
 }

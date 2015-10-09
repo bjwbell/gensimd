@@ -29,7 +29,7 @@ type Operand struct {
 	Output bool   `xml:"output,attr"`
 }
 
-func LoadInstructionset(filename string) (*Instructionset, error) {
+func LoadFromFile(filename string) (*Instructionset, error) {
 	file, err := ioutil.ReadFile(filename)
 	if err != nil {
 		fmt.Println("Cannot read xml file")

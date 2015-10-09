@@ -1,7 +1,3 @@
-// +build !simd
-
-//go:generate gensimd
-
 package main
 
 import "github.com/bjwbell/gensimd/simd"

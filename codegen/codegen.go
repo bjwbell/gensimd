@@ -12,7 +12,6 @@ import (
 
 	"reflect"
 
-	"github.com/bjwbell/gensimd/codegen/instructionsetxml"
 	"github.com/bjwbell/gensimd/simd"
 
 	"golang.org/x/tools/go/ssa"
@@ -25,20 +24,18 @@ type phiInfo struct {
 
 type Function struct {
 	// output function name
-	outfn          string
-	Indent         string
-	ssa            *ssa.Function
-	instructionset *instructionsetxml.Instructionset
-	registers      map[string]bool // maps register to false if unused and true if used
-	ssaNames       map[string]nameInfo
+	outfn     string
+	Indent    string
+	ssa       *ssa.Function
+	registers map[string]bool // maps register to false if unused and true if used
+	ssaNames  map[string]nameInfo
 	// map from block index to the successor block indexes that need phi vars set
 	phiInfo map[int]map[int][]phiInfo
 }
 
 type nameInfo struct {
-	name string
-	typ  types.Type
-	//reg   *register
+	name  string
+	typ   types.Type
 	local *varInfo
 	param *paramInfo
 }
@@ -107,16 +104,7 @@ type varInfo struct {
 	offset uint
 	size   uint
 	info   *ssa.Alloc
-	//reg    *register
 }
-
-/*func (v *varInfo) Reg() (*register, error) {
-	if v.reg != nil {
-		return v.reg, nil
-	} else {
-		return nil, errors.New("varInfo has no reg set")
-	}
-}*/
 
 func (v *varInfo) ssaName() string {
 	return v.info.Name()
@@ -131,23 +119,12 @@ type paramInfo struct {
 	extra  interface{}
 }
 
-/*func (p *paramInfo) Reg() (*register, error) {
-	if p.extra != nil {
-		return &p.extra.(*paramSlice).reg, nil
-	} else {
-		return nil, errors.New("param p has no register set")
-	}
-}*/
-
 func (p *paramInfo) ssaName() string {
 	return p.info.Name()
 }
 
 type paramSlice struct {
-	//offset uint
 	lenOffset uint
-	/*reg       register
-	lenReg    register*/
 }
 
 type Error struct {
@@ -155,15 +132,11 @@ type Error struct {
 	Pos token.Pos
 }
 
-func CreateFunction(instructionsetPath string, fn *ssa.Function, outfn string) (*Function, *Error) {
+func CreateFunction(fn *ssa.Function, outfn string) (*Function, *Error) {
 	if fn == nil {
 		return nil, &Error{Err: errors.New("Nil function passed in")}
 	}
-	instructionset, err := instructionsetxml.LoadInstructionset(instructionsetPath)
-	if err != nil {
-		return nil, &Error{Err: err}
-	}
-	f := Function{ssa: fn, instructionset: instructionset, outfn: outfn}
+	f := Function{ssa: fn, outfn: outfn}
 	f.Indent = "        "
 	f.init()
 	return &f, nil
@@ -189,47 +162,16 @@ func (f *Function) asmParams() (string, *Error) {
 	// offset in bytes from frame pointer (FP)
 	offset := uint(0)
 	asm := ""
-	//var reg *register
 	for _, p := range f.ssa.Params {
 		param := paramInfo{name: p.Name(), offset: offset, info: p, size: sizeof(p.Type())}
 		// TODO alloc reg based on other param types
 		if _, ok := p.Type().(*types.Slice); ok {
-			/*opMem := Operand{Type: OperandType(M64), Input: true, Output: false, Value: memFn(param.name, offset, "FP")}
-			r := f.allocReg(AddrReg, pointerSize)
-			opReg := Operand{Type: OperandType(R64), Input: false, Output: true, Value: regFn(r.name)}
-			ops := []*Operand{&opMem, &opReg}
-			if a, err := InstrAsm(f.instructionset, GetInstrType(TMOV), ops); err != nil {
-				return "", &Error{err, p.Pos()}
-			} else {
-				asm += f.Indent + a + "\n"
-			}
-			// TODO is sizeof length data always pointer size?
-			lenReg := f.allocReg(AddrReg, pointerSize)
-			opMem.Value = memFn(param.name+"len", offset+pointerSize, "FP")
-			opReg.Value = regFn(lenReg.name)
-			if a, err := InstrAsm(f.instructionset, GetInstrType(TMOV), ops); err != nil {
-				return "", &Error{err, p.Pos()}
-			} else {
-				asm += f.Indent + a + "\n"
-			}*/
-			param.extra = paramSlice{lenOffset: offset + pointerSize} //,reg: r, lenReg: lenReg}
-			//reg = &r
+			param.extra = paramSlice{lenOffset: offset + pointerSize}
 		} else if basic, ok := p.Type().(*types.Basic); ok && basic.Kind() == types.Int {
-			/*opMem := Operand{Type: OperandType(M64), Input: true, Output: false, Value: memFn(param.name, offset, "FP")}
-			r := f.allocReg(DataReg, intSize())
-			opReg := Operand{Type: OperandType(R64), Input: false, Output: true, Value: regFn(r.name)}
-			ops := []*Operand{&opMem, &opReg}
-			if a, err := InstrAsm(f.instructionset, GetInstrType(TMOV), ops); err != nil {
-				return "", &Error{err, p.Pos()}
-			} else {
-				asm += f.Indent + a + "\n"
-			}
-			reg = &r*/
 		} else {
 			return "", &Error{Err: errors.New("Unsupported param type"), Pos: p.Pos()}
 		}
 		f.ssaNames[param.name] = nameInfo{name: param.name, typ: param.info.Type(),
-			//reg: reg,
 			local: nil, param: &param}
 		offset += param.size
 	}
@@ -313,9 +255,8 @@ func (f *Function) asmZeroSsaLocals() (string, *Error) {
 		size := sizeof(typ)
 		asm += asmZeroMemory(f.Indent, local.Name(), offset, size, sp)
 		v := varInfo{name: local.Name(), offset: offset, size: size, info: local}
-		f.ssaNames[v.name] = nameInfo{name: v.name, typ: typ,
-			//reg: nil,
-			local: &v, param: nil}
+		f.ssaNames[v.name] = nameInfo{name: v.name, typ: typ, local: &v, param: nil}
+
 		offset += size
 	}
 	return asm, nil
@@ -473,7 +414,6 @@ func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 
 func (f *Function) asmIf(instr *ssa.If) (string, *Error) {
 	asm := ""
-	// Be robust against malformed CFG.
 	tblock, fblock := -1, -1
 	if instr.Block() != nil && len(instr.Block().Succs) == 2 {
 		tblock = instr.Block().Succs[0].Index
@@ -568,7 +508,6 @@ func (f *Function) computeBasicBlockPhi(block *ssa.BasicBlock) *Error {
 func (f *Function) computePhiInstr(phi *ssa.Phi) *Error {
 	blockIndex := phi.Block().Index
 	for i, edge := range phi.Edges {
-		// Be robust against malformed CFG.
 		edgeBlock := -1
 		if phi.Block() != nil && i < len(phi.Block().Preds) {
 			edgeBlock = phi.Block().Preds[i].Index
@@ -590,7 +529,6 @@ func (f *Function) asmPhi(phi *ssa.Phi) (string, *Error) {
 	}
 	asm := f.Indent
 	asm += fmt.Sprintf("// BEGIN ssa.Phi, name (%v), comment (%v), value (%v)\n", phi.Name(), phi.Comment, phi)
-	//asm += ??
 	asm += f.Indent + fmt.Sprintf("// END ssa.Phi, %v\n", phi)
 	return asm, nil
 }
@@ -1015,7 +953,6 @@ func (f *Function) asmIndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 
 func (f *Function) asmAllocInstr(instr *ssa.Alloc) (string, *Error) {
 	asm := ""
-	//var err error
 	if instr == nil {
 		return "", &Error{Err: errors.New("asmAllocInstr: nil instr"), Pos: instr.Pos()}
 
@@ -1032,27 +969,7 @@ func (f *Function) asmAllocInstr(instr *ssa.Alloc) (string, *Error) {
 		panic(fmt.Sprintf("Expect %v to be a local variable", instr.Name()))
 	}
 	if _, ok := info.typ.(*types.Pointer); ok {
-		/*opMem := Operand{Type: OperandType(M64), Input: true, Output: false, Value: memFn(info.name, info.local.offset, "SP")}
-		reg := f.allocReg(AddrReg, pointerSize)
-		opReg := Operand{Type: OperandType(R64), Input: false, Output: true, Value: regFn(reg.name)}
-		ops := []*Operand{&opMem, &opReg}
-		info.reg = &reg
-		if asm, err = InstrAsm(f.instructionset, GetInstrType(TMOV), ops); err != nil {
-			return "", &Error{err, instr.Pos()}
-		}
-		comment := f.Indent + fmt.Sprintf("// %v = %v\n", info.name, reg.name)
-		asm = comment + f.Indent + asm + "\n"*/
 	} else {
-		/*opMem := Operand{Type: OperandType(M), Input: true, Output: false, Value: memFn(info.name, info.local.offset, "SP")}
-		reg := f.allocReg(AddrReg, pointerSize)
-		//info.reg = &reg
-		opReg := Operand{Type: OperandType(R64), Input: false, Output: true, Value: regFn(reg.name)}
-		ops := []*Operand{&opMem, &opReg}
-		if asm, err = InstrAsm(f.instructionset, GetInstrType(TLEA), ops); err != nil {
-			return "", &Error{err, instr.Pos()}
-		}
-		comment := f.Indent + fmt.Sprintf("// &%v = %v\n", info.name, reg.name)
-		asm = comment + f.Indent + asm + "\n"*/
 	}
 	f.ssaNames[instr.Name()] = info
 	return asm, nil

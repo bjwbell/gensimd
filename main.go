@@ -47,20 +47,20 @@ func main() {
 	var ssaDump = flag.Bool("ssa", false, "dump ssa representation")
 	var outputFile = flag.String("o", "", "write Go Assembly to file")
 	var inputFile = flag.String("file", "", "input file")
-	var fnname = flag.String("fnname", "", "function name")
-	var outfn = flag.String("outfn", "", "output function name")
+	var fnname = flag.String("fname", "", "function name")
+	var outfn = flag.String("outfname", "", "output function name")
 	var goprotofile = flag.String("goprotofile", "", "output file for function prototype")
+
 	flag.Parse()
 	file := os.ExpandEnv("$GOFILE")
+
 	if *inputFile != "" {
 		file = *inputFile
 	}
 	if *outfn == "" {
 		*outfn = "gensimd_" + *fnname
 	}
-	if *goprotofile == "" {
-		*goprotofile = strings.TrimSuffix(file, ".go") + "_gensimd.go"
-	}
+
 	f, err := simd.ParseFile(file)
 	if err != nil {
 		msg := "Error parsing file \"%v\", error msg \"%v\""
@@ -100,23 +100,23 @@ func main() {
 	if prog == nil {
 		log.Fatalf("Couldn't create ssa representation")
 	}
+
 	// Build and display only the initial packages (and synthetic wrappers)
 	for _, info := range iprog.InitialPackages() {
 		prog.Package(info.Pkg).Build()
 	}
 
-	opcodefile := "codegen/instructionsetxml/Opcodes/opcodes/x86_64.xml"
 	foundpkg := false
 	foundfn := false
 	for _, pkg := range prog.AllPackages() {
-		if pkg.Pkg.Path() == filePkgPath+"/" && pkg.Pkg.Name() == filePkgName {
+		if pkg.Pkg.Path() == filePkgPath && pkg.Pkg.Name() == filePkgName {
 			foundpkg = true
 			if fn := pkg.Func(*fnname); fn == nil {
 				msg := "Function \"%v\" not found in package \"%v\""
-				log.Fatalf(msg, fnname, filePkgName)
+				log.Fatalf(msg, *fnname, filePkgName)
 			} else {
 				foundfn = true
-				fn, err := codegen.CreateFunction(opcodefile, fn, *outfn)
+				fn, err := codegen.CreateFunction(fn, *outfn)
 				if err != nil {
 					msg := "codegen.CreateFunction,  error msg \"%v\""
 					log.Fatalf(msg, err)
@@ -128,7 +128,9 @@ func main() {
 					if *outputFile == "" {
 						fmt.Println(asm)
 					} else {
-						writeFile(*goprotofile, fn.GoProto())
+						if *goprotofile != "" {
+							writeFile(*goprotofile, fn.GoProto())
+						}
 						writeFile(*outputFile, asm)
 					}
 				}
@@ -136,12 +138,12 @@ func main() {
 		}
 	}
 	if !foundpkg {
-		msg := "Didn't find package, \"%v\", for function \"%v\""
-		log.Fatalf(msg, filePkgName, fnname)
+		msg := "Error in gensimd: didn't find package, \"%v\", for function \"%v\""
+		log.Fatalf(msg, filePkgName, *fnname)
 
 	} else if foundpkg && !foundfn {
-		msg := "Didn't find function, \"%v\", in package \"%v\""
-		log.Fatalf(msg, fnname, filePkgName)
+		msg := "Error in gensimd: didn't find function, \"%v\", in package \"%v\""
+		log.Fatalf(msg, *fnname, filePkgName)
 	}
 }
 

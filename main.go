@@ -47,18 +47,35 @@ func main() {
 	var ssaDump = flag.Bool("ssa", false, "dump ssa representation")
 	var output = flag.String("o", "", "write Go Assembly to file")
 	var f = flag.String("f", "", "input file")
-	var fnname = flag.String("fn", "", "function name")
-	var outfn = flag.String("outfn", "", "output function name")
+	var flagFn = flag.String("fn", "", "comma separated list of function names")
+	var flagOutFn = flag.String("outfn", "", "comma separated list of output function names")
 	var goprotofile = flag.String("goprotofile", "", "output file for function prototype")
 
 	flag.Parse()
 	file := os.ExpandEnv("$GOFILE")
-
 	if *f != "" {
 		file = *f
 	}
-	if *outfn == "" {
-		*outfn = "gensimd_" + *fnname
+	if *flagFn == "" {
+		log.Fatalf("Error no function name(s) provided")
+		return
+	}
+	fnnames := strings.Split(*flagFn, ",")
+	outFns := []string{}
+	if *flagOutFn == "" {
+		for _, fn := range fnnames {
+			outFns = append(outFns, "gensimd_"+fn)
+		}
+	} else {
+		outFns = strings.Split(*flagOutFn, ",")
+
+	}
+	if len(fnnames) != len(outFns) {
+		log.Fatalf("Error # fns (%v) doesn't match # outfns (%v)", len(fnnames), len(outFns))
+	}
+	for i := range fnnames {
+		fnnames[i] = strings.TrimSpace(fnnames[i])
+		outFns[i] = strings.TrimSpace(outFns[i])
 	}
 
 	parsed, err := simd.ParseFile(file)
@@ -106,49 +123,65 @@ func main() {
 		prog.Package(info.Pkg).Build()
 	}
 
-	foundpkg := false
-	foundfn := false
-	for _, pkg := range prog.AllPackages() {
-		if pkg.Pkg.Path() == filePkgPath && pkg.Pkg.Name() == filePkgName {
-			foundpkg = true
-			if fn := pkg.Func(*fnname); fn == nil {
-				msg := "Function \"%v\" not found in package \"%v\""
-				log.Fatalf(msg, *fnname, filePkgName)
-			} else {
-				foundfn = true
-				fn, err := codegen.CreateFunction(fn, *outfn)
-				if err != nil {
-					msg := "codegen.CreateFunction,  error msg \"%v\""
-					log.Fatalf(msg, err)
-				}
-				if asm, err := fn.GoAssembly(); err != nil {
-					msg := "Error creating fn asm, error msg \"%v\"\n"
-					log.Fatalf(msg, err)
+	assembly := ""
+	goprotos := ""
+	protoPkgName := ""
+	for i := range fnnames {
+		fnname := fnnames[i]
+		outfn := outFns[i]
+		foundpkg := false
+		foundfn := false
+		for _, pkg := range prog.AllPackages() {
+			if pkg.Pkg.Path() == filePkgPath && pkg.Pkg.Name() == filePkgName {
+				foundpkg = true
+				if fn := pkg.Func(fnname); fn == nil {
+					msg := "Function \"%v\" not found in package \"%v\""
+					log.Fatalf(msg, fnname, filePkgName)
 				} else {
-					if *output == "" {
-						fmt.Println(asm)
+					foundfn = true
+					fn, err := codegen.CreateFunction(fn, outfn)
+					if err != nil {
+						msg := "codegen.CreateFunction,  error msg \"%v\""
+						log.Fatalf(msg, err)
+					}
+					if asm, err := fn.GoAssembly(); err != nil {
+						msg := "Error creating fn asm, error msg \"%v\"\n"
+						log.Fatalf(msg, err)
 					} else {
-						if *goprotofile != "" {
-							writeFile(*goprotofile, fn.GoProto())
+						if *output == "" {
+							fmt.Println(asm)
+						} else {
+							if *goprotofile != "" {
+								pkg, proto := fn.GoProto()
+								goprotos += proto + "\n"
+								if protoPkgName == "" {
+									protoPkgName = pkg + "\n"
+								}
+							}
+							assembly += asm
 						}
-						writeFile(*output, asm)
 					}
 				}
 			}
 		}
-	}
-	if !foundpkg {
-		msg := "Error in gensimd: didn't find package, \"%v\", for function \"%v\""
-		log.Fatalf(msg, filePkgName, *fnname)
 
-	} else if foundpkg && !foundfn {
-		msg := "Error in gensimd: didn't find function, \"%v\", in package \"%v\""
-		log.Fatalf(msg, *fnname, filePkgName)
+		if !foundpkg {
+			msg := "Error in gensimd: didn't find package, \"%v\", for function \"%v\""
+			log.Fatalf(msg, filePkgName, fnname)
+
+		} else if foundpkg && !foundfn {
+			msg := "Error in gensimd: didn't find function, \"%v\", in package \"%v\""
+			log.Fatalf(msg, fnname, filePkgName)
+		}
+		writeFile(*output, assembly)
+		if *goprotofile != "" {
+			writeFile(*goprotofile, protoPkgName+"\n"+goprotos)
+		}
 	}
 }
 
 func writeFile(filename, contents string) {
 	if err := ioutil.WriteFile(filename, []byte(contents), 0644); err != nil {
-		log.Fatalf("Error writing to file, error msg \"%v\"\n", err)
+		log.Fatalf("Error writing to file \"%v\", error msg \"%v\"\n", filename, err)
 	}
 }

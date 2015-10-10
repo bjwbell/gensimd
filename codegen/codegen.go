@@ -221,12 +221,10 @@ func (f *Function) asmFunc() (string, *Error) {
 	return a, nil
 }
 
-func (f *Function) GoProto() string {
+func (f *Function) GoProto() (string, string) {
 	pkgname := "package " + f.ssa.Package().Pkg.Name() + "\n"
 	fnproto := "func " + f.outfname() + "(" + strings.TrimPrefix(f.ssa.Signature.String(), "func(")
-	proto := pkgname + "\n"
-	proto += fnproto + "\n"
-	return proto
+	return pkgname, fnproto
 }
 
 func (f *Function) outfname() string {

@@ -166,7 +166,7 @@ func (f *Function) asmParams() (string, *Error) {
 		param := paramInfo{name: p.Name(), offset: offset, info: p, size: sizeof(p.Type())}
 		// TODO alloc reg based on other param types
 		if _, ok := p.Type().(*types.Slice); ok {
-			param.extra = paramSlice{lenOffset: offset + int(pointerSize)}
+			param.extra = paramSlice{lenOffset: offset + int(sizePtr())}
 		} else if basic, ok := p.Type().(*types.Basic); ok && basic.Kind() == types.Int {
 		} else {
 			return "", &Error{Err: errors.New("Unsupported param type"), Pos: p.Pos()}
@@ -592,19 +592,19 @@ func (f *Function) asmStoreValAddr(val ssa.Value, addr *nameInfo) (string, *Erro
 	asm := ""
 	asm += f.Indent + fmt.Sprintf("// BEGIN asmStoreValAddr addr name:%v, val name:%v\n", addr.name, val.Name()) + asm
 	size := f.sizeof(val)
-	iterations := size / intSize()
+	iterations := size / sizeInt()
 
-	if size > intSize() {
-		if size%intSize() != 0 {
-			panic(fmt.Sprintf("size (%v) not multiple of intSize (%v) in asmStore", size, intSize()))
+	if size > sizeInt() {
+		if size%sizeInt() != 0 {
+			panic(fmt.Sprintf("size (%v) not multiple of sizeInt (%v) in asmStore", size, sizeInt()))
 		}
 	}
 
-	valReg := f.allocReg(DataReg, intSize())
+	valReg := f.allocReg(DataReg, sizeInt())
 
 	for i := int(0); i < int(iterations); i++ {
-		offset := i * int(intSize())
-		a, err := f.asmLoadValue(val, offset, intSize(), &valReg)
+		offset := i * int(sizeInt())
+		a, err := f.asmLoadValue(val, offset, sizeInt(), &valReg)
 		if err != nil {
 			return a, err
 		}
@@ -633,19 +633,19 @@ func (f *Function) asmStore(instr *ssa.Store) (string, *Error) {
 	asm := ""
 	asm += f.Indent + fmt.Sprintf("// BEGIN ssa.Store addr name:%v, val name:%v\n", instr.Addr.Name(), instr.Val.Name()) + asm
 	size := f.sizeof(instr.Val)
-	iterations := size / intSize()
+	iterations := size / sizeInt()
 
-	if size > intSize() {
-		if size%intSize() != 0 {
-			panic(fmt.Sprintf("size (%v) not multiple of intSize (%v) in asmStore", size, intSize()))
+	if size > sizeInt() {
+		if size%sizeInt() != 0 {
+			panic(fmt.Sprintf("size (%v) not multiple of sizeInt (%v) in asmStore", size, sizeInt()))
 		}
 	}
 
-	valReg := f.allocReg(DataReg, intSize())
+	valReg := f.allocReg(DataReg, sizeInt())
 
 	for i := uint(0); i < iterations; i++ {
-		offset := int(i * intSize())
-		a, err := f.asmLoadValue(instr.Val, offset, intSize(), &valReg)
+		offset := int(i * sizeInt())
+		a, err := f.asmLoadValue(instr.Val, offset, sizeInt(), &valReg)
 		if err != nil {
 			return a, err
 		}
@@ -915,7 +915,7 @@ func (f *Function) asmIndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 	}
 
 	if constIndex {
-		tmpReg := f.allocReg(DataReg, pointerSize)
+		tmpReg := f.allocReg(DataReg, sizePtr())
 		size := uint(sizeofElem(xInfo.typ))
 		idx := uint(cnst.Uint64())
 		xReg, xOffset, _ := xInfo.MemRegOffsetSize()
@@ -925,8 +925,8 @@ func (f *Function) asmIndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 		f.freeReg(tmpReg)
 	} else if paramIndex {
 		p := f.ssaNames[param.Name()]
-		tmpReg := f.allocReg(DataReg, pointerSize)
-		tmp2Reg := f.allocReg(DataReg, pointerSize)
+		tmpReg := f.allocReg(DataReg, sizePtr())
+		tmp2Reg := f.allocReg(DataReg, sizePtr())
 		xReg, xOffset, _ := xInfo.MemRegOffsetSize()
 		pReg, pOffset, pSize := p.MemRegOffsetSize()
 		if pSize != 8 {
@@ -1220,9 +1220,9 @@ func sizeof(t types.Type) uint {
 		// TODO: fix, usage of reflect is wrong!
 		return uint(reflect.TypeOf(t).Elem().Size())
 	case *types.Basic:
-		return sizeBasic(t)
+		return sizeBasic(t.Kind())
 	case *types.Pointer:
-		return pointerSize
+		return sizePtr()
 	case *types.Slice:
 		return sliceSize
 	case *types.Array:
@@ -1240,25 +1240,17 @@ func sizeof(t types.Type) uint {
 	}
 }
 
-func intSize() uint {
-	return uint(reflect.TypeOf(int(1)).Size())
+func sizeInt() uint {
+	return sizeBasic(types.Int)
 }
 
-func uintSize() uint {
-	return uint(reflect.TypeOf(uint(1)).Size())
-}
-
-func boolSize() uint {
-	return uint(reflect.TypeOf(true).Size())
-}
-
-func ptrSize() uint {
+func sizePtr() uint {
 	return pointerSize
 }
 
 // sizeBasic return the size in bytes of a basic type
-func sizeBasic(b *types.Basic) uint {
-	switch b.Kind() {
+func sizeBasic(b types.BasicKind) uint {
+	switch b {
 	default:
 		panic("Unknown basic type")
 	case types.Bool:

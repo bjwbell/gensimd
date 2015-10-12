@@ -34,24 +34,25 @@ type Function struct {
 }
 
 type nameInfo struct {
-	name  string
-	typ   types.Type
-	local *varInfo
-	param *paramInfo
+	name   string
+	typ    types.Type
+	local  *varInfo
+	param  *paramInfo
+	offset int
+	size   uint
+	align  uint
 }
 
 // RegAndOffset returns the register and offset to access the nameInfo memory.
 // For locals the register is the stack pointer (SP) and for params the register
 // is the frame pointer (FP).
 func (name *nameInfo) MemRegOffsetSize() (reg register, offset int, size uint) {
+	offset = name.offset
+	size = name.size
 	if name.local != nil {
 		reg = *getRegister(REG_SP)
-		offset = name.local.offset
-		size = name.local.size
 	} else if name.param != nil {
 		reg = *getRegister(REG_FP)
-		offset = name.param.offset
-		size = name.param.size
 	} else {
 		panic(fmt.Sprintf("nameInfo (%v) is not a local or param", name))
 	}
@@ -100,10 +101,8 @@ func (name *nameInfo) IsInteger() bool {
 
 type varInfo struct {
 	name string
-	// offset from the stack pointer (SP)
-	offset int
-	size   uint
-	info   *ssa.Alloc
+	// offset is from the stack pointer (SP)
+	info *ssa.Alloc
 }
 
 func (v *varInfo) ssaName() string {
@@ -112,11 +111,9 @@ func (v *varInfo) ssaName() string {
 
 type paramInfo struct {
 	name string
-	// offset from the frame pointer (FP)
-	offset int
-	size   uint
-	info   *ssa.Parameter
-	extra  interface{}
+	// offset is from the frame pointer (FP)
+	info  *ssa.Parameter
+	extra interface{}
 }
 
 func (p *paramInfo) ssaName() string {
@@ -163,17 +160,32 @@ func (f *Function) asmParams() (string, *Error) {
 	offset := int(0)
 	asm := ""
 	for _, p := range f.ssa.Params {
-		param := paramInfo{name: p.Name(), offset: offset, info: p, size: sizeof(p.Type())}
+		param := paramInfo{name: p.Name(), info: p}
 		// TODO alloc reg based on other param types
 		if _, ok := p.Type().(*types.Slice); ok {
 			param.extra = paramSlice{lenOffset: offset + int(sizePtr())}
-		} else if basic, ok := p.Type().(*types.Basic); ok && basic.Kind() == types.Int {
+		} else if basic, ok := p.Type().(*types.Basic); ok {
+			switch basic.Kind() {
+			default:
+				return "", &Error{Err: fmt.Errorf("Unsupported param type (%v)", basic), Pos: p.Pos()}
+
+				// supported param types
+			case types.Bool, types.Int, types.Int8, types.Int16, types.Int32, types.Int64,
+				types.Uint, types.Uint8, types.Uint16, types.Uint32, types.Uint64:
+				break
+			}
+
 		} else {
-			return "", &Error{Err: errors.New("Unsupported param type"), Pos: p.Pos()}
+
 		}
-		f.ssaNames[param.name] = nameInfo{name: param.name, typ: param.info.Type(),
-			local: nil, param: &param}
-		offset += int(param.size)
+		info := nameInfo{name: param.name, typ: param.info.Type(),
+			local: nil, param: &param, offset: offset, size: sizeof(p.Type()), align: align(p.Type())}
+		f.ssaNames[param.name] = info
+		if info.align > info.size {
+			offset += int(info.align)
+		} else {
+			offset += int(info.size)
+		}
 	}
 	return asm, nil
 }
@@ -210,6 +222,8 @@ func (f *Function) asmFunc() (string, *Error) {
 	}
 
 	frameSize := f.localsSize()
+	frameSize = f.align(frameSize)
+	argsSize := f.retOffset() + int(f.retAlign())
 	asm := params
 	asm += f.asmSetStackPointer()
 	asm += zeroRetValue
@@ -217,8 +231,13 @@ func (f *Function) asmFunc() (string, *Error) {
 	asm += zeroNonSsaLocals
 	asm += basicblocks
 	asm = f.fixupRets(asm)
-	a := fmt.Sprintf("TEXT ·%v(SB),NOSPLIT,$%v-%v\n%v", f.outfname(), frameSize, f.paramsSize()+f.retSize(), asm)
+	a := fmt.Sprintf("TEXT ·%v(SB),NOSPLIT,$%v-%v\n%v", f.outfname(), frameSize, argsSize, asm)
 	return a, nil
+}
+
+// on amd64 stack size should be 8 byte aligned
+func (f *Function) align(size uint32) uint32 {
+	return size + (8 - size%8)
 }
 
 func (f *Function) GoProto() (string, string) {
@@ -252,10 +271,14 @@ func (f *Function) asmZeroSsaLocals() (string, *Error) {
 		typ := local.Type().Underlying().(*types.Pointer).Elem()
 		size := sizeof(typ)
 		asm += asmZeroMemory(f.Indent, local.Name(), offset, size, sp)
-		v := varInfo{name: local.Name(), offset: offset, size: size, info: local}
-		f.ssaNames[v.name] = nameInfo{name: v.name, typ: typ, local: &v, param: nil}
-
-		offset += int(size)
+		v := varInfo{name: local.Name(), info: local}
+		info := nameInfo{name: v.name, typ: typ, local: &v, param: nil, offset: offset, size: size, align: align(typ)}
+		f.ssaNames[v.name] = info
+		if info.align > info.size {
+			offset += int(info.align)
+		} else {
+			offset += int(size)
+		}
 	}
 	return asm, nil
 }
@@ -263,11 +286,22 @@ func (f *Function) asmZeroSsaLocals() (string, *Error) {
 func (f *Function) asmAllocLocal(name string, typ types.Type) (nameInfo, *Error) {
 	size := sizeof(typ)
 	//single byte size not supported
-	if size == 1 {
-		size = 8
+	//if size == 1 {
+	//	size = 8
+	//}
+	offset := int(size)
+	if align(typ) > size {
+		offset = int(align(typ))
 	}
-	v := varInfo{name: name, offset: -int(f.localsSize()) - int(size), size: size, info: nil}
-	info := nameInfo{name: name, typ: typ, param: nil, local: &v}
+	v := varInfo{name: name, info: nil}
+	info := nameInfo{
+		name:   name,
+		typ:    typ,
+		param:  nil,
+		local:  &v,
+		offset: -int(f.localsSize()) - offset,
+		size:   size,
+		align:  align(typ)}
 	f.ssaNames[v.name] = info
 	// zeroing the memory is done at the beginning of the function
 	//asmZeroMemory(f.Indent, v.name, v.offset, v.size, sp)
@@ -282,16 +316,18 @@ func (f *Function) asmZeroNonSsaLocals() (string, *Error) {
 		}
 		sp := getRegister(REG_SP)
 		// single byte size is not supported
-		if name.local.size == 1 {
-			name.local.size = 8
-		}
-		asm += asmZeroMemory(f.Indent, name.name, name.local.offset, name.local.size, sp)
+		//if name.local.size == 1 {
+		//	name.local.size = 8
+		//}
+		asm += asmZeroMemory(f.Indent, name.name, name.offset, name.size, sp)
 	}
 	return asm, nil
 }
 
 func (f *Function) asmZeroRetValue() (string, *Error) {
-	asm := asmZeroMemory(f.Indent, retName(), f.retOffset(), f.retSize(), getRegister(REG_FP))
+	asm := f.Indent + "// BEGIN asmZeroRetValue\n"
+	asm += asmZeroMemory(f.Indent, retName(), f.retOffset(), f.retSize(), getRegister(REG_FP))
+	asm += f.Indent + "// END asmZeroRetValue\n"
 	return asm, nil
 }
 
@@ -556,7 +592,7 @@ func (f *Function) asmCopyToRet(val []ssa.Value) (string, *Error) {
 			Pos: 0}
 		return "", &err
 	}
-	retAddr := nameInfo{name: retName(), typ: f.retType(), local: nil, param: f.retParam()}
+	retAddr := nameInfo{name: retName(), typ: f.retType(), local: nil, param: f.retParam(), size: f.retSize(), offset: f.retOffset(), align: f.retAlign()}
 	return f.asmStoreValAddr(val[0], &retAddr)
 }
 
@@ -592,7 +628,18 @@ func (f *Function) asmStoreValAddr(val ssa.Value, addr *nameInfo) (string, *Erro
 	asm := ""
 	asm += f.Indent + fmt.Sprintf("// BEGIN asmStoreValAddr addr name:%v, val name:%v\n", addr.name, val.Name()) + asm
 	size := f.sizeof(val)
-	iterations := size / sizeInt()
+	iterations := size
+	datasize := 1
+	if size >= sizeBasic(types.Int64) {
+		iterations = size / sizeBasic(types.Int64)
+		datasize = 8
+	} else if size >= sizeBasic(types.Int32) {
+		iterations = size / sizeBasic(types.Int32)
+		datasize = 4
+	} else if size >= sizeBasic(types.Int16) {
+		iterations = size / sizeBasic(types.Int16)
+		datasize = 2
+	}
 
 	if size > sizeInt() {
 		if size%sizeInt() != 0 {
@@ -600,11 +647,11 @@ func (f *Function) asmStoreValAddr(val ssa.Value, addr *nameInfo) (string, *Erro
 		}
 	}
 
-	valReg := f.allocReg(DataReg, sizeInt())
+	valReg := f.allocReg(DataReg, uint(datasize))
 
 	for i := int(0); i < int(iterations); i++ {
-		offset := i * int(sizeInt())
-		a, err := f.asmLoadValue(val, offset, sizeInt(), &valReg)
+		offset := i * datasize
+		a, err := f.asmLoadValue(val, offset, uint(datasize), &valReg)
 		if err != nil {
 			return a, err
 		}
@@ -673,23 +720,25 @@ func (f *Function) asmBinOp(instr *ssa.BinOp) (string, *Error) {
 	}
 	var regX, regY *register
 	var regVal register
+	size := f.sizeof(instr)
 	// comparison op results are size 1 byte, but that's not supported
-	if f.sizeof(instr) == 1 {
-		regVal = f.allocReg(DataReg, 8*f.sizeof(instr))
+	if size == 1 {
+		regVal = f.allocReg(DataReg, 8*size)
 	} else {
-		regVal = f.allocReg(DataReg, f.sizeof(instr))
+		regVal = f.allocReg(DataReg, size)
 	}
 	asm, regX, regY, err := f.asmBinOpLoadXY(instr)
 	if err != nil {
 		return asm, err
 	}
+
 	switch instr.Op {
 	default:
 		panic(fmt.Sprintf("Unknown op (%v) in asmBinOp", instr.Op))
 	case token.ADD, token.SUB, token.MUL, token.QUO, token.REM:
-		asm += asmArithOp(f.Indent, instr.Op, regX, regY, &regVal)
+		asm += asmArithOp(f.Indent, instr.Op, regX, regY, &regVal, size)
 	case token.AND, token.OR, token.XOR, token.SHL, token.SHR, token.AND_NOT:
-		asm += asmBitwiseOp(f.Indent, instr.Op, regX, regY, &regVal)
+		asm += asmBitwiseOp(f.Indent, instr.Op, regX, regY, &regVal, size)
 	case token.EQL, token.NEQ, token.LEQ, token.GEQ, token.LSS, token.GTR:
 		asm += asmCmpOp(f.Indent, instr.Op, regX, regY, &regVal)
 	}
@@ -768,30 +817,45 @@ func (f *Function) asmLoadValue(val ssa.Value, offset int, size uint, reg *regis
 	if !ok {
 		panic(fmt.Sprintf("Unknown name (%v) in asmLoadValue, value (%v)\n", val.Name(), val))
 	}
-	// TODO handle non 64 bit values
+
 	r, roffset, rsize := info.MemRegOffsetSize()
-	if (rsize%8) != 0 || size != 8 {
-		panic(fmt.Sprintf("Non 64bit sized (%v) value in asmLoadValue, value (%v), name (%v)\n", size, val, val.Name()))
+	if rsize%size != 0 {
+		panic(fmt.Sprintf("size (%v) value in asmLoadValue not divisor of value (%v) size (%v), name (%v)\n", size, val, rsize, val.Name()))
 	}
-	return asmMovMemReg(f.Indent, info.name, roffset+offset, &r, reg), nil
+	if size > 8 {
+		panic(fmt.Sprintf("Greater than 8 byte sized (%v) value in asmLoadValue, value (%v), name (%v)\n", size, val, val.Name()))
+	}
+
+	return asmMovMemReg(f.Indent, info.name, roffset+offset, &r, rsize, reg), nil
 }
 
 func (f *Function) asmStoreReg(reg *register, addr *nameInfo, offset int) (string, *Error) {
-	// TODO handle non 64 bit values
 	r, roffset, rsize := addr.MemRegOffsetSize()
-	// byte sized values are not supported
-	if rsize == 1 {
-		rsize = 8
+	if rsize > 8 {
+		panic(fmt.Sprintf("Greater than 8 byte sized (%v) value in asmStoreReg, addr (%v), name (%v)\n", rsize, *addr, addr.name))
 	}
-	if (rsize % 8) != 0 {
-		panic(fmt.Sprintf("Non multiple of 8 byte sized (%v) value in asmStoreReg, addr (%v), name (%v)\n", rsize, addr, addr.name))
+	if rsize == 0 {
+		panic(fmt.Sprintf("size == 0 for addr (%v)", *addr))
 	}
-	return asmMovRegMem(f.Indent, reg, addr.name, &r, offset+roffset), nil
+	asm := f.Indent + fmt.Sprintf("// BEGIN asmStoreReg, size (%v)\n", rsize)
+	asm += asmMovRegMem(f.Indent, reg, addr.name, &r, offset+roffset, rsize)
+	asm += f.Indent + fmt.Sprintf("// END asmStoreReg, size (%v)\n", rsize)
+	return asm, nil
 }
 
 func (f *Function) asmLoadConstValue(cnst *ssa.Const, r *register) (string, *Error) {
-	cnstValue := cnst.Uint64()
-	return asmMovImm64Reg(f.Indent, cnstValue, r), nil
+	size := sizeof(cnst.Type())
+	switch size {
+	case 1:
+		return asmMovImm8Reg(f.Indent, uint8(cnst.Uint64()), r), nil
+	case 2:
+		return asmMovImm16Reg(f.Indent, uint16(cnst.Uint64()), r), nil
+	case 4:
+		return asmMovImm32Reg(f.Indent, uint32(cnst.Uint64()), r), nil
+	case 8:
+		return asmMovImm64Reg(f.Indent, cnst.Uint64(), r), nil
+	}
+	panic(fmt.Sprintf("invalid size (%v)", size))
 }
 
 func (f *Function) asmUnOp(instr *ssa.UnOp) (string, *Error) {
@@ -919,9 +983,9 @@ func (f *Function) asmIndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 		size := uint(sizeofElem(xInfo.typ))
 		idx := uint(cnst.Uint64())
 		xReg, xOffset, _ := xInfo.MemRegOffsetSize()
-		assignmentReg, assignmentOffset, _ := assignment.MemRegOffsetSize()
+		assignmentReg, assignmentOffset, assignmentSize := assignment.MemRegOffsetSize()
 		asm += asmLea(f.Indent, xInfo.name, xOffset+int(idx*size), &xReg, &tmpReg)
-		asm += asmMovRegMem(f.Indent, &tmpReg, assignment.name, &assignmentReg, assignmentOffset)
+		asm += asmMovRegMem(f.Indent, &tmpReg, assignment.name, &assignmentReg, assignmentOffset, assignmentSize)
 		f.freeReg(tmpReg)
 	} else if paramIndex {
 		p := f.ssaNames[param.Name()]
@@ -934,11 +998,14 @@ func (f *Function) asmIndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 			fmt.Println("pSize:", pSize)
 			panic("Index size not 8 bytes in asmIndexAddr")
 		}
-		assignmentReg, assignmentOffset, _ := assignment.MemRegOffsetSize()
-		asm += asmMovMemReg(f.Indent, p.name, pOffset, &pReg, &tmp2Reg)
+		assignmentReg, assignmentOffset, aSize := assignment.MemRegOffsetSize()
+		if aSize != pSize {
+			panic("aSize != pSize in asmIndexAddr")
+		}
+		asm += asmMovMemReg(f.Indent, p.name, pOffset, &pReg, pSize, &tmp2Reg)
 		asm += asmLea(f.Indent, xInfo.name, xOffset, &xReg, &tmpReg)
 		asm += asmAddRegReg(f.Indent, &tmpReg, &tmp2Reg)
-		asm += asmMovRegMem(f.Indent, &tmp2Reg, assignment.name, &assignmentReg, assignmentOffset)
+		asm += asmMovRegMem(f.Indent, &tmp2Reg, assignment.name, &assignmentReg, assignmentOffset, aSize)
 		f.freeReg(tmpReg)
 		f.freeReg(tmp2Reg)
 
@@ -995,7 +1062,7 @@ func (f *Function) localsSize() uint32 {
 	size := uint32(0)
 	for _, name := range f.ssaNames {
 		if name.local != nil {
-			size += uint32(name.local.size)
+			size += uint32(name.size)
 		}
 	}
 	return size
@@ -1025,11 +1092,16 @@ func (f *Function) allocReg(t RegType, size uint) register {
 			continue
 		}
 		used := f.registers[r.name]
+		if used || r.typ != t {
+			continue
+		}
 		// r.width is in bits so multiple size (which is in bytes) by 8
-		if !used && r.typ == t && r.width == size*8 {
-			reg = r
-			found = true
-			break
+		for i := range r.datasizes {
+			if r.datasizes[i] == GetInstrDataSize(size) {
+				reg = r
+				found = true
+				break
+			}
 		}
 	}
 	if found {
@@ -1089,7 +1161,7 @@ func (f *Function) retType() types.Type {
 }
 
 func (f *Function) retParam() *paramInfo {
-	return &paramInfo{name: retName(), offset: f.retOffset(), size: f.retSize(), info: nil, extra: nil}
+	return &paramInfo{name: retName(), info: nil, extra: nil}
 }
 
 // retSize returns the size of the return value in bytes
@@ -1100,7 +1172,22 @@ func (f *Function) retSize() uint {
 
 // retOffset returns the offset of the return value in bytes
 func (f *Function) retOffset() int {
-	return int(f.paramsSize())
+	align := f.retAlign()
+	padding := align - f.paramsSize()%align
+	if padding == align {
+		padding = 0
+	}
+	return int(f.paramsSize() + padding)
+}
+
+// retAlign returns the alignment of the return value in bytes
+func (f *Function) retAlign() uint {
+	//fmt.Println(fmt.Sprintf("retAlign:%v, retType:%v\n", align(f.retType()), f.retType()))
+	align := align(f.retType())
+	if align < 8 {
+		align = 8
+	}
+	return align
 }
 
 func (f *Function) allocValueOnDemand(v ssa.Value) *Error {
@@ -1213,9 +1300,6 @@ func sizeofElem(t types.Type) uint {
 func sizeof(t types.Type) uint {
 
 	switch t := t.(type) {
-	default:
-		fmt.Println("t:", t)
-		panic("Error unknown type in sizeof")
 	case *types.Tuple:
 		// TODO: usage of reflect most likely wrong!
 		return uint(reflect.TypeOf(t).Elem().Size())
@@ -1238,6 +1322,7 @@ func sizeof(t types.Type) uint {
 			return info.size
 		}
 	}
+	panic(fmt.Sprintf("Error unknown type: %v", t))
 }
 
 func sizeInt() uint {
@@ -1250,34 +1335,88 @@ func sizePtr() uint {
 
 // sizeBasic return the size in bytes of a basic type
 func sizeBasic(b types.BasicKind) uint {
+	return uint(reflectBasic(b).Size())
+}
+
+func align(t types.Type) uint {
+
+	switch t := t.(type) {
+	case *types.Tuple:
+		// TODO: usage of reflect most likely wrong!
+		return uint(reflect.TypeOf(t).Elem().Size())
+	case *types.Basic:
+		return alignBasic(t.Kind())
+	case *types.Pointer:
+		return alignPtr()
+	case *types.Slice:
+		return alignSlice()
+	case *types.Array:
+		// TODO: most likely wrong
+		return alignSlice()
+	case *types.Named:
+		panic(fmt.Sprintf("Error unknown named type in align:\"%v\"", t))
+	}
+	panic(fmt.Sprintf("Error unknown type (%v)", t))
+}
+
+func alignPtr() uint {
+	return 8
+}
+func alignSlice() uint {
+	return 8
+}
+
+func alignBasic(b types.BasicKind) uint {
+	return uint(reflectBasic(b).Align())
+}
+
+func reflectType(t types.Type) reflect.Type {
+	switch t := t.(type) {
+	case *types.Tuple:
+		// TODO
+	case *types.Basic:
+		return reflectBasic(t.Kind())
+	case *types.Pointer:
+		// TODO
+	case *types.Slice:
+		// TODO
+	case *types.Array:
+		// TODO
+	case *types.Named:
+		// TODO
+	}
+	panic(fmt.Sprintf("Error unknown type:\"%v\"", t))
+}
+
+func reflectBasic(b types.BasicKind) reflect.Type {
 	switch b {
 	default:
 		panic("Unknown basic type")
 	case types.Bool:
-		return uint(reflect.TypeOf(true).Size())
+		return reflect.TypeOf(true)
 	case types.Int:
-		return uint(reflect.TypeOf(int(1)).Size())
+		return reflect.TypeOf(int(1))
 	case types.Int8:
-		return uint(reflect.TypeOf(int8(1)).Size())
+		return reflect.TypeOf(int8(1))
 	case types.Int16:
-		return uint(reflect.TypeOf(int16(1)).Size())
+		return reflect.TypeOf(int16(1))
 	case types.Int32:
-		return uint(reflect.TypeOf(int32(1)).Size())
+		return reflect.TypeOf(int32(1))
 	case types.Int64:
-		return uint(reflect.TypeOf(int64(1)).Size())
+		return reflect.TypeOf(int64(1))
 	case types.Uint:
-		return uint(reflect.TypeOf(uint(1)).Size())
+		return reflect.TypeOf(uint(1))
 	case types.Uint8:
-		return uint(reflect.TypeOf(uint8(1)).Size())
+		return reflect.TypeOf(uint8(1))
 	case types.Uint16:
-		return uint(reflect.TypeOf(uint16(1)).Size())
+		return reflect.TypeOf(uint16(1))
 	case types.Uint32:
-		return uint(reflect.TypeOf(uint32(1)).Size())
+		return reflect.TypeOf(uint32(1))
 	case types.Uint64:
-		return uint(reflect.TypeOf(uint64(1)).Size())
+		return reflect.TypeOf(uint64(1))
 	case types.Float32:
-		return uint(reflect.TypeOf(float32(1)).Size())
+		return reflect.TypeOf(float32(1))
 	case types.Float64:
-		return uint(reflect.TypeOf(float64(1)).Size())
+		return reflect.TypeOf(float64(1))
 	}
 }

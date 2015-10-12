@@ -35,7 +35,7 @@ func FindInstr(set *instructionsetxml.Instructionset, typ InstrType, ops []*Oper
 		}
 		return 0, fmt.Errorf("No matched instr form for instr:%v", instr)
 	}
-	if instrName, err := GetInstr(form.GoName); err != nil {
+	if instrName, err := GetInstrFromStr(form.GoName); err != nil {
 		return instrName, fmt.Errorf("No InstrName for form.GoName:%v", form.GoName)
 	} else {
 		return instrName, nil

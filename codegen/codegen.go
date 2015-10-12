@@ -721,6 +721,7 @@ func (f *Function) asmBinOp(instr *ssa.BinOp) (string, *Error) {
 	var regX, regY *register
 	var regVal register
 	size := f.sizeof(instr)
+	signed := signed(instr.Type())
 	// comparison op results are size 1 byte, but that's not supported
 	if size == 1 {
 		regVal = f.allocReg(DataReg, 8*size)
@@ -736,7 +737,7 @@ func (f *Function) asmBinOp(instr *ssa.BinOp) (string, *Error) {
 	default:
 		panic(fmt.Sprintf("Unknown op (%v) in asmBinOp", instr.Op))
 	case token.ADD, token.SUB, token.MUL, token.QUO, token.REM:
-		asm += asmArithOp(f.Indent, instr.Op, regX, regY, &regVal, size)
+		asm += asmArithOp(f.Indent, signed, instr.Op, regX, regY, &regVal, size)
 	case token.AND, token.OR, token.XOR, token.SHL, token.SHR, token.AND_NOT:
 		asm += asmBitwiseOp(f.Indent, instr.Op, regX, regY, &regVal, size)
 	case token.EQL, token.NEQ, token.LEQ, token.GEQ, token.LSS, token.GTR:
@@ -779,17 +780,21 @@ func (f *Function) asmBinOpLoadXY(instr *ssa.BinOp) (asm string, x *register, y 
 	x = &xtmp
 	ytmp := f.allocReg(DataReg, f.sizeof(instr.Y))
 	y = &ytmp
-	asm = ""
+	asm = f.Indent + "// BEGIN asmBinOpLoadXY\n"
+
 	if a, err := f.asmLoadValue(instr.X, 0, f.sizeof(instr.X), x); err != nil {
 		return "", nil, nil, err
 	} else {
 		asm += a
 	}
+
 	if a, err := f.asmLoadValue(instr.Y, 0, f.sizeof(instr.Y), y); err != nil {
 		return "", nil, nil, err
 	} else {
 		asm += a
 	}
+
+	asm += f.Indent + "// END asmBinOpLoadXY\n"
 	return asm, x, y, nil
 }
 
@@ -807,6 +812,10 @@ func (f *Function) sizeof(val ssa.Value) uint {
 
 func (f *Function) sizeofConst(cnst *ssa.Const) uint {
 	return sizeof(cnst.Type())
+}
+
+func (f *Function) asmLoadValueSimple(val ssa.Value, reg *register) (string, *Error) {
+	return f.asmLoadValue(val, 0, f.sizeof(val), reg)
 }
 
 func (f *Function) asmLoadValue(val ssa.Value, offset int, size uint, reg *register) (string, *Error) {
@@ -845,15 +854,32 @@ func (f *Function) asmStoreReg(reg *register, addr *nameInfo, offset int) (strin
 
 func (f *Function) asmLoadConstValue(cnst *ssa.Const, r *register) (string, *Error) {
 	size := sizeof(cnst.Type())
+	signed := signed(cnst.Type())
 	switch size {
 	case 1:
-		return asmMovImm8Reg(f.Indent, uint8(cnst.Uint64()), r), nil
+		if signed {
+			return asmMovImm8Reg(f.Indent, int8(cnst.Int64()), r), nil
+		} else {
+			return asmMovImm16Reg(f.Indent, int16(uint8(cnst.Uint64())), r), nil
+		}
 	case 2:
-		return asmMovImm16Reg(f.Indent, uint16(cnst.Uint64()), r), nil
+		if signed {
+			return asmMovImm16Reg(f.Indent, int16(cnst.Int64()), r), nil
+		} else {
+			return asmMovImm32Reg(f.Indent, int32(uint16(cnst.Uint64())), r), nil
+		}
 	case 4:
-		return asmMovImm32Reg(f.Indent, uint32(cnst.Uint64()), r), nil
+		if signed {
+			return asmMovImm32Reg(f.Indent, int32(cnst.Int64()), r), nil
+		} else {
+			return asmMovImm64Reg(f.Indent, int64(uint32(cnst.Uint64())), r), nil
+		}
 	case 8:
-		return asmMovImm64Reg(f.Indent, cnst.Uint64(), r), nil
+		if signed {
+			return asmMovImm64Reg(f.Indent, cnst.Int64(), r), nil
+		} else {
+			return asmMovImm64Reg(f.Indent, int64(cnst.Uint64()), r), nil
+		}
 	}
 	panic(fmt.Sprintf("invalid size (%v)", size))
 }
@@ -893,8 +919,47 @@ func (f *Function) asmUnOpXor(instr *ssa.UnOp) (string, *Error) {
 
 // arithmetic negation
 func (f *Function) asmUnOpSub(instr *ssa.UnOp) (string, *Error) {
-	// TODO
-	return fmt.Sprintf(f.Indent+"// instr %v\n", instr), nil
+
+	if err := f.allocValueOnDemand(instr); err != nil {
+		return "", err
+	}
+	var regX register
+	var regSubX register
+	var regVal register
+	size := f.sizeof(instr)
+	signed := signed(instr.Type())
+
+	regVal = f.allocReg(DataReg, size)
+	regX = f.allocReg(DataReg, f.sizeof(instr.X))
+	regSubX = f.allocReg(DataReg, f.sizeof(instr.X))
+
+	addr, ok := f.ssaNames[instr.Name()]
+	if !ok {
+		panic(fmt.Sprintf("Unknown name (%v) in asmBinOp, instr (%v)\n", instr.Name(), instr))
+	}
+
+	asm, err := f.asmLoadValueSimple(instr.X, &regX)
+	if err != nil {
+		return asm, err
+	}
+
+	asm += asmZeroReg(f.Indent, &regSubX)
+	asm += asmArithOp(f.Indent, signed, token.SUB, &regSubX, &regX, &regVal, size)
+	f.freeReg(regX)
+	f.freeReg(regSubX)
+
+	a, err := f.asmStoreReg(&regVal, &addr, 0)
+	if err != nil {
+		return asm, err
+	} else {
+		asm += a
+	}
+	f.freeReg(regVal)
+
+	asm = fmt.Sprintf(f.Indent+"// BEGIN ssa.UnOpSub, %v = %v\n", instr.Name(), instr) + asm
+	asm += fmt.Sprintf(f.Indent+"// END ssa.UnOpSub, %v = %v\n", instr.Name(), instr)
+	return asm, nil
+
 }
 
 //pointer indirection
@@ -1368,6 +1433,27 @@ func alignSlice() uint {
 
 func alignBasic(b types.BasicKind) uint {
 	return uint(reflectBasic(b).Align())
+}
+
+func signed(t types.Type) bool {
+
+	switch t := t.(type) {
+	case *types.Basic:
+		return signedBasic(t.Kind())
+	}
+	panic(fmt.Sprintf("Error unknown type: %v", t))
+}
+
+func signedBasic(b types.BasicKind) bool {
+	switch b {
+	case types.Int, types.Int8, types.Int16, types.Int32, types.Int64:
+		return true
+	case types.Uint, types.Uint8, types.Uint16, types.Uint32, types.Uint64:
+		return false
+	case types.Float32, types.Float64:
+		return true
+	}
+	panic("Unknown basic type")
 }
 
 func reflectType(t types.Type) reflect.Type {

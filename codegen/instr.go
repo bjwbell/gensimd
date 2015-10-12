@@ -188,7 +188,9 @@ const (
 	I_MOV
 	I_XOR
 	I_LEA
+	I_IMUL
 	I_MUL
+	I_IDIV
 	I_DIV
 	I_AND
 	I_OR
@@ -213,6 +215,12 @@ func (tinst TInstruction) String() string {
 		return "LEA"
 	case I_MUL:
 		return "MUL"
+	case I_IMUL:
+		return "IMUL"
+	case I_DIV:
+		return "DIV"
+	case I_IDIV:
+		return "IDIV"
 	case I_AND:
 		return "AND"
 	case I_OR:
@@ -233,7 +241,9 @@ var Insts = []Instruction{
 	{I_XOR, XORB, XORW, XORL, XORQ, NONE},
 	{I_LEA, NONE, LEAW, LEAL, LEAQ, NONE},
 	{I_MUL, MULB, MULW, MULL, MULQ, NONE},
+	{I_IMUL, IMULB, IMULW, IMULL, IMULQ, NONE},
 	{I_DIV, DIVB, DIVW, DIVL, DIVQ, NONE},
+	{I_IDIV, IDIVB, IDIVW, IDIVL, IDIVQ, NONE},
 	{I_AND, ANDB, ANDW, ANDL, ANDQ, NONE},
 	{I_OR, ORB, ORW, ORL, ORQ, NONE},
 	{I_SHL, SHLB, SHLW, SHLL, SHLQ, NONE},
@@ -1808,7 +1818,7 @@ func asmMovMemIndirectMemIndirect(indent string, srcName string, srcOffset int, 
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmMovImm8Reg(indent string, imm8 uint8, dstReg *register) string {
+func asmMovImm8Reg(indent string, imm8 int8, dstReg *register) string {
 	if dstReg.width < 16 {
 		panic("Invalid register width")
 	}
@@ -1816,7 +1826,7 @@ func asmMovImm8Reg(indent string, imm8 uint8, dstReg *register) string {
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmMovImm16Reg(indent string, imm16 uint16, dstReg *register) string {
+func asmMovImm16Reg(indent string, imm16 int16, dstReg *register) string {
 	if dstReg.width < 16 {
 		panic("Invalid register width")
 	}
@@ -1824,7 +1834,7 @@ func asmMovImm16Reg(indent string, imm16 uint16, dstReg *register) string {
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmMovImm32Reg(indent string, imm32 uint32, dstReg *register) string {
+func asmMovImm32Reg(indent string, imm32 int32, dstReg *register) string {
 	if dstReg.width < 32 {
 		panic("Invalid register width")
 	}
@@ -1832,7 +1842,7 @@ func asmMovImm32Reg(indent string, imm32 uint32, dstReg *register) string {
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmMovImm64Reg(indent string, imm64 uint64, dstReg *register) string {
+func asmMovImm64Reg(indent string, imm64 int64, dstReg *register) string {
 	if dstReg.width != 64 {
 		panic("Invalid register width")
 	}
@@ -1893,7 +1903,7 @@ func asmMulImm32RegReg(indent string, imm32 uint32, srcReg *register, dstReg *re
 
 // asmMulRegReg multiplies the src register by the dst register and stores
 // the result in the dst register. Overflow is discarded
-func asmMulRegReg(indent string, src *register, dst *register, size uint) string {
+func asmMulRegReg(indent string, signed bool, src *register, dst *register, size uint) string {
 
 	if dst.width != 64 {
 		panic("Invalid register width for asmMulRegReg")
@@ -1908,24 +1918,34 @@ func asmMulRegReg(indent string, src *register, dst *register, size uint) string
 	asm := asmMovRegReg(indent, dst, rax, size)
 	// the low order part of the result is stored in rax and the high order part
 	// is stored in rdx
-	asm += indent + fmt.Sprintf("MULQ    %v\n", src.name)
+	var tinstr TInstruction
+	if signed {
+		tinstr = I_IMUL
+	} else {
+		tinstr = I_MUL
+	}
+	mul := GetInstr(tinstr, size).String()
+	asm += indent + fmt.Sprintf("%v    %v\n", mul, src.name)
 	asm += asmMovRegReg(indent, rax, dst, size)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
 // asmDivRegReg divides the "dividend" register by the "divisor" register and stores
 // the quotient in rax and the remainder in rdx
-func asmDivRegReg(indent string, dividend *register, divisor *register, size uint) (asm string, rax *register, rdx *register) {
+func asmDivRegReg(indent string, signed bool, dividend *register, divisor *register, size uint) (asm string, rax *register, rdx *register) {
+
 	if dividend.width != divisor.width || divisor.width < size*8 {
 		panic("Invalid register width for asmDivRegReg")
 	}
 	rax = getRegister(REG_AX)
+
 	if size > 1 {
 		rdx = getRegister(REG_DX)
 	}
 	if rax.width != 64 || (size > 1 && rdx.width != 64) {
 		panic("Invalid rax or rdx register width")
 	}
+
 	// rdx:rax are the upper and lower parts of the dividend respectively,
 	// and rdx:rax are the implicit destination of DIVQ
 	asm = ""
@@ -1933,15 +1953,24 @@ func asmDivRegReg(indent string, dividend *register, divisor *register, size uin
 	if size > 1 {
 		asm += asmZeroReg(indent, rdx)
 	}
+
 	asm += asmMovRegReg(indent, dividend, rax, size)
+
 	// the low order part of the result is stored in rax and the high order part
 	// is stored in rdx
-	div := GetInstr(I_DIV, size).String()
+	var tinstr TInstruction
+	if signed {
+		tinstr = I_IDIV
+	} else {
+		tinstr = I_DIV
+	}
+
+	div := GetInstr(tinstr, size).String()
 	asm += indent + fmt.Sprintf("%v    %v\n", div, divisor.name)
 	return asm, rax, rdx
 }
 
-func asmArithOp(indent string, op token.Token, x *register, y *register, result *register, size uint) string {
+func asmArithOp(indent string, signed bool, op token.Token, x *register, y *register, result *register, size uint) string {
 	if x.width != 64 || y.width != 64 || result.width != 64 {
 		panic("Invalid register width in asmArithOp")
 	}
@@ -1957,12 +1986,12 @@ func asmArithOp(indent string, op token.Token, x *register, y *register, result 
 		asm += asmSubRegReg(indent, y, result)
 	case token.MUL:
 		asm += asmMovRegReg(indent, x, result, size)
-		asm += asmMulRegReg(indent, y, result, size)
+		asm += asmMulRegReg(indent, signed, y, result, size)
 	case token.QUO, token.REM:
 		// the quotient is stored in rax and
 		// the remainder is stored in rdx.
 		var rax, rdx *register
-		a, rax, rdx := asmDivRegReg(indent, x, y, size)
+		a, rax, rdx := asmDivRegReg(indent, signed, x, y, size)
 		asm += a
 		if op == token.QUO {
 			asm += asmMovRegReg(indent, rax, result, size)

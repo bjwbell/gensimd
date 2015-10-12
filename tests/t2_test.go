@@ -17,11 +17,11 @@ func t2test0(x int) int {
 }
 
 func t2test1(x int) int {
-	return x + 1
+	return x + -1
 }
 
 func t2test2(x int) int {
-	return x * 2
+	return x * -2
 }
 
 func t2test3(x int) int {
@@ -29,7 +29,7 @@ func t2test3(x int) int {
 }
 
 func t2test4(x int) int {
-	return x * x
+	return x * -x
 }
 
 func TestT2(t *testing.T) {

@@ -121,12 +121,110 @@ func (op OperandType) String() string {
 	}
 }
 
-type InstrName int
+type Instr int
+type Instruction struct {
+	TInstr      TInstruction
+	ByteVersion Instr
+	WordVersion Instr
+	LongVersion Instr
+	QuadVersion Instr
+}
 
-// the list of instruction names is from Marat Dukhan's
-// https://github.com/Maratyszcza/Opcodes
+func (inst Instruction) Get(width uint) Instr {
+	version := NONE
+	switch width {
+	default:
+		panic(fmt.Sprintf("Invalid width (%v) in Get() for Instruction (%v)", width, inst))
+	case 8:
+		version = inst.ByteVersion
+	case 16:
+		version = inst.WordVersion
+	case 32:
+		version = inst.LongVersion
+	case 64:
+		version = inst.QuadVersion
+	}
+	if version == NONE {
+		msg := fmt.Sprintf("No matching instruction version for width (%v), instruction (%v)", width, inst.TInstr.String())
+		panic(msg)
+	} else {
+		return version
+	}
+
+}
+
+type TInstruction int
+
 const (
-	AAA InstrName = iota
+	I_ADD TInstruction = iota
+	I_SUB
+	I_MOV
+	I_XOR
+	I_LEA
+	I_MUL
+	I_AND
+	I_OR
+	I_SHL
+	I_SHR
+	I_CMP
+)
+
+func (tinst TInstruction) String() string {
+	switch tinst {
+	default:
+		panic("Unknown TIinstruction")
+	case I_ADD:
+		return "ADD"
+	case I_SUB:
+		return "SUB"
+	case I_MOV:
+		return "MOV"
+	case I_XOR:
+		return "XOR"
+	case I_LEA:
+		return "LEA"
+	case I_MUL:
+		return "MUL"
+	case I_AND:
+		return "AND"
+	case I_OR:
+		return "OR"
+	case I_SHL:
+		return "SHL"
+	case I_SHR:
+		return "SHR"
+	case I_CMP:
+		return "CMP"
+	}
+}
+
+var Insts = []Instruction{
+	{I_ADD, ADDB, ADDW, ADDL, ADDQ},
+	{I_SUB, SUBB, SUBW, SUBL, SUBQ},
+	{I_MOV, MOVB, MOVW, MOVL, MOVQ},
+	{I_XOR, XORB, XORW, XORL, XORQ},
+	{I_LEA, NONE, LEAW, LEAL, LEAQ},
+	{I_MUL, MULB, MULW, MULL, MULQ},
+	{I_AND, ANDB, ANDW, ANDL, ANDQ},
+	{I_OR, ORB, ORW, ORL, ORQ},
+	{I_SHL, SHLB, SHLW, SHLL, SHLQ},
+	{I_SHR, SHRB, SHRW, SHRL, SHRQ},
+	{I_CMP, CMPB, CMPW, CMPL, CMPQ},
+}
+
+func GetInstruction(tinst TInstruction, width uint) Instr {
+	for _, inst := range Insts {
+		if inst.TInstr == tinst {
+			return inst.Get(width)
+		}
+	}
+	panic("Couldn't get instruction")
+}
+
+// the list of instruction names is from
+// https://github.com/golang/go/blob/master/src/cmd/internal/obj/x86/a.out.go
+const (
+	NONE Instr = iota
 	AAD
 	AAM
 	AAS
@@ -819,7 +917,7 @@ const (
 	LAST
 )
 
-var InstructionNames = []string{
+var InstrString = []string{
 	"AAA",
 	"AAD",
 	"AAM",
@@ -1513,64 +1611,63 @@ var InstructionNames = []string{
 	"LAST",
 }
 
-func (name InstrName) String() string {
-	return InstructionNames[int(name)]
+func (name Instr) String() string {
+	return InstrString[int(name)]
 }
 
-func GetInstrName(name string) (InstrName, error) {
-	for i, n := range InstructionNames {
+func GetInstr(name string) (Instr, error) {
+	for i, n := range InstrString {
 		if n == name {
-			return InstrName(i), nil
+			return Instr(i), nil
 		}
 	}
-	return InstrName(0), fmt.Errorf("Couldn't find InstrName for instr:%v", name)
+	return Instr(0), fmt.Errorf("Couldn't find Instr for instr:%v", name)
 }
 
 // asmZeroMemory generates "MOVQ $0, name+offset(REG)" instructions
 func asmZeroMemory(indent string, name string, offset int, size uint, reg *register) string {
-	if reg.width != 64 {
+	/*if reg.width != 64 {
 		panic(fmt.Sprintf("Invalid register width (%v) for asmZeroMemory", reg.width))
-	}
+	}*/
 	if size%(reg.width/8) != 0 {
 		panic(fmt.Sprintf("Size (%v) not multiple of reg.size (%v), {reg.width (%v)}", size, reg.width/8, reg.width))
 	}
 	asm := ""
+	mov := GetInstruction(I_MOV, reg.width)
 	for i := uint(0); i < size/(reg.width/uint(8)); i++ {
-		asm += indent + fmt.Sprintf("MOVQ    $0, %v+%v(%v)\n", name, int(i*reg.width/8)+offset, reg.name)
+		asm += indent + fmt.Sprintf("%v    $0, %v+%v(%v)\n", mov.String(), name, int(i*reg.width/8)+offset, reg.name)
 	}
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
 // asmZeroReg generates "XORQ reg, reg" instructions
 func asmZeroReg(indent string, reg *register) string {
-	if reg.width != 64 {
-		panic(fmt.Sprintf("Invalid register width (%v) for asmZeroReg", reg.width))
-	}
-	return indent + fmt.Sprintf("XORQ    %v, %v\n", reg.name, reg.name)
+	xor := GetInstruction(I_XOR, reg.width)
+	return indent + fmt.Sprintf("%v    %v, %v\n", xor.String(), reg.name, reg.name)
 }
 
 func asmMovRegReg(indent string, srcReg *register, dstReg *register) string {
-	if srcReg.width != 64 || dstReg.width != 64 {
-		panic("Invalid register width for asmMoveRegToReg")
+	if srcReg.width != dstReg.width {
+		panic("srcReg.wdith != dstReg.width in asmMoveRegToReg")
 	}
-	asm := indent + fmt.Sprintf("MOVQ    %v, %v\n", srcReg.name, dstReg.name)
+	mov := GetInstruction(I_MOV, srcReg.width)
+	asm := indent + fmt.Sprintf("%v    %v, %v\n", mov.String(), srcReg.name, dstReg.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
 func asmMovRegMem(indent string, srcReg *register, dstName string, dstReg *register, dstOffset int) string {
-	if srcReg.width != 64 || dstReg.width != 64 {
-		panic("Invalid register width for asmMoveRegToReg")
-	}
-	asm := indent + fmt.Sprintf("MOVQ    %v, %v+%v(%v)\n", srcReg.name, dstName, dstOffset, dstReg.name)
+	mov := GetInstruction(I_MOV, srcReg.width)
+	asm := indent + fmt.Sprintf("%v    %v, %v+%v(%v)\n", mov.String(), srcReg.name, dstName, dstOffset, dstReg.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
 func asmMovRegMemIndirect(indent string, srcReg *register, dstName string, dstReg *register, dstOffset int, tmp *register) string {
-	if srcReg.width != 64 || dstReg.width != 64 || tmp.width != 64 {
+	if tmp.width != srcReg.width {
 		panic("Invalid register width for asmMovRegMemIndirect")
 	}
-	asm := indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v\n", dstName, dstOffset, dstReg, tmp)
-	asm += indent + fmt.Sprintf("MOVQ    %v, (%v)\n", srcReg.name, tmp.name)
+	mov := GetInstruction(I_MOV, srcReg.width)
+	asm := indent + fmt.Sprintf("%v    %v+%v(%v), %v\n", mov.String(), dstName, dstOffset, dstReg, tmp)
+	asm += indent + fmt.Sprintf("%v    %v, (%v)\n", mov.String(), srcReg.name, tmp.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
@@ -1586,10 +1683,8 @@ func asmMovMemMem(indent string, srcName string, srcOffset int, srcReg *register
 }
 
 func asmMovMemReg(indent string, srcName string, srcOffset int, srcReg *register, dstReg *register) string {
-	if srcReg.width != 64 || dstReg.width != 64 {
-		panic("Invalid register width for asmMovMemReg")
-	}
-	asm := indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v\n", srcName, srcOffset, srcReg.name, dstReg.name)
+	mov := GetInstruction(I_MOV, dstReg.width)
+	asm := indent + fmt.Sprintf("%v    %v+%v(%v), %v\n", mov.String(), srcName, srcOffset, srcReg.name, dstReg.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
@@ -1603,19 +1698,20 @@ func asmMovMemMemIndirect(indent string, srcName string, srcOffset int, srcReg *
 }
 
 func asmMovMemIndirectReg(indent string, srcName string, srcOffset int, srcReg *register, dstReg *register, tmp *register) string {
-	if srcReg.width != 64 || dstReg.width != 64 || tmp.width != 64 {
+	if dstReg.width != tmp.width {
 		panic("Invalid register width for asmMovMemIndirectReg")
 	}
+	mov := GetInstruction(I_MOV, dstReg.width)
 	asm := indent
-	asm += fmt.Sprintf("MOVQ    %v+%v(%v), %v\n", srcName, srcOffset, srcReg, tmp)
+	asm += fmt.Sprintf("%v    %v+%v(%v), %v\n", mov.String(), srcName, srcOffset, srcReg, tmp)
 
 	asm += indent
-	asm += fmt.Sprintf("MOVQ    (%v), %v\n", tmp, dstReg.name)
+	asm += fmt.Sprintf("%v    (%v), %v\n", mov.String(), tmp, dstReg.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
 func asmMovMemIndirectMem(indent string, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, size uint, tmp1 *register, tmp2 *register) string {
-	if tmp1.width != tmp2.width || tmp1.width != 64 {
+	if tmp1.width != tmp2.width {
 		panic("Mismatched register widths in asmMovMemIndirectMem")
 	}
 	if srcReg.width != 64 || dstReg.width != 64 {
@@ -1624,20 +1720,21 @@ func asmMovMemIndirectMem(indent string, srcName string, srcOffset int, srcReg *
 	if size%(tmp1.width/8) != 0 {
 		panic("Invalid size in asmMovMemIndirectMem")
 	}
+	mov := GetInstruction(I_MOV, tmp1.width)
 	asm := ""
 	for i := uint(0); i < size/(tmp1.width/8); i++ {
 
 		asm += indent
-		asm += fmt.Sprintf("MOVQ    %v+%v(%v), %v\n",
-			srcName, srcOffset, srcReg.name, tmp1.name)
+		asm += fmt.Sprintf("%v    %v+%v(%v), %v\n",
+			mov.String(), srcName, srcOffset, srcReg.name, tmp1.name)
 
 		asm += indent
-		asm += fmt.Sprintf("MOVQ    (%v), %v\n",
-			tmp1.name, tmp2.name)
+		asm += fmt.Sprintf("%v    (%v), %v\n",
+			mov.String(), tmp1.name, tmp2.name)
 
 		asm += indent
-		asm += fmt.Sprintf("MOVQ    %v, %v+%v(%v)\n",
-			tmp2.name, dstName, dstOffset, dstReg.name)
+		asm += fmt.Sprintf("%v    %v, %v+%v(%v)\n",
+			mov.String(), tmp2.name, dstName, dstOffset, dstReg.name)
 
 		srcOffset += int((tmp1.width / 8))
 		dstOffset += int((tmp1.width / 8))
@@ -1649,9 +1746,10 @@ func asmMovMemIndirectMemIndirect(indent string, srcName string, srcOffset int, 
 	if srcReg.width != 64 || dstReg.width != 64 {
 		panic("Invalid register width for asmCopyIndirectRegValueToMemory")
 	}
-	asm := indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v\n", srcName, srcOffset, srcReg, tmp1)
-	asm += indent + fmt.Sprintf("MOVQ    %v+%v(%v), %v\n", dstName, dstOffset, dstReg, tmp2)
-	asm += indent + fmt.Sprintf("MOVQ    (%v), (%v)\n", tmp1.name, tmp2.name)
+	mov := GetInstruction(I_MOV, tmp1.width)
+	asm := indent + fmt.Sprintf("%v    %v+%v(%v), %v\n", mov.String(), srcName, srcOffset, srcReg, tmp1)
+	asm += indent + fmt.Sprintf("%v    %v+%v(%v), %v\n", mov.String(), dstName, dstOffset, dstReg, tmp2)
+	asm += indent + fmt.Sprintf("%v    (%v), (%v)\n", mov.String(), tmp1.name, tmp2.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
@@ -1672,10 +1770,11 @@ func asmMovImm64Reg(indent string, imm64 uint64, dstReg *register) string {
 }
 
 func asmLea(indent string, srcName string, srcOffset int, srcReg *register, dstReg *register) string {
-	if srcReg.width != 64 || dstReg.width != 64 {
+	if srcReg.width != dstReg.width {
 		panic("Invalid register width for asmLea")
 	}
-	asm := indent + fmt.Sprintf("LEAQ    %v+%v(%v), %v\n", srcName, srcOffset, srcReg.name, dstReg.name)
+	lea := GetInstruction(I_LEA, srcReg.width)
+	asm := indent + fmt.Sprintf("%v    %v+%v(%v), %v\n", lea.String(), srcName, srcOffset, srcReg.name, dstReg.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
@@ -1696,18 +1795,20 @@ func asmSubImm32Reg(indent string, imm32 uint32, dstReg *register) string {
 }
 
 func asmAddRegReg(indent string, srcReg *register, dstReg *register) string {
-	if dstReg.width != srcReg.width || srcReg.width != 64 {
+	if dstReg.width != srcReg.width {
 		panic("Invalid register width for asmAddRegReg")
 	}
-	asm := indent + fmt.Sprintf("ADDQ    %v, %v\n", srcReg.name, dstReg.name)
+	add := GetInstruction(I_ADD, srcReg.width)
+	asm := indent + fmt.Sprintf("%v    %v, %v\n", add.String(), srcReg.name, dstReg.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
 func asmSubRegReg(indent string, srcReg *register, dstReg *register) string {
-	if dstReg.width != srcReg.width || srcReg.width != 64 {
+	if dstReg.width != srcReg.width {
 		panic("Invalid register width for asmSubRegReg")
 	}
-	asm := indent + fmt.Sprintf("SUBQ    %v, %v\n", srcReg.name, dstReg.name)
+	sub := GetInstruction(I_SUB, srcReg.width)
+	asm := indent + fmt.Sprintf("%v    %v, %v\n", sub.String(), srcReg.name, dstReg.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
@@ -1796,60 +1897,60 @@ func asmArithOp(indent string, op token.Token, x *register, y *register, result 
 // asmAndRegReg AND's the src register by the dst register and stores
 // the result in the dst register.
 func asmAndRegReg(indent string, src *register, dst *register) string {
-	if src.width != 64 || dst.width != 64 {
+	if src.width != dst.width {
 		panic("Invalid register width for asmAndRegReg")
 	}
-	asm := indent + fmt.Sprintf("ANDQ    %v, %v\n", src.name, dst.name)
+	and := GetInstruction(I_ADD, src.width)
+	asm := indent + fmt.Sprintf("%v    %v, %v\n", and.String(), src.name, dst.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
 func asmOrRegReg(indent string, src *register, dst *register) string {
-	if src.width != 64 || dst.width != 64 {
+	if src.width != dst.width {
 		panic("Invalid register width for asmOrRegReg")
 	}
-	asm := indent + fmt.Sprintf("ORQ    %v, %v\n", src.name, dst.name)
+	or := GetInstruction(I_OR, src.width)
+	asm := indent + fmt.Sprintf("%v    %v, %v\n", or.String(), src.name, dst.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
 func asmXorRegReg(indent string, src *register, dst *register) string {
-	if src.width != 64 || dst.width != 64 {
+	if src.width != dst.width {
 		panic("Invalid register width for asmXorRegReg")
 	}
-	asm := indent + fmt.Sprintf("XORQ    %v, %v\n", src.name, dst.name)
+	xor := GetInstruction(I_XOR, src.width)
+	asm := indent + fmt.Sprintf("%v    %v, %v\n", xor.String(), src.name, dst.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
 func asmShlRegReg(indent string, src *register, shiftAmount *register) string {
-	if src.width != 64 {
-		panic("Invalid register width for asmShlRegReg")
-	}
 	cx := getRegister(REG_CX)
+	shl := GetInstruction(I_SHL, src.width)
 	asm := indent + asmMovRegReg(indent, shiftAmount, cx)
-	asm += indent + fmt.Sprintf("SHLQ    %v\n", src.name)
+	asm += indent + fmt.Sprintf("%v    %v\n", shl.String(), src.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
 func asmShrRegReg(indent string, src *register, shiftAmount *register) string {
-	if src.width != 64 {
-		panic("Invalid register width for asmShrRegReg")
-	}
 	cx := getRegister(REG_CX)
+	shr := GetInstruction(I_SHR, src.width)
 	asm := indent + asmMovRegReg(indent, shiftAmount, cx)
-	asm += indent + fmt.Sprintf("SHRQ    %v\n", src.name)
+	asm += indent + fmt.Sprintf("%v    %v\n", shr.String(), src.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
 func asmAndNotRegReg(indent string, src *register, dst *register) string {
-	if src.width != 64 || dst.width != 64 {
+	if src.width != dst.width {
 		panic("Invalid register width for asmAndNotRegReg")
 	}
-	asm := fmt.Sprintf("XORQ	$-1, %v\n", dst)
+	xor := GetInstruction(I_XOR, dst.width)
+	asm := fmt.Sprintf("%v	$-1, %v\n", xor.String(), dst)
 	asm += indent + asmAndRegReg(indent, src, dst)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
 func asmBitwiseOp(indent string, op token.Token, x *register, y *register, result *register) string {
-	if x.width != 64 || y.width != 64 || result.width != 64 {
+	if x.width != y.width || x.width != result.width {
 		panic("Invalid register width in asmBitwiseOp")
 	}
 	asm := ""
@@ -1879,10 +1980,11 @@ func asmBitwiseOp(indent string, op token.Token, x *register, y *register, resul
 }
 
 func asmCmpRegReg(indent string, x *register, y *register) string {
-	if x.width != 64 || y.width != 64 {
+	if x.width != y.width {
 		panic("Invalid register width for asmCmpRegReg")
 	}
-	asm := fmt.Sprintf("CMPQ	%v, %v\n", x.name, y.name)
+	cmp := GetInstruction(I_CMP, x.width)
+	asm := fmt.Sprintf("%v	%v, %v\n", cmp.String(), x.name, y.name)
 	return strings.Replace(asm, "+-", "-", -1)
 
 }
@@ -1897,7 +1999,7 @@ func asmCmpMemImm32(indent string, name string, offset int32, r *register, imm32
 }
 
 func asmCmpOp(indent string, op token.Token, x *register, y *register, result *register) string {
-	if x.width != 64 || y.width != 64 || result.width != 64 {
+	if x.width != y.width || x.width != result.width {
 		panic("Invalid register width in asmCmpOp")
 	}
 	asm := ""

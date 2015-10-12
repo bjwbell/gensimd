@@ -8,7 +8,7 @@ import (
 	"github.com/bjwbell/gensimd/codegen/instructionsetxml"
 )
 
-func FindInstr(set *instructionsetxml.Instructionset, typ InstrType, ops []*Operand) (InstrName, error) {
+func FindInstr(set *instructionsetxml.Instructionset, typ InstrType, ops []*Operand) (Instr, error) {
 	var instr *instructionsetxml.Instruction
 	var form *instructionsetxml.InstructionForm
 
@@ -35,7 +35,7 @@ func FindInstr(set *instructionsetxml.Instructionset, typ InstrType, ops []*Oper
 		}
 		return 0, fmt.Errorf("No matched instr form for instr:%v", instr)
 	}
-	if instrName, err := GetInstrName(form.GoName); err != nil {
+	if instrName, err := GetInstr(form.GoName); err != nil {
 		return instrName, fmt.Errorf("No InstrName for form.GoName:%v", form.GoName)
 	} else {
 		return instrName, nil
@@ -54,7 +54,7 @@ func InstrAsm(set *instructionsetxml.Instructionset, typ InstrType, ops []*Opera
 	}
 }
 
-func InstructionSetAsm(set *instructionsetxml.Instructionset, name InstrName, ops []*Operand) (string, error) {
+func InstructionSetAsm(set *instructionsetxml.Instructionset, name Instr, ops []*Operand) (string, error) {
 	var form *instructionsetxml.InstructionForm
 	for _, inst := range set.Instructions {
 		for _, fm := range inst.Forms {

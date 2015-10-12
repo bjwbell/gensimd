@@ -1217,7 +1217,7 @@ func sizeof(t types.Type) uint {
 		fmt.Println("t:", t)
 		panic("Error unknown type in sizeof")
 	case *types.Tuple:
-		// TODO: fix, usage of reflect is wrong!
+		// TODO: usage of reflect most likely wrong!
 		return uint(reflect.TypeOf(t).Elem().Size())
 	case *types.Basic:
 		return sizeBasic(t.Kind())
@@ -1226,7 +1226,7 @@ func sizeof(t types.Type) uint {
 	case *types.Slice:
 		return sliceSize
 	case *types.Array:
-		// TODO: fix, calculation most likely wrong
+		// TODO: calculation most likely wrong
 		return uint(t.Len()) * sizeof(t.Elem())
 	case *types.Named:
 		if !isSimd(t) {

@@ -19,12 +19,19 @@ type Instruction struct {
 }
 
 type InstructionForm struct {
-	GoName   string    `xml:"go-name,attr"`
-	Operands []Operand `xml:"Operand"`
+	GoName           string            `xml:"go-name,attr"`
+	Operands         []Operand         `xml:"Operand"`
+	ImplicitOperands []ImplicitOperand `xml:"ImplicitOperand"`
 }
 
 type Operand struct {
 	Type   string `xml:"type,attr"`
+	Input  bool   `xml:"input,attr"`
+	Output bool   `xml:"output,attr"`
+}
+
+type ImplicitOperand struct {
+	Id     string `xml:"id,attr"`
 	Input  bool   `xml:"input,attr"`
 	Output bool   `xml:"output,attr"`
 }

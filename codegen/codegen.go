@@ -1245,10 +1245,10 @@ func (f *Function) retOffset() int {
 	return int(f.paramsSize() + padding)
 }
 
-// retAlign returns the alignment of the return value in bytes
+// retAlign returns the byte alignment alignment for the return value
 func (f *Function) retAlign() uint {
-	//fmt.Println(fmt.Sprintf("retAlign:%v, retType:%v\n", align(f.retType()), f.retType()))
 	align := align(f.retType())
+	// TODO: fix, why always 8 bytes with go compiler?
 	if align < 8 {
 		align = 8
 	}

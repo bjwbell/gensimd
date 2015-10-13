@@ -50,139 +50,105 @@ func add(x, y int32) int32 {
 func sub(x, y int32) int32 {
 	return x - y
 }
-
 func neg(x int32) int32 {
 	return -x
 }
-
 func mul(x, y int32) int32 {
 	return x * y
 }
-
 func div(x, y int32) int32 {
 	return x / y
 }
-
 func addint8(x, y int8) int8 {
 	return x + y
 }
-
 func subint8(x, y int8) int8 {
 	return x - y
 }
-
 func negint8(x int8) int8 {
 	return -x
 }
-
 func mulint8(x, y int8) int8 {
 	return x * y
 }
-
 func divint8(x, y int8) int8 {
 	return x / y
 }
-
 func addint16(x, y int16) int16 {
 	return x + y
 }
-
 func subint16(x, y int16) int16 {
 	return x - y
 }
-
 func negint16(x int16) int16 {
 	return -x
 }
-
 func mulint16(x, y int16) int16 {
 	return x * y
 }
-
 func divint16(x, y int16) int16 {
 	return x / y
 }
-
 func addint64(x, y int64) int64 {
 	return x + y
 }
-
 func subint64(x, y int64) int64 {
 	return x - y
 }
-
 func negint64(x int64) int64 {
 	return -x
 }
-
 func mulint64(x, y int64) int64 {
 	return x * y
 }
-
 func divint64(x, y int64) int64 {
 	return x / y
 }
-
 func adduint8(x, y uint8) uint8 {
 	return x + y
 }
-
 func subuint8(x, y uint8) uint8 {
 	return x - y
 }
-
 func muluint8(x, y uint8) uint8 {
 	return x * y
 }
-
 func divuint8(x, y uint8) uint8 {
 	return x / y
 }
-
 func adduint16(x, y uint16) uint16 {
 	return x + y
 }
-
 func subuint16(x, y uint16) uint16 {
 	return x - y
 }
-
 func muluint16(x, y uint16) uint16 {
 	return x * y
 }
-
 func divuint16(x, y uint16) uint16 {
 	return x / y
 }
-
 func adduint32(x, y uint32) uint32 {
 	return x + y
 }
-
 func subuint32(x, y uint32) uint32 {
 	return x - y
 }
-
 func muluint32(x, y uint32) uint32 {
 	return x * y
 }
-
 func divuint32(x, y uint32) uint32 {
 	return x / y
 }
-
 func adduint64(x, y uint64) uint64 {
 	return x + y
 }
-
 func subuint64(x, y uint64) uint64 {
 	return x - y
 }
-
 func muluint64(x, y uint64) uint64 {
 	return x * y
 }
-
 func divuint64(x, y uint64) uint64 {
 	return x / y
 }
@@ -212,12 +178,14 @@ func TestArithmeticOps(t *testing.T) {
 		}
 
 		for j := -63; j <= 63; j++ {
+
 			x := int64(0)
 			if j < 0 {
 				x = -1 << uint(-j)
 			} else {
 				x = 1<<uint(j) - 1
 			}
+
 			if adds(int32(x), int32(y)) != add(int32(x), int32(y)) {
 				t.Errorf("adds(%v, %v)", int32(x), int32(y))
 			}

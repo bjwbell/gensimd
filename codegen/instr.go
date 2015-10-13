@@ -65,7 +65,7 @@ func (op OperandType) String() string {
 	case AL:
 		return "AL"
 	case CL:
-		return "AL"
+		return "CL"
 	case AX:
 		return "AL"
 	case EAX:
@@ -186,6 +186,21 @@ const (
 	I_ADD TInstruction = iota
 	I_SUB
 	I_MOV
+
+	// mov byte, sign extend
+	I_MOVBSX
+	// mov word, sign extend
+	I_MOVWSX
+	// mov long, sign extend
+	I_MOVLSX
+
+	// mov byte, zero extend
+	I_MOVBZX
+	// mov word, zero extend
+	I_MOVWZX
+	// mov long, zero extend
+	I_MOVLZX
+
 	I_XOR
 	I_LEA
 	I_IMUL
@@ -196,6 +211,8 @@ const (
 	I_OR
 	I_SHL
 	I_SHR
+	I_SAL
+	I_SAR
 	I_CMP
 )
 
@@ -229,6 +246,10 @@ func (tinst TInstruction) String() string {
 		return "SHL"
 	case I_SHR:
 		return "SHR"
+	case I_SAL:
+		return "SAL"
+	case I_SAR:
+		return "SAR"
 	case I_CMP:
 		return "CMP"
 	}
@@ -238,6 +259,21 @@ var Insts = []Instruction{
 	{I_ADD, ADDB, ADDW, ADDL, ADDQ, NONE},
 	{I_SUB, SUBB, SUBW, SUBL, SUBQ, NONE},
 	{I_MOV, MOVB, MOVW, MOVL, MOVQ, NONE},
+
+	// byte register sign extend to xxx register
+	{I_MOVBSX, NONE, MOVBWSX, MOVBLSX, MOVBQSX, NONE},
+	// word register sign extend to xxx register
+	{I_MOVWSX, NONE, NONE, MOVWLSX, MOVWQSX, NONE},
+	// long register sign extend to xxx register
+	{I_MOVLSX, NONE, NONE, NONE, MOVLQSX, NONE},
+
+	// mov byte, zero extend to xxx register
+	{I_MOVBZX, NONE, MOVBWZX, MOVBLZX, MOVBQZX, NONE},
+	// mov word, zero extend to xxx register
+	{I_MOVWZX, NONE, NONE, MOVWLZX, MOVWQZX, NONE},
+	// mov long, zero extend to xxx register
+	{I_MOVLZX, NONE, NONE, NONE, MOVLQZX, NONE},
+
 	{I_XOR, XORB, XORW, XORL, XORQ, NONE},
 	{I_LEA, NONE, LEAW, LEAL, LEAQ, NONE},
 	{I_MUL, MULB, MULW, MULL, MULQ, NONE},
@@ -248,6 +284,9 @@ var Insts = []Instruction{
 	{I_OR, ORB, ORW, ORL, ORQ, NONE},
 	{I_SHL, SHLB, SHLW, SHLL, SHLQ, NONE},
 	{I_SHR, SHRB, SHRW, SHRL, SHRQ, NONE},
+	{I_SAL, SALB, SHLW, SHLL, SHLQ, NONE},
+	{I_SAR, SARB, SARW, SARL, SARQ, NONE},
+
 	{I_CMP, CMPB, CMPW, CMPL, CMPQ, NONE},
 }
 
@@ -2004,11 +2043,11 @@ func asmArithOp(indent string, signed bool, op token.Token, x *register, y *regi
 
 // asmAndRegReg AND's the src register by the dst register and stores
 // the result in the dst register.
-func asmAndRegReg(indent string, src *register, dst *register) string {
+func asmAndRegReg(indent string, src *register, dst *register, size uint) string {
 	if src.width != dst.width {
 		panic("Invalid register width for asmAndRegReg")
 	}
-	and := GetInstr(I_ADD, src.width/8)
+	and := GetInstr(I_AND, size)
 	asm := indent + fmt.Sprintf("%v    %v, %v\n", and.String(), src.name, dst.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
@@ -2031,33 +2070,103 @@ func asmXorRegReg(indent string, src *register, dst *register) string {
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmShlRegReg(indent string, src *register, shiftAmount *register, size uint) string {
-	cx := getRegister(REG_CX)
-	shl := GetInstr(I_SHL, src.width/8)
-	asm := indent + asmMovRegReg(indent, shiftAmount, cx, size)
-	asm += indent + fmt.Sprintf("%v    %v\n", shl.String(), src.name)
-	return strings.Replace(asm, "+-", "-", -1)
+func asmNotReg(indent string, reg *register, size uint) string {
+	if reg.width/8 < size {
+		panic(fmt.Sprintf("Bad reg width (%v), size (%v)", reg.width, size))
+	}
+	xor := GetInstr(I_XOR, size)
+	asm := indent + fmt.Sprintf("%v    $-1, %v\n", xor.String(), reg.name)
+	return asm
 }
 
-func asmShrRegReg(indent string, src *register, shiftAmount *register, size uint) string {
-	cx := getRegister(REG_CX)
-	shr := GetInstr(I_SHR, src.width/8)
-	asm := indent + asmMovRegReg(indent, shiftAmount, cx, size)
-	asm += indent + fmt.Sprintf("%v    %v\n", shr.String(), src.name)
-	return strings.Replace(asm, "+-", "-", -1)
+const (
+	SHIFT_LEFT = iota
+	SHIFT_RIGHT
+)
+
+func asmMovZeroExtend(indent string, src *register, dst *register, srcSize uint, dstSize uint) string {
+	var opcode TInstruction
+	switch srcSize {
+	default:
+		panic(fmt.Sprintf("Bad srcSize (%v)", srcSize))
+	case 1:
+		opcode = I_MOVBZX
+	case 2:
+		opcode = I_MOVWZX
+	case 4:
+		opcode = I_MOVWZX
+	case 8:
+		opcode = I_MOVLZX
+	}
+
+	if dstSize <= srcSize || (dstSize != 1 && dstSize != 2 && dstSize != 4 && dstSize != 8) {
+		panic(fmt.Sprintf("Bad dstSize (%v) for zero extend result", dstSize))
+	}
+
+	movzx := GetInstr(opcode, dstSize)
+	asm := indent + fmt.Sprintf("%v %v, %v\n", movzx.String(), src.name, dst.name)
+	return asm
 }
 
-func asmAndNotRegReg(indent string, src *register, dst *register) string {
+func asmMovSignExtend(indent string, src *register, dst *register, srcSize uint, dstSize uint) string {
+	var opcode TInstruction
+	switch srcSize {
+	default:
+		panic(fmt.Sprintf("Bad src size (%v)", srcSize))
+	case 1:
+		opcode = I_MOVBSX
+	case 2:
+		opcode = I_MOVWSX
+	case 4:
+		opcode = I_MOVWSX
+	case 8:
+		opcode = I_MOVLSX
+	}
+	movsx := GetInstr(opcode, dstSize)
+	if movsx == NONE {
+		panic(fmt.Sprintf("Bad dstSize (%v) for sign extend result", dstSize))
+	}
+	asm := indent + fmt.Sprintf("%v    %v, %v\n", movsx.String(), src.name, dst.name)
+	return asm
+}
+
+func asmShiftRegReg(indent string, signed bool, direction int, src *register, shiftAmount *register, size uint) string {
+	cl := getRegister(REG_CL)
+	cx := getRegister(REG_CX)
+	regCl := cx
+	var opcode TInstruction
+	if signed && direction == SHIFT_LEFT {
+		opcode = I_SAL
+	} else if signed && direction == SHIFT_RIGHT {
+		opcode = I_SAR
+	} else if direction == SHIFT_LEFT {
+		opcode = I_SHL
+	} else if direction == SHIFT_RIGHT {
+		opcode = I_SHR
+	}
+
+	shift := GetInstr(opcode, size)
+	asm := ""
+
+	if size == 1 {
+		asm += asmMovZeroExtend(indent, cl, cx, 1, cx.width/8)
+		regCl = cl
+	}
+
+	asm += indent + fmt.Sprintf("%v    %v, %v\n", shift.String(), regCl.name, src.name)
+	return asm
+}
+
+func asmAndNotRegReg(indent string, src *register, dst *register, size uint) string {
 	if src.width != dst.width {
 		panic("Invalid register width for asmAndNotRegReg")
 	}
-	xor := GetInstr(I_XOR, dst.width/8)
-	asm := fmt.Sprintf("%v	$-1, %v\n", xor.String(), dst)
-	asm += indent + asmAndRegReg(indent, src, dst)
-	return strings.Replace(asm, "+-", "-", -1)
+	asm := asmNotReg(indent, dst, size)
+	asm += asmAndRegReg(indent, src, dst, size)
+	return asm
 }
 
-func asmBitwiseOp(indent string, op token.Token, x *register, y *register, result *register, size uint) string {
+func asmBitwiseOp(indent string, op token.Token, signed bool, x *register, y *register, result *register, size uint) string {
 	if x.width != y.width || x.width != result.width {
 		panic("Invalid register width in asmBitwiseOp")
 	}
@@ -2067,7 +2176,7 @@ func asmBitwiseOp(indent string, op token.Token, x *register, y *register, resul
 		panic(fmt.Sprintf("Unknown Op token (%v) in asmBitwiseOp", op))
 	case token.AND:
 		asm = asmMovRegReg(indent, y, result, size)
-		asm += asmAndRegReg(indent, x, result)
+		asm += asmAndRegReg(indent, x, result, size)
 	case token.OR:
 		asm = asmMovRegReg(indent, y, result, size)
 		asm += asmOrRegReg(indent, x, result)
@@ -2076,13 +2185,14 @@ func asmBitwiseOp(indent string, op token.Token, x *register, y *register, resul
 		asm += asmXorRegReg(indent, x, result)
 	case token.SHL:
 		asm = asmMovRegReg(indent, x, result, size)
-		asm += asmShlRegReg(indent, result, y, size)
+		asm += asmShiftRegReg(indent, signed, SHIFT_LEFT, result, y, size)
 	case token.SHR:
 		asm = asmMovRegReg(indent, x, result, size)
-		asm += asmShrRegReg(indent, result, y, size)
+		asm += asmShiftRegReg(indent, signed, SHIFT_RIGHT, result, y, size)
 	case token.AND_NOT:
-		asm = asmMovRegReg(indent, x, result, size)
-		asm += asmAndNotRegReg(indent, y, result)
+		asm = asmMovRegReg(indent, y, result, size)
+		asm += asmAndNotRegReg(indent, x, result, size)
+
 	}
 	return strings.Replace(asm, "+-", "-", -1)
 }

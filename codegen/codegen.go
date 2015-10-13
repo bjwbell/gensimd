@@ -237,7 +237,15 @@ func (f *Function) asmFunc() (string, *Error) {
 
 // on amd64 stack size should be 8 byte aligned
 func (f *Function) align(size uint32) uint32 {
-	return size + (8 - size%8)
+	align := f.stackAlign()
+	return size + (align - size%align)
+}
+
+// amd64 has 8 byte stack alignment
+var stackAlignment uint32 = 8
+
+func (f *Function) stackAlign() uint32 {
+	return stackAlignment
 }
 
 func (f *Function) GoProto() (string, string) {
@@ -359,7 +367,7 @@ func (f *Function) asmBasicBlock(block *ssa.BasicBlock) (string, *Error) {
 func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 
 	if instr == nil {
-		panic("Nil instr in asmInstr")
+		panic("Nil instr")
 	}
 	asm := ""
 	caseAsm := ""
@@ -621,7 +629,7 @@ func (f *Function) asmStoreValAddr(val ssa.Value, addr *nameInfo) (string, *Erro
 		return "", err
 	}
 	if addr.local == nil && addr.param == nil {
-		msg := fmt.Errorf("In asmStoreValAddr invalid addr \"%v\"", addr)
+		msg := fmt.Errorf("Invalid addr \"%v\"", addr)
 		return "", &Error{Err: msg, Pos: 0}
 	}
 
@@ -643,7 +651,7 @@ func (f *Function) asmStoreValAddr(val ssa.Value, addr *nameInfo) (string, *Erro
 
 	if size > sizeInt() {
 		if size%sizeInt() != 0 {
-			panic(fmt.Sprintf("size (%v) not multiple of sizeInt (%v) in asmStore", size, sizeInt()))
+			panic(fmt.Sprintf("Size (%v) not multiple of sizeInt (%v)", size, sizeInt()))
 		}
 	}
 
@@ -684,7 +692,7 @@ func (f *Function) asmStore(instr *ssa.Store) (string, *Error) {
 
 	if size > sizeInt() {
 		if size%sizeInt() != 0 {
-			panic(fmt.Sprintf("size (%v) not multiple of sizeInt (%v) in asmStore", size, sizeInt()))
+			panic(fmt.Sprintf("Size (%v) not multiple of sizeInt (%v)", size, sizeInt()))
 		}
 	}
 
@@ -699,7 +707,7 @@ func (f *Function) asmStore(instr *ssa.Store) (string, *Error) {
 		asm += a
 		addr, ok := f.ssaNames[instr.Addr.Name()]
 		if !ok {
-			panic(fmt.Sprintf("Unknown name (%v) in asmStore, addr (%v)\n", instr.Addr.Name(), instr.Addr))
+			panic(fmt.Sprintf("Unknown name (%v), addr (%v)\n", instr.Addr.Name(), instr.Addr))
 		}
 
 		a, err = f.asmStoreReg(&valReg, &addr, offset)
@@ -721,7 +729,8 @@ func (f *Function) asmBinOp(instr *ssa.BinOp) (string, *Error) {
 	var regX, regY *register
 	var regVal register
 	size := f.sizeof(instr)
-	signed := signed(instr.Type())
+	issigned := signed(instr.Type())
+	xIsSigned := signed(instr.X.Type())
 	// comparison op results are size 1 byte, but that's not supported
 	if size == 1 {
 		regVal = f.allocReg(DataReg, 8*size)
@@ -735,11 +744,11 @@ func (f *Function) asmBinOp(instr *ssa.BinOp) (string, *Error) {
 
 	switch instr.Op {
 	default:
-		panic(fmt.Sprintf("Unknown op (%v) in asmBinOp", instr.Op))
+		panic(fmt.Sprintf("Unknown op (%v)", instr.Op))
 	case token.ADD, token.SUB, token.MUL, token.QUO, token.REM:
-		asm += asmArithOp(f.Indent, signed, instr.Op, regX, regY, &regVal, size)
+		asm += asmArithOp(f.Indent, issigned, instr.Op, regX, regY, &regVal, size)
 	case token.AND, token.OR, token.XOR, token.SHL, token.SHR, token.AND_NOT:
-		asm += asmBitwiseOp(f.Indent, instr.Op, regX, regY, &regVal, size)
+		asm += asmBitwiseOp(f.Indent, instr.Op, xIsSigned, regX, regY, &regVal, size)
 	case token.EQL, token.NEQ, token.LEQ, token.GEQ, token.LSS, token.GTR:
 		asm += asmCmpOp(f.Indent, instr.Op, regX, regY, &regVal)
 	}
@@ -748,7 +757,7 @@ func (f *Function) asmBinOp(instr *ssa.BinOp) (string, *Error) {
 
 	addr, ok := f.ssaNames[instr.Name()]
 	if !ok {
-		panic(fmt.Sprintf("Unknown name (%v) in asmBinOp, instr (%v)\n", instr.Name(), instr))
+		panic(fmt.Sprintf("Unknown name (%v), instr (%v)\n", instr.Name(), instr))
 	}
 
 	a, err := f.asmStoreReg(&regVal, &addr, 0)
@@ -804,7 +813,7 @@ func (f *Function) sizeof(val ssa.Value) uint {
 	}
 	info, ok := f.ssaNames[val.Name()]
 	if !ok {
-		panic(fmt.Sprintf("Unknown name (%v) in asmLoadValue, value (%v)\n", val.Name(), val))
+		panic(fmt.Sprintf("Unknown name (%v), value (%v)\n", val.Name(), val))
 	}
 	_, _, size := info.MemRegOffsetSize()
 	return size
@@ -824,15 +833,15 @@ func (f *Function) asmLoadValue(val ssa.Value, offset int, size uint, reg *regis
 	}
 	info, ok := f.ssaNames[val.Name()]
 	if !ok {
-		panic(fmt.Sprintf("Unknown name (%v) in asmLoadValue, value (%v)\n", val.Name(), val))
+		panic(fmt.Sprintf("Unknown name (%v), value (%v)\n", val.Name(), val))
 	}
 
 	r, roffset, rsize := info.MemRegOffsetSize()
 	if rsize%size != 0 {
-		panic(fmt.Sprintf("size (%v) value in asmLoadValue not divisor of value (%v) size (%v), name (%v)\n", size, val, rsize, val.Name()))
+		panic(fmt.Sprintf("Size (%v) value not divisor of value (%v) size (%v), name (%v)\n", size, val, rsize, val.Name()))
 	}
 	if size > 8 {
-		panic(fmt.Sprintf("Greater than 8 byte sized (%v) value in asmLoadValue, value (%v), name (%v)\n", size, val, val.Name()))
+		panic(fmt.Sprintf("Greater than 8 byte sized (%v) value, value (%v), name (%v)\n", size, val, val.Name()))
 	}
 
 	return asmMovMemReg(f.Indent, info.name, roffset+offset, &r, rsize, reg), nil
@@ -841,7 +850,7 @@ func (f *Function) asmLoadValue(val ssa.Value, offset int, size uint, reg *regis
 func (f *Function) asmStoreReg(reg *register, addr *nameInfo, offset int) (string, *Error) {
 	r, roffset, rsize := addr.MemRegOffsetSize()
 	if rsize > 8 {
-		panic(fmt.Sprintf("Greater than 8 byte sized (%v) value in asmStoreReg, addr (%v), name (%v)\n", rsize, *addr, addr.name))
+		panic(fmt.Sprintf("Greater than 8 byte sized (%v) value, addr (%v), name (%v)\n", rsize, *addr, addr.name))
 	}
 	if rsize == 0 {
 		panic(fmt.Sprintf("size == 0 for addr (%v)", *addr))
@@ -889,7 +898,7 @@ func (f *Function) asmUnOp(instr *ssa.UnOp) (string, *Error) {
 	asm := ""
 	switch instr.Op {
 	default:
-		panic(fmt.Sprintf("Unknown Op token (%v) in asmUnOp: \"%v\"", instr.Op, instr))
+		panic(fmt.Sprintf("Unknown Op token (%v): \"%v\"", instr.Op, instr))
 	case token.NOT: // logical negation
 		asm, err = f.asmUnOpNot(instr)
 	case token.XOR: //bitwise complement
@@ -905,14 +914,45 @@ func (f *Function) asmUnOp(instr *ssa.UnOp) (string, *Error) {
 
 }
 
-// logical negation
-func (f *Function) asmUnOpNot(instr *ssa.UnOp) (string, *Error) {
-	// TODO
-	return fmt.Sprintf(f.Indent+"// instr %v\n", instr), nil
+// bitwise negation
+func (f *Function) asmUnOpXor(instr *ssa.UnOp) (string, *Error) {
+
+	if err := f.allocValueOnDemand(instr); err != nil {
+		return "", err
+	}
+	size := f.sizeof(instr)
+	reg := f.allocReg(DataReg, size)
+
+	addr, ok := f.ssaNames[instr.Name()]
+	if !ok {
+		panic(fmt.Sprintf("Unknown name (%v), instr (%v)\n", instr.Name(), instr))
+	}
+
+	asm := asmZeroReg(f.Indent, &reg)
+
+	asm, err := f.asmLoadValueSimple(instr.X, &reg)
+	if err != nil {
+		return asm, err
+	}
+
+	asm += asmNotReg(f.Indent, &reg, size)
+
+	a, err := f.asmStoreReg(&reg, &addr, 0)
+	f.freeReg(reg)
+
+	if err != nil {
+		return asm, err
+	} else {
+		asm += a
+	}
+
+	asm = fmt.Sprintf(f.Indent+"// BEGIN ssa.UnOpNot, %v = %v\n", instr.Name(), instr) + asm
+	asm += fmt.Sprintf(f.Indent+"// END ssa.UnOpNot, %v = %v\n", instr.Name(), instr)
+	return asm, nil
 }
 
-//bitwise complement
-func (f *Function) asmUnOpXor(instr *ssa.UnOp) (string, *Error) {
+//logical negation
+func (f *Function) asmUnOpNot(instr *ssa.UnOp) (string, *Error) {
 	// TODO
 	return fmt.Sprintf(f.Indent+"// instr %v\n", instr), nil
 }
@@ -935,7 +975,7 @@ func (f *Function) asmUnOpSub(instr *ssa.UnOp) (string, *Error) {
 
 	addr, ok := f.ssaNames[instr.Name()]
 	if !ok {
-		panic(fmt.Sprintf("Unknown name (%v) in asmBinOp, instr (%v)\n", instr.Name(), instr))
+		panic(fmt.Sprintf("Unknown name (%v), instr (%v)\n", instr.Name(), instr))
 	}
 
 	asm, err := f.asmLoadValueSimple(instr.X, &regX)
@@ -990,7 +1030,7 @@ func (f *Function) asmUnOpPointer(instr *ssa.UnOp) (string, *Error) {
 	xReg, xOffset, xSize := xInfo.MemRegOffsetSize()
 	aReg, aOffset, aSize := assignment.MemRegOffsetSize()
 	if xSize != aSize {
-		panic("xSize := aSize in asmUnOpPointer")
+		panic("xSize := aSize")
 	}
 	size := aSize
 	tmp1 := f.allocReg(DataReg, DataRegSize)
@@ -1061,11 +1101,11 @@ func (f *Function) asmIndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 		if pSize != 8 {
 			fmt.Println("instr:", instr)
 			fmt.Println("pSize:", pSize)
-			panic("Index size not 8 bytes in asmIndexAddr")
+			panic("Index size not 8 bytes")
 		}
 		assignmentReg, assignmentOffset, aSize := assignment.MemRegOffsetSize()
 		if aSize != pSize {
-			panic("aSize != pSize in asmIndexAddr")
+			panic("aSize != pSize")
 		}
 		asm += asmMovMemReg(f.Indent, p.name, pOffset, &pReg, pSize, &tmp2Reg)
 		asm += asmLea(f.Indent, xInfo.name, xOffset, &xReg, &tmpReg)

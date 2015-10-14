@@ -1890,7 +1890,7 @@ func asmMovImm64Reg(indent string, imm64 int64, dstReg *register) string {
 }
 
 // asmCMovCCRegReg conditionally moves the src reg to the dst reg if the carry
-// flag is clear (ie the previous compare had its src greater than it's sub reg).
+// flag is clear (ie the previous compare had its src greater than its sub reg).
 func asmCMovCCRegReg(indent string, src *register, dst *register, size uint) string {
 	var cmov string
 	if size == 1 {

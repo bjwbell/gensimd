@@ -2085,16 +2085,23 @@ func asmXorRegReg(indent string, src *register, dst *register) string {
 	}
 	xor := GetInstr(I_XOR, src.width/8)
 	asm := indent + fmt.Sprintf("%v    %v, %v\n", xor.String(), src.name, dst.name)
-	return strings.Replace(asm, "+-", "-", -1)
+	return asm
+}
+
+func asmXorImm32Reg(indent string, imm32 int32, dst *register, size uint) string {
+	xor := GetInstr(I_XOR, size)
+	asm := indent + fmt.Sprintf("%v    $%v, %v\n", xor.String(), imm32, dst.name)
+	return asm
+}
+
+func asmXorImm64Reg(indent string, imm64 int64, dst *register, size uint) string {
+	xor := GetInstr(I_XOR, size)
+	asm := indent + fmt.Sprintf("%v    $%v, %v\n", xor.String(), imm64, dst.name)
+	return asm
 }
 
 func asmNotReg(indent string, reg *register, size uint) string {
-	if reg.width/8 < size {
-		panic(fmt.Sprintf("Bad reg width (%v), size (%v)", reg.width, size))
-	}
-	xor := GetInstr(I_XOR, size)
-	asm := indent + fmt.Sprintf("%v    $-1, %v\n", xor.String(), reg.name)
-	return asm
+	return asmXorImm32Reg(indent, -1, reg, size)
 }
 
 const (
@@ -2257,11 +2264,21 @@ func asmCmpRegReg(indent string, x *register, y *register) string {
 
 }
 
-func asmCmpMemImm32(indent string, name string, offset int32, r *register, imm32 uint32) string {
+func asmCmpMemImm32(indent string, name string, offset int32, r *register, imm32 uint32, size uint) string {
 	if r.width != 64 {
 		panic("Invalid register width for asmCmpMemImm32")
 	}
-	asm := indent + fmt.Sprintf("CMPQ	%v+%v(%v), $%v\n", name, offset, r.name, imm32)
+	var cmp string
+	if size == 1 {
+		cmp = "CMPB"
+	} else if size == 2 {
+		cmp = "CMPW"
+	} else if size == 4 {
+		cmp = "CMPL"
+	} else if size == 8 {
+		cmp = "CMPQ"
+	}
+	asm := indent + fmt.Sprintf("%v	%v+%v(%v), $%v\n", cmp, name, offset, r.name, imm32)
 	return strings.Replace(asm, "+-", "-", -1)
 
 }

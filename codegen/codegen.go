@@ -293,10 +293,6 @@ func (f *Function) asmZeroSsaLocals() (string, *Error) {
 
 func (f *Function) asmAllocLocal(name string, typ types.Type) (nameInfo, *Error) {
 	size := sizeof(typ)
-	//single byte size not supported
-	//if size == 1 {
-	//	size = 8
-	//}
 	offset := int(size)
 	if align(typ) > size {
 		offset = int(align(typ))
@@ -323,10 +319,6 @@ func (f *Function) asmZeroNonSsaLocals() (string, *Error) {
 			continue
 		}
 		sp := getRegister(REG_SP)
-		// single byte size is not supported
-		//if name.local.size == 1 {
-		//	name.local.size = 8
-		//}
 		asm += asmZeroMemory(f.Indent, name.name, name.offset, name.size, sp)
 	}
 	return asm, nil
@@ -474,8 +466,8 @@ func (f *Function) asmIf(instr *ssa.If) (string, *Error) {
 			return "", err
 		}
 		asm += a
-		r, offset, _ := info.MemRegOffsetSize()
-		asm += asmCmpMemImm32(f.Indent, info.name, int32(offset), &r, uint32(0))
+		r, offset, size := info.MemRegOffsetSize()
+		asm += asmCmpMemImm32(f.Indent, info.name, int32(offset), &r, uint32(0), size)
 		asm += f.Indent + "JEQ    " + "block" + strconv.Itoa(fblock) + "\n"
 		a, err = f.asmJumpPreamble(instr.Block().Index, tblock)
 		if err != nil {
@@ -677,49 +669,14 @@ func (f *Function) asmStoreValAddr(val ssa.Value, addr *nameInfo) (string, *Erro
 }
 
 func (f *Function) asmStore(instr *ssa.Store) (string, *Error) {
-	var err *Error
-	if err = f.allocValueOnDemand(instr.Val); err != nil {
+	if err := f.allocValueOnDemand(instr.Addr); err != nil {
 		return "", err
 	}
-	if err = f.allocValueOnDemand(instr.Addr); err != nil {
-		return "", err
+	addr, ok := f.ssaNames[instr.Addr.Name()]
+	if !ok {
+		panic("Couldnt find instr.Addr in ssaNames")
 	}
-
-	asm := ""
-	asm += f.Indent + fmt.Sprintf("// BEGIN ssa.Store addr name:%v, val name:%v\n", instr.Addr.Name(), instr.Val.Name()) + asm
-	size := f.sizeof(instr.Val)
-	iterations := size / sizeInt()
-
-	if size > sizeInt() {
-		if size%sizeInt() != 0 {
-			panic(fmt.Sprintf("Size (%v) not multiple of sizeInt (%v)", size, sizeInt()))
-		}
-	}
-
-	valReg := f.allocReg(DataReg, sizeInt())
-
-	for i := uint(0); i < iterations; i++ {
-		offset := int(i * sizeInt())
-		a, err := f.asmLoadValue(instr.Val, offset, sizeInt(), &valReg)
-		if err != nil {
-			return a, err
-		}
-		asm += a
-		addr, ok := f.ssaNames[instr.Addr.Name()]
-		if !ok {
-			panic(fmt.Sprintf("Unknown name (%v), addr (%v)\n", instr.Addr.Name(), instr.Addr))
-		}
-
-		a, err = f.asmStoreReg(&valReg, &addr, offset)
-		if err != nil {
-			return a, err
-		}
-		asm += a
-	}
-
-	f.freeReg(valReg)
-	asm += f.Indent + fmt.Sprintf("// END ssa.Store addr name:%v, val name:%v\n", instr.Addr.Name(), instr.Val.Name())
-	return asm, nil
+	return f.asmStoreValAddr(instr.Val, &addr)
 }
 
 func (f *Function) asmBinOp(instr *ssa.BinOp) (string, *Error) {
@@ -863,6 +820,15 @@ func (f *Function) asmStoreReg(reg *register, addr *nameInfo, offset int) (strin
 
 func (f *Function) asmLoadConstValue(cnst *ssa.Const, r *register) (string, *Error) {
 	size := sizeof(cnst.Type())
+
+	if isBool(cnst.Type()) {
+		if cnst.Value.String() == "true" {
+			return asmMovImm8Reg(f.Indent, int8(1), r), nil
+		} else {
+			return asmMovImm8Reg(f.Indent, int8(0), r), nil
+		}
+	}
+
 	signed := signed(cnst.Type())
 	switch size {
 	case 1:
@@ -900,10 +866,10 @@ func (f *Function) asmUnOp(instr *ssa.UnOp) (string, *Error) {
 	default:
 		panic(fmt.Sprintf("Unknown Op token (%v): \"%v\"", instr.Op, instr))
 	case token.NOT: // logical negation
-		asm, err = f.asmUnOpNot(instr)
-	case token.XOR: //bitwise complement
-		asm, err = f.asmUnOpXor(instr)
-	case token.SUB: // arithmetic negation
+		asm, err = f.asmUnOpXor(instr, 1)
+	case token.XOR: //bitwise negation
+		asm, err = f.asmUnOpXor(instr, -1)
+	case token.SUB: // arithmetic negation e.g. x=>-x
 		asm, err = f.asmUnOpSub(instr)
 	case token.MUL: //pointer indirection
 		asm, err = f.asmUnOpPointer(instr)
@@ -915,7 +881,7 @@ func (f *Function) asmUnOp(instr *ssa.UnOp) (string, *Error) {
 }
 
 // bitwise negation
-func (f *Function) asmUnOpXor(instr *ssa.UnOp) (string, *Error) {
+func (f *Function) asmUnOpXor(instr *ssa.UnOp, xorVal int32) (string, *Error) {
 
 	if err := f.allocValueOnDemand(instr); err != nil {
 		return "", err
@@ -935,7 +901,11 @@ func (f *Function) asmUnOpXor(instr *ssa.UnOp) (string, *Error) {
 		return asm, err
 	}
 
-	asm += asmNotReg(f.Indent, &reg, size)
+	if size < 8 {
+		asm += asmXorImm32Reg(f.Indent, xorVal, &reg, size)
+	} else {
+		asm += asmXorImm64Reg(f.Indent, int64(xorVal), &reg, size)
+	}
 
 	a, err := f.asmStoreReg(&reg, &addr, 0)
 	f.freeReg(reg)
@@ -949,12 +919,6 @@ func (f *Function) asmUnOpXor(instr *ssa.UnOp) (string, *Error) {
 	asm = fmt.Sprintf(f.Indent+"// BEGIN ssa.UnOpNot, %v = %v\n", instr.Name(), instr) + asm
 	asm += fmt.Sprintf(f.Indent+"// END ssa.UnOpNot, %v = %v\n", instr.Name(), instr)
 	return asm, nil
-}
-
-//logical negation
-func (f *Function) asmUnOpNot(instr *ssa.UnOp) (string, *Error) {
-	// TODO
-	return fmt.Sprintf(f.Indent+"// instr %v\n", instr), nil
 }
 
 // arithmetic negation
@@ -1493,7 +1457,14 @@ func signedBasic(b types.BasicKind) bool {
 	case types.Float32, types.Float64:
 		return true
 	}
-	panic("Unknown basic type")
+	panic(fmt.Sprintf("Unknown basic type (%v)", b))
+}
+
+func isBool(t types.Type) bool {
+	if t, ok := t.(*types.Basic); ok {
+		return t.Kind() == types.Bool
+	}
+	return false
 }
 
 func reflectType(t types.Type) reflect.Type {

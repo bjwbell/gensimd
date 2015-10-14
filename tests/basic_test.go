@@ -35,7 +35,7 @@ func test4() int {
 	return math.MaxInt64
 }
 
-func TestT1(t *testing.T) {
+func TestBasic(t *testing.T) {
 	if t0simd() != test0() {
 		t.Errorf("t0simd (%v) != test0 (%v)", t0simd(), test0())
 	}

@@ -1743,7 +1743,7 @@ func asmZeroReg(indent string, reg *register) string {
 
 func asmMovRegReg(indent string, srcReg *register, dstReg *register, size uint) string {
 	if srcReg.width != dstReg.width || size*8 > srcReg.width {
-		panic("srcReg.wdith != dstReg.width or invalid size in asmMoveRegToReg")
+		panic(fmt.Sprintf("(%v) srcReg.width != (%v) dstReg.width or invalid size in asmMoveRegToReg", srcReg.width, dstReg.width))
 	}
 
 	mov := GetInstr(I_MOV, size).String()
@@ -1887,6 +1887,24 @@ func asmMovImm64Reg(indent string, imm64 int64, dstReg *register) string {
 	}
 	asm := indent + fmt.Sprintf("MOVQ    $%v, %v\n", imm64, dstReg.name)
 	return strings.Replace(asm, "+-", "-", -1)
+}
+
+// asmCMovCCRegReg conditionally moves the src reg to the dst reg if the carry
+// flag is clear (ie the previous compare had its src greater than it's sub reg).
+func asmCMovCCRegReg(indent string, src *register, dst *register, size uint) string {
+	var cmov string
+	if size == 1 {
+		// there is conditional byte move
+		cmov = "CMOVWCC"
+	} else if size == 2 {
+		cmov = "CMOVWCC"
+	} else if size == 4 {
+		cmov = "CMOVLCC"
+	} else if size == 8 {
+		cmov = "CMOVQCC"
+	}
+	asm := indent + fmt.Sprintf("%v %v, %v\n", cmov, src.name, dst.name)
+	return asm
 }
 
 func asmLea(indent string, srcName string, srcOffset int, srcReg *register, dstReg *register) string {
@@ -2130,30 +2148,60 @@ func asmMovSignExtend(indent string, src *register, dst *register, srcSize uint,
 	return asm
 }
 
-func asmShiftRegReg(indent string, signed bool, direction int, src *register, shiftAmount *register, size uint) string {
+func asmShiftRegReg(indent string, signed bool, direction int, src *register, shiftReg *register, tmp *register, size uint) string {
+
 	cl := getRegister(REG_CL)
 	cx := getRegister(REG_CX)
 	regCl := cx
+
 	var opcode TInstruction
-	if signed && direction == SHIFT_LEFT {
-		opcode = I_SAL
+	if direction == SHIFT_LEFT {
+		opcode = I_SHL
+	} else if !signed && direction == SHIFT_RIGHT {
+		opcode = I_SHR
 	} else if signed && direction == SHIFT_RIGHT {
 		opcode = I_SAR
-	} else if direction == SHIFT_LEFT {
-		opcode = I_SHL
-	} else if direction == SHIFT_RIGHT {
-		opcode = I_SHR
 	}
 
 	shift := GetInstr(opcode, size)
 	asm := ""
 
 	if size == 1 {
-		asm += asmMovZeroExtend(indent, cl, cx, 1, cx.width/8)
 		regCl = cl
 	}
 
+	maxShift := 8 * uint32(size)
+	completeShift := int32(maxShift)
+	// the shl/shr instructions mast the shift count to either
+	// 5 or 6 bits (5 if not operating on a 64bit value)
+	if completeShift == 32 || completeShift == 64 {
+		completeShift--
+	}
+
+	asm += asmMovRegReg(indent, shiftReg, cx, size)
+
+	asm += asmMovImm32Reg(indent, completeShift, tmp)
+	// compare only first byte of shift reg,
+	// since useful shift can be at most 64
+	asm += asmCmpRegImm32(indent, shiftReg, maxShift, 1)
+	asm += asmCMovCCRegReg(indent, tmp, cx, size)
+
+	var zerosize uint = 1
+	asm += asmMovZeroExtend(indent, cl, cx, zerosize, cx.width/8)
 	asm += indent + fmt.Sprintf("%v    %v, %v\n", shift.String(), regCl.name, src.name)
+
+	if maxShift == 64 || maxShift == 32 {
+		asm += asmMovImm32Reg(indent, 1, tmp)
+		// compare only first byte of shift reg,
+		// since useful shift can be at most 64
+		asm += asmXorRegReg(indent, cx, cx)
+		asm += asmCmpRegImm32(indent, shiftReg, maxShift, 1)
+		asm += asmCMovCCRegReg(indent, tmp, cx, size)
+		var zerosize uint = 1
+		asm += asmMovZeroExtend(indent, cl, cx, zerosize, cx.width/8)
+		asm += indent + fmt.Sprintf("%v    %v, %v\n", shift.String(), regCl.name, src.name)
+	}
+
 	return asm
 }
 
@@ -2185,10 +2233,12 @@ func asmBitwiseOp(indent string, op token.Token, signed bool, x *register, y *re
 		asm += asmXorRegReg(indent, x, result)
 	case token.SHL:
 		asm = asmMovRegReg(indent, x, result, size)
-		asm += asmShiftRegReg(indent, signed, SHIFT_LEFT, result, y, size)
+		tmp := x
+		asm += asmShiftRegReg(indent, signed, SHIFT_LEFT, result, y, tmp, size)
 	case token.SHR:
 		asm = asmMovRegReg(indent, x, result, size)
-		asm += asmShiftRegReg(indent, signed, SHIFT_RIGHT, result, y, size)
+		tmp := x
+		asm += asmShiftRegReg(indent, signed, SHIFT_RIGHT, result, y, tmp, size)
 	case token.AND_NOT:
 		asm = asmMovRegReg(indent, y, result, size)
 		asm += asmAndNotRegReg(indent, x, result, size)
@@ -2213,6 +2263,23 @@ func asmCmpMemImm32(indent string, name string, offset int32, r *register, imm32
 	}
 	asm := indent + fmt.Sprintf("CMPQ	%v+%v(%v), $%v\n", name, offset, r.name, imm32)
 	return strings.Replace(asm, "+-", "-", -1)
+
+}
+
+func asmCmpRegImm32(indent string, r *register, imm32 uint32, size uint) string {
+	if r.width != 64 {
+		panic("Invalid register width for asmCmpMemImm32")
+	}
+	cmp := "CMPQ"
+	if size == 1 {
+		cmp = "CMPB"
+	} else if size == 2 {
+		cmp = "CMPW"
+	} else if size == 4 {
+		cmp = "CMPL"
+	}
+	asm := indent + fmt.Sprintf("%v	%v, $%v\n", cmp, r.name, imm32)
+	return asm
 
 }
 

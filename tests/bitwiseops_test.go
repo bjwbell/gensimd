@@ -277,7 +277,7 @@ func TestBitwiseOps(t *testing.T) {
 				b = 1<<uint(j) - 1
 			}
 
-			//shift := uint8(j)
+			shift := uint8(j)
 
 			if oruint8s(uint8(a), uint8(b)) != oruint8(uint8(a), uint8(b)) {
 				t.Errorf("oruint8s(%v, %v)", uint8(a), uint8(b))
@@ -291,12 +291,12 @@ func TestBitwiseOps(t *testing.T) {
 			if andnotuint8s(uint8(a), uint8(b)) != andnotuint8(uint8(a), uint8(b)) {
 				t.Errorf("(%v) andnotuint8s(%v, %v) != %v", andnotuint8s(uint8(a), uint8(b)), uint8(a), uint8(b), andnotuint8(uint8(a), uint8(b)))
 			}
-			/*if shluint8s(uint8(a), shift) != shluint8(uint8(a), shift) {
-				t.Errorf("shluint8s(%v, %v)", uint8(a), shift)
+			if shluint8s(uint8(a), shift) != shluint8(uint8(a), shift) {
+				t.Errorf("(%v) shluint8s(%v, %v) != %v", shluint8s(uint8(a), shift), uint8(a), shift, shluint8(uint8(a), shift))
 			}
 			if shruint8s(uint8(a), shift) != shruint8(uint8(a), shift) {
 				t.Errorf("shruint8s(%v, %v)", uint8(a), shift)
-			}*/
+			}
 			if oruint16s(uint16(a), uint16(b)) != oruint16(uint16(a), uint16(b)) {
 				t.Errorf("oruint16s(%v, %v)", uint16(a), uint16(b))
 			}
@@ -309,12 +309,12 @@ func TestBitwiseOps(t *testing.T) {
 			if andnotuint16s(uint16(a), uint16(b)) != andnotuint16(uint16(a), uint16(b)) {
 				t.Errorf("andnotuint16s(%v, %v)", uint16(a), uint16(b))
 			}
-			/*if shluint16s(uint16(a), shift) != shluint16(uint16(a), shift) {
-				t.Errorf("shluint16s(%v, %v)", uint16(a), shift)
+			if shluint16s(uint16(a), shift) != shluint16(uint16(a), shift) {
+				t.Errorf("%v shluint16s(%v, %v) != %v", shluint16s(uint16(a), shift), uint16(a), shift, shluint16(uint16(a), shift))
 			}
 			if shruint16s(uint16(a), shift) != shruint16(uint16(a), shift) {
-				t.Errorf("shruint16s(%v, %v)", uint16(a), shift)
-			}*/
+				t.Errorf("%v shruint16s(%v, %v) != %v", shruint16s(uint16(a), shift), uint16(a), shift, shruint16(uint16(a), shift))
+			}
 			if oruint32s(uint32(a), uint32(b)) != oruint32(uint32(a), uint32(b)) {
 				t.Errorf("oruint32s(%v, %v)", uint32(a), uint32(b))
 			}
@@ -327,12 +327,12 @@ func TestBitwiseOps(t *testing.T) {
 			if andnotuint32s(uint32(a), uint32(b)) != andnotuint32(uint32(a), uint32(b)) {
 				t.Errorf("andnotuint32s(%v, %v)", uint32(a), uint32(b))
 			}
-			/*if shluint32s(uint32(a), shift) != shluint32(uint32(a), shift) {
-				t.Errorf("shluint32s(%v, %v)", uint32(a), shift)
+			if shluint32s(uint32(a), shift) != shluint32(uint32(a), shift) {
+				t.Errorf("shluint32s(%v, %v) %v != %v", uint32(a), shift, shluint32s(uint32(a), shift), shluint32(uint32(a), shift))
 			}
 			if shruint32s(uint32(a), shift) != shruint32(uint32(a), shift) {
 				t.Errorf("shruint32s(%v, %v)", uint32(a), shift)
-			}*/
+			}
 			if oruint64s(uint64(a), uint64(b)) != oruint64(uint64(a), uint64(b)) {
 				t.Errorf("oruint64s(%v, %v)", uint64(a), uint64(b))
 			}
@@ -345,12 +345,12 @@ func TestBitwiseOps(t *testing.T) {
 			if andnotuint64s(uint64(a), uint64(b)) != andnotuint64(uint64(a), uint64(b)) {
 				t.Errorf("andnotuint64s(%v, %v)", uint64(a), uint64(b))
 			}
-			/*if shluint64s(uint64(a), shift) != shluint64(uint64(a), shift) {
-				t.Errorf("shluint64s(%v, %v)", uint64(a), shift)
+			if shluint64s(uint64(a), shift) != shluint64(uint64(a), shift) {
+				t.Errorf("shluint64s(%v, %v) %v != %v", uint64(a), shift, shluint64s(uint64(a), shift), shluint64(uint64(a), shift))
 			}
 			if shruint64s(uint64(a), shift) != shruint64(uint64(a), shift) {
-				t.Errorf("shruint64s(%v, %v)", uint64(a), shift)
-			}*/
+				t.Errorf("shruint64s(%v, %v) %v != %v", uint64(a), shift, shruint64s(uint64(a), shift), shruint64(uint64(a), shift))
+			}
 			if orint8s(int8(a), int8(b)) != orint8(int8(a), int8(b)) {
 				t.Errorf("orint8s(%v, %v)", int8(a), int8(b))
 			}
@@ -363,12 +363,12 @@ func TestBitwiseOps(t *testing.T) {
 			if andnotint8s(int8(a), int8(b)) != andnotint8(int8(a), int8(b)) {
 				t.Errorf("andnotint8s(%v, %v)", int8(a), int8(b))
 			}
-			/*if shlint8s(int8(a), shift) != shlint8(int8(a), shift) {
-				t.Errorf("shlint8s(%v, %v)", int8(a), shift)
+			if shlint8s(int8(a), shift) != shlint8(int8(a), shift) {
+				t.Errorf("shlint8s(%v, %v) %v != %v", int8(a), shift, shlint8s(int8(a), shift), shlint8(int8(a), shift))
 			}
 			if shrint8s(int8(a), shift) != shrint8(int8(a), shift) {
-				t.Errorf("shrint8s(%v, %v)", int8(a), shift)
-			}*/
+				t.Errorf("shrint8s(%v, %v) %v != %v", int8(a), shift, shrint8s(int8(a), shift), shrint8(int8(a), shift))
+			}
 			if orint16s(int16(a), int16(b)) != orint16(int16(a), int16(b)) {
 				t.Errorf("orint16s(%v, %v)", int16(a), int16(b))
 			}
@@ -381,12 +381,12 @@ func TestBitwiseOps(t *testing.T) {
 			if andnotint16s(int16(a), int16(b)) != andnotint16(int16(a), int16(b)) {
 				t.Errorf("andnotint16s(%v, %v)", int16(a), int16(b))
 			}
-			/*if shlint16s(int16(a), shift) != shlint16(int16(a), shift) {
+			if shlint16s(int16(a), shift) != shlint16(int16(a), shift) {
 				t.Errorf("shlint16s(%v, %v)", int16(a), shift)
 			}
 			if shrint16s(int16(a), shift) != shrint16(int16(a), shift) {
 				t.Errorf("shrint16s(%v, %v)", int16(a), shift)
-			}*/
+			}
 			if orint32s(int32(a), int32(b)) != orint32(int32(a), int32(b)) {
 				t.Errorf("orint32s(%v, %v)", int32(a), int32(b))
 			}
@@ -399,12 +399,12 @@ func TestBitwiseOps(t *testing.T) {
 			if andnotint32s(int32(a), int32(b)) != andnotint32(int32(a), int32(b)) {
 				t.Errorf("andnotint32s(%v, %v)", int32(a), int32(b))
 			}
-			/*if shlint32s(int32(a), shift) != shlint32(int32(a), shift) {
+			if shlint32s(int32(a), shift) != shlint32(int32(a), shift) {
 				t.Errorf("shlint32s(%v, %v)", int32(a), shift)
 			}
 			if shrint32s(int32(a), shift) != shrint32(int32(a), shift) {
 				t.Errorf("shrint32s(%v, %v)", int32(a), shift)
-			}*/
+			}
 			if orint64s(int64(a), int64(b)) != orint64(int64(a), int64(b)) {
 				t.Errorf("orint64s(%v, %v)", int64(a), int64(b))
 			}
@@ -417,12 +417,12 @@ func TestBitwiseOps(t *testing.T) {
 			if andnotint64s(int64(a), int64(b)) != andnotint64(int64(a), int64(b)) {
 				t.Errorf("andnotint64s(%v, %v)", int64(a), int64(b))
 			}
-			/*if shlint64s(int64(a), shift) != shlint64(int64(a), shift) {
+			if shlint64s(int64(a), shift) != shlint64(int64(a), shift) {
 				t.Errorf("shlint64s(%v, %v)", int64(a), shift)
 			}
 			if shrint64s(int64(a), shift) != shrint64(int64(a), shift) {
 				t.Errorf("shrint64s(%v, %v)", int64(a), shift)
-			}*/
+			}
 
 		}
 	}

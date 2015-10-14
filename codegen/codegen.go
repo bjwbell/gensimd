@@ -705,7 +705,7 @@ func (f *Function) asmBinOp(instr *ssa.BinOp) (string, *Error) {
 	default:
 		panic(fmt.Sprintf("Unknown op (%v)", instr.Op))
 	case token.ADD, token.SUB, token.MUL, token.QUO, token.REM:
-		asm += asmArithOp(f.Indent, issigned, instr.Op, regX, regY, &regVal, size)
+		asm += asmArithOp(f.Indent, issigned, INTEGER_OP, instr.Op, regX, regY, &regVal, size)
 	case token.AND, token.OR, token.XOR, token.SHL, token.SHR, token.AND_NOT:
 		asm += asmBitwiseOp(f.Indent, instr.Op, xIsSigned, regX, regY, &regVal, size)
 	case token.EQL, token.NEQ, token.LEQ, token.GEQ, token.LSS, token.GTR:
@@ -806,7 +806,7 @@ func (f *Function) asmLoadValue(val ssa.Value, offset int, size uint, reg *regis
 		panic(fmt.Sprintf("Greater than 8 byte sized (%v) value, value (%v), name (%v)\n", size, val, val.Name()))
 	}
 
-	return asmMovMemReg(f.Indent, info.name, roffset+offset, &r, rsize, reg), nil
+	return asmMovMemReg(f.Indent, INTEGER_OP, info.name, roffset+offset, &r, rsize, reg), nil
 }
 
 func (f *Function) asmStoreReg(reg *register, addr *nameInfo, offset int) (string, *Error) {
@@ -818,7 +818,7 @@ func (f *Function) asmStoreReg(reg *register, addr *nameInfo, offset int) (strin
 		panic(fmt.Sprintf("size == 0 for addr (%v)", *addr))
 	}
 	asm := f.Indent + fmt.Sprintf("// BEGIN asmStoreReg, size (%v)\n", rsize)
-	asm += asmMovRegMem(f.Indent, reg, addr.name, &r, offset+roffset, rsize)
+	asm += asmMovRegMem(f.Indent, INTEGER_OP, reg, addr.name, &r, offset+roffset, rsize)
 	asm += f.Indent + fmt.Sprintf("// END asmStoreReg, size (%v)\n", rsize)
 	return asm, nil
 }
@@ -953,7 +953,7 @@ func (f *Function) asmUnOpSub(instr *ssa.UnOp) (string, *Error) {
 	}
 
 	asm += asmZeroReg(f.Indent, &regSubX)
-	asm += asmArithOp(f.Indent, signed, token.SUB, &regSubX, &regX, &regVal, size)
+	asm += asmArithOp(f.Indent, signed, INTEGER_OP, token.SUB, &regSubX, &regX, &regVal, size)
 	f.freeReg(regX)
 	f.freeReg(regSubX)
 
@@ -1004,7 +1004,7 @@ func (f *Function) asmUnOpPointer(instr *ssa.UnOp) (string, *Error) {
 	size := aSize
 	tmp1 := f.allocReg(DataReg, DataRegSize)
 	tmp2 := f.allocReg(DataReg, DataRegSize)
-	asm += asmMovMemIndirectMem(f.Indent, xInfo.name, xOffset, &xReg, assignment.name, aOffset, &aReg, size, &tmp1, &tmp2)
+	asm += asmMovMemIndirectMem(f.Indent, INTEGER_OP, xInfo.name, xOffset, &xReg, assignment.name, aOffset, &aReg, size, &tmp1, &tmp2)
 	f.ssaNames[assignment.name] = assignment
 	f.freeReg(tmp1)
 	f.freeReg(tmp2)
@@ -1059,7 +1059,7 @@ func (f *Function) asmIndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 		xReg, xOffset, _ := xInfo.MemRegOffsetSize()
 		assignmentReg, assignmentOffset, assignmentSize := assignment.MemRegOffsetSize()
 		asm += asmLea(f.Indent, xInfo.name, xOffset+int(idx*size), &xReg, &tmpReg)
-		asm += asmMovRegMem(f.Indent, &tmpReg, assignment.name, &assignmentReg, assignmentOffset, assignmentSize)
+		asm += asmMovRegMem(f.Indent, INTEGER_OP, &tmpReg, assignment.name, &assignmentReg, assignmentOffset, assignmentSize)
 		f.freeReg(tmpReg)
 	} else if paramIndex {
 		p := f.ssaNames[param.Name()]
@@ -1076,10 +1076,10 @@ func (f *Function) asmIndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 		if aSize != pSize {
 			panic("aSize != pSize")
 		}
-		asm += asmMovMemReg(f.Indent, p.name, pOffset, &pReg, pSize, &tmp2Reg)
+		asm += asmMovMemReg(f.Indent, INTEGER_OP, p.name, pOffset, &pReg, pSize, &tmp2Reg)
 		asm += asmLea(f.Indent, xInfo.name, xOffset, &xReg, &tmpReg)
-		asm += asmAddRegReg(f.Indent, &tmpReg, &tmp2Reg)
-		asm += asmMovRegMem(f.Indent, &tmp2Reg, assignment.name, &assignmentReg, assignmentOffset, aSize)
+		asm += asmAddRegReg(f.Indent, INTEGER_OP, &tmpReg, &tmp2Reg)
+		asm += asmMovRegMem(f.Indent, INTEGER_OP, &tmp2Reg, assignment.name, &assignmentReg, assignmentOffset, aSize)
 		f.freeReg(tmpReg)
 		f.freeReg(tmp2Reg)
 
@@ -1171,7 +1171,7 @@ func (f *Function) allocReg(t RegType, size uint) register {
 		}
 		// r.width is in bits so multiple size (which is in bytes) by 8
 		for i := range r.datasizes {
-			if r.datasizes[i] == GetInstrDataSize(size) {
+			if r.datasizes[i] == size {
 				reg = r
 				found = true
 				break

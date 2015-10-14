@@ -10,8 +10,8 @@ type register struct {
 	typ RegType
 	// width of register in bits, e.g. ax is 64 on amd64.
 	width uint
-	// allowed data sized used in reg
-	datasizes []InstrDataSize
+	// allowed data sizes in bytes used in reg
+	datasizes []uint
 }
 
 type RegType int
@@ -78,9 +78,11 @@ const (
 	REG_X15
 )
 
-var LongSizes = []InstrDataSize{BSize, WSize, LSize}
-var QuadSizes = []InstrDataSize{BSize, WSize, LSize, QSize}
-var XmmDataSize = []InstrDataSize{DQSize}
+var LongSizes = []uint{1, 2, 4}
+var QuadSizes = []uint{1, 2, 4, 8}
+var QuadSize = []uint{8}
+var XmmDataSize = []uint{16}
+
 var registers = []register{
 	{"AL", REG_AL, DataReg, 32, LongSizes},
 	{"CL", REG_CL, DataReg, 32, LongSizes},
@@ -89,12 +91,12 @@ var registers = []register{
 	{"AX", REG_AX, DataReg, 64, QuadSizes},
 	{"CX", REG_CX, DataReg, 64, QuadSizes},
 	{"DX", REG_DX, DataReg, 64, QuadSizes},
-	{"SI", REG_SI, AddrReg, 64, []InstrDataSize{QSize}},
-	{"DI", REG_DI, AddrReg, 64, []InstrDataSize{QSize}},
-	{"BX", REG_BX, AddrReg, 64, []InstrDataSize{QSize}},
-	{"BP", REG_BP, AddrReg, 64, []InstrDataSize{QSize}},
-	{"SP", REG_SP, SpReg, 64, []InstrDataSize{QSize}},
-	{"FP", REG_FP, FpReg, 64, []InstrDataSize{QSize}},
+	{"SI", REG_SI, AddrReg, 64, QuadSize},
+	{"DI", REG_DI, AddrReg, 64, QuadSize},
+	{"BX", REG_BX, AddrReg, 64, QuadSize},
+	{"BP", REG_BP, AddrReg, 64, QuadSize},
+	{"SP", REG_SP, SpReg, 64, QuadSize},
+	{"FP", REG_FP, FpReg, 64, QuadSize},
 	{"R8", REG_R8, DataReg, 64, QuadSizes},
 	{"R9", REG_R9, DataReg, 64, QuadSizes},
 	{"R10", REG_R10, DataReg, 64, QuadSizes},
@@ -131,9 +133,9 @@ var excludedRegisters = []register{
 	{"DX", REG_DX, DataReg, 64, QuadSizes},
 
 	// stack pointer pseudo register
-	{"SP", REG_SP, SpReg, 64, []InstrDataSize{QSize}},
+	{"SP", REG_SP, SpReg, 64, QuadSize},
 	// frame pointer pseudo register
-	{"FP", REG_FP, FpReg, 64, []InstrDataSize{QSize}},
+	{"FP", REG_FP, FpReg, 64, QuadSize},
 }
 
 func getRegister(reg regconst) *register {

@@ -3,187 +3,84 @@ package codegen
 import (
 	"fmt"
 	"go/token"
-	"log"
 	"strings"
 )
 
-type Operand struct {
-	Type   OperandType
-	Input  bool
-	Output bool
+type InstrOpType int
 
-	Value func() string
-}
-
-type OperandType int
-
-// the list of operand types is from Marat Dukhan's
-// https://github.com/Maratyszcza/Opcodes
 const (
-	// al register
-	AL OperandType = iota
-	// ax register
-	AX
-	// eax register
-	EAX
-	// rax register
-	RAX
-	// cl register
-	CL
-	// immediate
-	IMM8
-	IMM16
-	IMM32
-	IMM64
-	// register instructions
-	R8
-	R16
-	R32
-	R64
-	// memory instructions
-	M // any size
-	M8
-	M16
-	M32
-	M64
-	M128
-	// xmm instructions
-	// xmm0 register
-	XMM0
-	// xmm register (xmm0-xmm31)
-	XMM
-	// used for jump instructions
-	REL8
-	REL32
+	_          InstrOpType = iota
+	INTEGER_OP             // int8/uint8,,..., int64/uint64
+	XMM_OP                 // f32/f64, packed f32, packed f64
 )
 
-func (op OperandType) String() string {
-	switch op {
-	default:
-		log.Fatalf("Unknown OperandType: \"%v\"", int(op))
-		return ""
-	case AL:
-		return "AL"
-	case CL:
-		return "CL"
-	case AX:
-		return "AL"
-	case EAX:
-		return "EAX"
-	case RAX:
-		return "RAX"
-
-		// immediate
-	case IMM8:
-		return "IMM8"
-	case IMM16:
-		return "IMM16"
-	case IMM32:
-		return "IMM32"
-	case IMM64:
-		return "IMM64"
-
-		// register instructions
-	case R8:
-		return "R8"
-	case R16:
-		return "R16"
-	case R32:
-		return "R32"
-	case R64:
-		return "R64"
-
-		// memory instructions
-	case M:
-		return "M"
-	case M8:
-		return "M8"
-	case M16:
-		return "M16"
-	case M32:
-		return "M32"
-	case M64:
-		return "M64"
-	case M128:
-		return "M128"
-
-		// xmm instructions
-	case XMM:
-		return "XMM"
-	case XMM0:
-		return "XMM0"
-
-		// jump instructions
-	case REL8:
-		return "REL8"
-	case REL32:
-		return "REL32"
-	}
+type InstrDataType struct {
+	op InstrOpType
+	NonXmmData
+	xmm XmmData
 }
+
+type NonXmmData struct {
+	size   uint
+	signed bool
+}
+
+type XmmData int
+
+const (
+	XMM_INVALID XmmData = iota
+	SINGLE_F32
+	SINGLE_F64
+	DOUBLE_F32
+	DOUBLE_F64
+)
 
 type Instr int
 type Instruction struct {
-	TInstr     TInstruction
+	TInstr InstructionType
+
+	// integer forms
 	ByteSized  Instr
 	WordSized  Instr
 	LongSized  Instr
 	QuadSized  Instr
 	DQuadSized Instr
+
+	// xmm forms
+	/*SingleF32 Instr
+	SingleF64 Instr
+	PackedF32 Instr // operates on four packed f32
+	PackedF64 Instr // operate on two packed f64*/
+
 }
 
-type InstrDataSize int
+type XmmInstruction struct {
+	XmmInstr  InstructionType
+	SingleF32 Instr
+	SingleF64 Instr
+	PackedF32 Instr // operates on four packed f32
+	PackedF64 Instr // operate on two packed f64
+}
 
-const (
-	NoneSize InstrDataSize = iota
-	BSize
-	WSize
-	LSize
-	QSize
-	DQSize
-)
-
-func GetInstrDataSize(size uint) InstrDataSize {
+func (inst Instruction) GetSized(size uint) Instr {
 	switch size {
 	case 1:
-		return BSize
+		return inst.ByteSized
 	case 2:
-		return WSize
+		return inst.WordSized
 	case 4:
-		return LSize
+		return inst.LongSized
 	case 8:
-		return QSize
-	case 16:
-		return DQSize
-	}
-	panic(fmt.Sprintf("Invalid size (%v) in GetInstrDataSize", size))
-}
-
-var instrDataSizes = []InstrDataSize{NoneSize, BSize, WSize, NoneSize, LSize, NoneSize, NoneSize, NoneSize, QSize}
-
-func (inst Instruction) GetSized(size InstrDataSize) Instr {
-	instrs := []Instr{NONE, inst.ByteSized, inst.WordSized, inst.LongSized, inst.QuadSized}
-	instr := instrs[size]
-	if instr != NONE {
-		return instr
+		return inst.QuadSized
 	}
 	msg := fmt.Sprintf("Invalid size(%v), for instr (%v)", size, inst.TInstr.String())
 	panic(msg)
 }
 
-func (inst Instruction) Get(size uint) Instr {
-	instr := inst.GetSized(GetInstrDataSize(size))
-	if instr == NONE {
-		msg := fmt.Sprintf("No matching instruction version for size (%v), instruction (%v)", size, inst.TInstr.String())
-		panic(msg)
-	} else {
-		return instr
-	}
-}
-
-type TInstruction int
+type InstructionType int
 
 const (
-	I_ADD TInstruction = iota
+	I_ADD InstructionType = iota
 	I_SUB
 	I_MOV
 
@@ -216,7 +113,7 @@ const (
 	I_CMP
 )
 
-func (tinst TInstruction) String() string {
+func (tinst InstructionType) String() string {
 	switch tinst {
 	default:
 		panic("Unknown TIinstruction")
@@ -277,20 +174,41 @@ var Insts = []Instruction{
 	{I_XOR, XORB, XORW, XORL, XORQ, NONE},
 	{I_LEA, NONE, LEAW, LEAL, LEAQ, NONE},
 	{I_MUL, MULB, MULW, MULL, MULQ, NONE},
+
+	// signed multiplication
 	{I_IMUL, IMULB, IMULW, IMULL, IMULQ, NONE},
+
 	{I_DIV, DIVB, DIVW, DIVL, DIVQ, NONE},
+
+	// signed division
 	{I_IDIV, IDIVB, IDIVW, IDIVL, IDIVQ, NONE},
+
 	{I_AND, ANDB, ANDW, ANDL, ANDQ, NONE},
 	{I_OR, ORB, ORW, ORL, ORQ, NONE},
 	{I_SHL, SHLB, SHLW, SHLL, SHLQ, NONE},
 	{I_SHR, SHRB, SHRW, SHRL, SHRQ, NONE},
+
+	// arithmetic shift left (signed left shift)
 	{I_SAL, SALB, SHLW, SHLL, SHLQ, NONE},
+	// arithmetic shift right (signed right shift)
 	{I_SAR, SARB, SARW, SARL, SARQ, NONE},
 
 	{I_CMP, CMPB, CMPW, CMPL, CMPQ, NONE},
 }
 
-func GetInstruction(tinst TInstruction) Instruction {
+var XmmInsts = []XmmInstruction{
+	{I_ADD, ADDSS, ADDSD, ADDPS, ADDPD},
+	{I_SUB, SUBSS, SUBSD, SUBPS, SUBPD},
+	{I_MOV, MOVSS, MOVSD, MOVUPS, MOVUPD},
+
+	{I_MUL, MULSS, MULSD, MULPS, MULPD},
+
+	{I_DIV, DIVSS, DIVSD, DIVPS, DIVPD},
+
+	{I_CMP, CMPSS, CMPSD, CMPPS, CMPPD},
+}
+
+func GetInstruction(tinst InstructionType) Instruction {
 	for _, inst := range Insts {
 		if inst.TInstr == tinst {
 			return inst
@@ -300,1434 +218,38 @@ func GetInstruction(tinst TInstruction) Instruction {
 }
 
 // GetInstr, the size is in bytes
-func GetInstr(tinst TInstruction, size uint) Instr {
-	inst := GetInstruction(tinst)
-	return inst.Get(size)
-}
-
-// the list of instruction names is from
-// https://github.com/golang/go/blob/master/src/cmd/internal/obj/x86/a.out.go
-const (
-	NONE Instr = iota
-	AAD
-	AAM
-	AAS
-	ADCB
-	ADCL
-	ADCW
-	ADDB
-	ADDL
-	ADDW
-	ADJSP
-	ANDB
-	ANDL
-	ANDW
-	ARPL
-	BOUNDL
-	BOUNDW
-	BSFL
-	BSFW
-	BSRL
-	BSRW
-	BTL
-	BTW
-	BTCL
-	BTCW
-	BTRL
-	BTRW
-	BTSL
-	BTSW
-	BYTE
-	CLC
-	CLD
-	CLI
-	CLTS
-	CMC
-	CMPB
-	CMPL
-	CMPW
-	CMPSB
-	CMPSL
-	CMPSW
-	DAA
-	DAS
-	DECB
-	DECL
-	DECQ
-	DECW
-	DIVB
-	DIVL
-	DIVW
-	ENTER
-	HLT
-	IDIVB
-	IDIVL
-	IDIVW
-	IMULB
-	IMULL
-	IMULW
-	INB
-	INL
-	INW
-	INCB
-	INCL
-	INCQ
-	INCW
-	INSB
-	INSL
-	INSW
-	INT
-	INTO
-	IRETL
-	IRETW
-	JCC
-	JCS
-	JCXZL
-	JEQ
-	JGE
-	JGT
-	JHI
-	JLE
-	JLS
-	JLT
-	JMI
-	JNE
-	JOC
-	JOS
-	JPC
-	JPL
-	JPS
-	LAHF
-	LARL
-	LARW
-	LEAL
-	LEAW
-	LEAVEL
-	LEAVEW
-	LOCK
-	LODSB
-	LODSL
-	LODSW
-	LONG
-	LOOP
-	LOOPEQ
-	LOOPNE
-	LSLL
-	LSLW
-	MOVB
-	MOVL
-	MOVW
-	MOVBLSX
-	MOVBLZX
-	MOVBQSX
-	MOVBQZX
-	MOVBWSX
-	MOVBWZX
-	MOVWLSX
-	MOVWLZX
-	MOVWQSX
-	MOVWQZX
-	MOVSB
-	MOVSL
-	MOVSW
-	MULB
-	MULL
-	MULW
-	NEGB
-	NEGL
-	NEGW
-	NOTB
-	NOTL
-	NOTW
-	ORB
-	ORL
-	ORW
-	OUTB
-	OUTL
-	OUTW
-	OUTSB
-	OUTSL
-	OUTSW
-	PAUSE
-	POPAL
-	POPAW
-	POPFL
-	POPFW
-	POPL
-	POPW
-	PUSHAL
-	PUSHAW
-	PUSHFL
-	PUSHFW
-	PUSHL
-	PUSHW
-	RCLB
-	RCLL
-	RCLW
-	RCRB
-	RCRL
-	RCRW
-	REP
-	REPN
-	ROLB
-	ROLL
-	ROLW
-	RORB
-	RORL
-	RORW
-	SAHF
-	SALB
-	SALL
-	SALW
-	SARB
-	SARL
-	SARW
-	SBBB
-	SBBL
-	SBBW
-	SCASB
-	SCASL
-	SCASW
-	SETCC
-	SETCS
-	SETEQ
-	SETGE
-	SETGT
-	SETHI
-	SETLE
-	SETLS
-	SETLT
-	SETMI
-	SETNE
-	SETOC
-	SETOS
-	SETPC
-	SETPL
-	SETPS
-	CDQ
-	CWD
-	SHLB
-	SHLL
-	SHLW
-	SHRB
-	SHRL
-	SHRW
-	STC
-	STD
-	STI
-	STOSB
-	STOSL
-	STOSW
-	SUBB
-	SUBL
-	SUBW
-	SYSCALL
-	TESTB
-	TESTL
-	TESTW
-	VERR
-	VERW
-	WAIT
-	WORD
-	XCHGB
-	XCHGL
-	XCHGW
-	XLAT
-	XORB
-	XORL
-	XORW
-	FMOVB
-	FMOVBP
-	FMOVD
-	FMOVDP
-	FMOVF
-	FMOVFP
-	FMOVL
-	FMOVLP
-	FMOVV
-	FMOVVP
-	FMOVW
-	FMOVWP
-	FMOVX
-	FMOVXP
-	FCOMB
-	FCOMBP
-	FCOMD
-	FCOMDP
-	FCOMDPP
-	FCOMF
-	FCOMFP
-	FCOML
-	FCOMLP
-	FCOMW
-	FCOMWP
-	FUCOM
-	FUCOMP
-	FUCOMPP
-	FADDDP
-	FADDW
-	FADDL
-	FADDF
-	FADDD
-	FMULDP
-	FMULW
-	FMULL
-	FMULF
-	FMULD
-	FSUBDP
-	FSUBW
-	FSUBL
-	FSUBF
-	FSUBD
-	FSUBRDP
-	FSUBRW
-	FSUBRL
-	FSUBRF
-	FSUBRD
-	FDIVDP
-	FDIVW
-	FDIVL
-	FDIVF
-	FDIVD
-	FDIVRDP
-	FDIVRW
-	FDIVRL
-	FDIVRF
-	FDIVRD
-	FXCHD
-	FFREE
-	FLDCW
-	FLDENV
-	FRSTOR
-	FSAVE
-	FSTCW
-	FSTENV
-	FSTSW
-	F2XM1
-	FABS
-	FCHS
-	FCLEX
-	FCOS
-	FDECSTP
-	FINCSTP
-	FINIT
-	FLD1
-	FLDL2E
-	FLDL2T
-	FLDLG2
-	FLDLN2
-	FLDPI
-	FLDZ
-	FNOP
-	FPATAN
-	FPREM
-	FPREM1
-	FPTAN
-	FRNDINT
-	FSCALE
-	FSIN
-	FSINCOS
-	FSQRT
-	FTST
-	FXAM
-	FXTRACT
-	FYL2X
-	FYL2XP1
-	CMPXCHGB
-	CMPXCHGL
-	CMPXCHGW
-	CMPXCHG8B
-	CPUID
-	INVD
-	INVLPG
-	LFENCE
-	MFENCE
-	MOVNTIL
-	RDMSR
-	RDPMC
-	RDTSC
-	RSM
-	SFENCE
-	SYSRET
-	WBINVD
-	WRMSR
-	XADDB
-	XADDL
-	XADDW
-	CMOVLCC
-	CMOVLCS
-	CMOVLEQ
-	CMOVLGE
-	CMOVLGT
-	CMOVLHI
-	CMOVLLE
-	CMOVLLS
-	CMOVLLT
-	CMOVLMI
-	CMOVLNE
-	CMOVLOC
-	CMOVLOS
-	CMOVLPC
-	CMOVLPL
-	CMOVLPS
-	CMOVQCC
-	CMOVQCS
-	CMOVQEQ
-	CMOVQGE
-	CMOVQGT
-	CMOVQHI
-	CMOVQLE
-	CMOVQLS
-	CMOVQLT
-	CMOVQMI
-	CMOVQNE
-	CMOVQOC
-	CMOVQOS
-	CMOVQPC
-	CMOVQPL
-	CMOVQPS
-	CMOVWCC
-	CMOVWCS
-	CMOVWEQ
-	CMOVWGE
-	CMOVWGT
-	CMOVWHI
-	CMOVWLE
-	CMOVWLS
-	CMOVWLT
-	CMOVWMI
-	CMOVWNE
-	CMOVWOC
-	CMOVWOS
-	CMOVWPC
-	CMOVWPL
-	CMOVWPS
-	ADCQ
-	ADDQ
-	ANDQ
-	BSFQ
-	BSRQ
-	BTCQ
-	BTQ
-	BTRQ
-	BTSQ
-	CMPQ
-	CMPSQ
-	CMPXCHGQ
-	CQO
-	DIVQ
-	IDIVQ
-	IMULQ
-	IRETQ
-	JCXZQ
-	LEAQ
-	LEAVEQ
-	LODSQ
-	MOVQ
-	MOVLQSX
-	MOVLQZX
-	MOVNTIQ
-	MOVSQ
-	MULQ
-	NEGQ
-	NOTQ
-	ORQ
-	POPFQ
-	POPQ
-	PUSHFQ
-	PUSHQ
-	RCLQ
-	RCRQ
-	ROLQ
-	RORQ
-	QUAD
-	SALQ
-	SARQ
-	SBBQ
-	SCASQ
-	SHLQ
-	SHRQ
-	STOSQ
-	SUBQ
-	TESTQ
-	XADDQ
-	XCHGQ
-	XORQ
-	ADDPD
-	ADDPS
-	ADDSD
-	ADDSS
-	ANDNPD
-	ANDNPS
-	ANDPD
-	ANDPS
-	CMPPD
-	CMPPS
-	CMPSD
-	CMPSS
-	COMISD
-	COMISS
-	CVTPD2PL
-	CVTPD2PS
-	CVTPL2PD
-	CVTPL2PS
-	CVTPS2PD
-	CVTPS2PL
-	CVTSD2SL
-	CVTSD2SQ
-	CVTSD2SS
-	CVTSL2SD
-	CVTSL2SS
-	CVTSQ2SD
-	CVTSQ2SS
-	CVTSS2SD
-	CVTSS2SL
-	CVTSS2SQ
-	CVTTPD2PL
-	CVTTPS2PL
-	CVTTSD2SL
-	CVTTSD2SQ
-	CVTTSS2SL
-	CVTTSS2SQ
-	DIVPD
-	DIVPS
-	DIVSD
-	DIVSS
-	EMMS
-	FXRSTOR
-	FXRSTOR64
-	FXSAVE
-	FXSAVE64
-	LDMXCSR
-	MASKMOVOU
-	MASKMOVQ
-	MAXPD
-	MAXPS
-	MAXSD
-	MAXSS
-	MINPD
-	MINPS
-	MINSD
-	MINSS
-	MOVAPD
-	MOVAPS
-	MOVOU
-	MOVHLPS
-	MOVHPD
-	MOVHPS
-	MOVLHPS
-	MOVLPD
-	MOVLPS
-	MOVMSKPD
-	MOVMSKPS
-	MOVNTO
-	MOVNTPD
-	MOVNTPS
-	MOVNTQ
-	MOVO
-	MOVQOZX
-	MOVSD
-	MOVSS
-	MOVUPD
-	MOVUPS
-	MULPD
-	MULPS
-	MULSD
-	MULSS
-	ORPD
-	ORPS
-	PACKSSLW
-	PACKSSWB
-	PACKUSWB
-	PADDB
-	PADDL
-	PADDQ
-	PADDSB
-	PADDSW
-	PADDUSB
-	PADDUSW
-	PADDW
-	PANDB
-	PANDL
-	PANDSB
-	PANDSW
-	PANDUSB
-	PANDUSW
-	PANDW
-	PAND
-	PANDN
-	PAVGB
-	PAVGW
-	PCMPEQB
-	PCMPEQL
-	PCMPEQW
-	PCMPGTB
-	PCMPGTL
-	PCMPGTW
-	PEXTRW
-	PFACC
-	PFADD
-	PFCMPEQ
-	PFCMPGE
-	PFCMPGT
-	PFMAX
-	PFMIN
-	PFMUL
-	PFNACC
-	PFPNACC
-	PFRCP
-	PFRCPIT1
-	PFRCPI2T
-	PFRSQIT1
-	PFRSQRT
-	PFSUB
-	PFSUBR
-	PINSRW
-	PINSRD
-	PINSRQ
-	PMADDWL
-	PMAXSW
-	PMAXUB
-	PMINSW
-	PMINUB
-	PMOVMSKB
-	PMULHRW
-	PMULHUW
-	PMULHW
-	PMULLW
-	PMULULQ
-	POR
-	PSADBW
-	PSHUFHW
-	PSHUFL
-	PSHUFLW
-	PSHUFW
-	PSHUFB
-	PSLLO
-	PSLLL
-	PSLLQ
-	PSLLW
-	PSRAL
-	PSRAW
-	PSRLO
-	PSRLL
-	PSRLQ
-	PSRLW
-	PSUBB
-	PSUBL
-	PSUBQ
-	PSUBSB
-	PSUBSW
-	PSUBUSB
-	PSUBUSW
-	PSUBW
-	PSWAPL
-	PUNPCKHBW
-	PUNPCKHLQ
-	PUNPCKHQDQ
-	PUNPCKHWL
-	PUNPCKLBW
-	PUNPCKLLQ
-	PUNPCKLQDQ
-	PUNPCKLWL
-	PXOR
-	RCPPS
-	RCPSS
-	RSQRTPS
-	RSQRTSS
-	SHUFPD
-	SHUFPS
-	SQRTPD
-	SQRTPS
-	SQRTSD
-	SQRTSS
-	STMXCSR
-	SUBPD
-	SUBPS
-	SUBSD
-	SUBSS
-	UCOMISD
-	UCOMISS
-	UNPCKHPD
-	UNPCKHPS
-	UNPCKLPD
-	UNPCKLPS
-	XORPD
-	XORPS
-	PF2IW
-	PF2IL
-	PI2FW
-	PI2FL
-	RETFW
-	RETFL
-	RETFQ
-	SWAPGS
-	MODE
-	CRC32B
-	CRC32Q
-	IMUL3Q
-	PREFETCHT0
-	PREFETCHT1
-	PREFETCHT2
-	PREFETCHNTA
-	MOVQL
-	BSWAPL
-	BSWAPQ
-	AESENC
-	AESENCLAST
-	AESDEC
-	AESDECLAST
-	AESIMC
-	AESKEYGENASSIST
-	ROUNDPS
-	ROUNDSS
-	ROUNDPD
-	ROUNDSD
-	PSHUFD
-	PCLMULQDQ
-	JCXZW
-	FCMOVCC
-	FCMOVCS
-	FCMOVEQ
-	FCMOVHI
-	FCMOVLS
-	FCMOVNE
-	FCMOVNU
-	FCMOVUN
-	FCOMI
-	FCOMIP
-	FUCOMI
-	FUCOMIP
-	LAST
-)
-
-var InstrString = []string{
-	"AAA",
-	"AAD",
-	"AAM",
-	"AAS",
-	"ADCB",
-	"ADCL",
-	"ADCW",
-	"ADDB",
-	"ADDL",
-	"ADDW",
-	"ADJSP",
-	"ANDB",
-	"ANDL",
-	"ANDW",
-	"ARPL",
-	"BOUNDL",
-	"BOUNDW",
-	"BSFL",
-	"BSFW",
-	"BSRL",
-	"BSRW",
-	"BTL",
-	"BTW",
-	"BTCL",
-	"BTCW",
-	"BTRL",
-	"BTRW",
-	"BTSL",
-	"BTSW",
-	"BYTE",
-	"CLC",
-	"CLD",
-	"CLI",
-	"CLTS",
-	"CMC",
-	"CMPB",
-	"CMPL",
-	"CMPW",
-	"CMPSB",
-	"CMPSL",
-	"CMPSW",
-	"DAA",
-	"DAS",
-	"DECB",
-	"DECL",
-	"DECQ",
-	"DECW",
-	"DIVB",
-	"DIVL",
-	"DIVW",
-	"ENTER",
-	"HLT",
-	"IDIVB",
-	"IDIVL",
-	"IDIVW",
-	"IMULB",
-	"IMULL",
-	"IMULW",
-	"INB",
-	"INL",
-	"INW",
-	"INCB",
-	"INCL",
-	"INCQ",
-	"INCW",
-	"INSB",
-	"INSL",
-	"INSW",
-	"INT",
-	"INTO",
-	"IRETL",
-	"IRETW",
-	"JCC",
-	"JCS",
-	"JCXZL",
-	"JEQ",
-	"JGE",
-	"JGT",
-	"JHI",
-	"JLE",
-	"JLS",
-	"JLT",
-	"JMI",
-	"JNE",
-	"JOC",
-	"JOS",
-	"JPC",
-	"JPL",
-	"JPS",
-	"LAHF",
-	"LARL",
-	"LARW",
-	"LEAL",
-	"LEAW",
-	"LEAVEL",
-	"LEAVEW",
-	"LOCK",
-	"LODSB",
-	"LODSL",
-	"LODSW",
-	"LONG",
-	"LOOP",
-	"LOOPEQ",
-	"LOOPNE",
-	"LSLL",
-	"LSLW",
-	"MOVB",
-	"MOVL",
-	"MOVW",
-	"MOVBLSX",
-	"MOVBLZX",
-	"MOVBQSX",
-	"MOVBQZX",
-	"MOVBWSX",
-	"MOVBWZX",
-	"MOVWLSX",
-	"MOVWLZX",
-	"MOVWQSX",
-	"MOVWQZX",
-	"MOVSB",
-	"MOVSL",
-	"MOVSW",
-	"MULB",
-	"MULL",
-	"MULW",
-	"NEGB",
-	"NEGL",
-	"NEGW",
-	"NOTB",
-	"NOTL",
-	"NOTW",
-	"ORB",
-	"ORL",
-	"ORW",
-	"OUTB",
-	"OUTL",
-	"OUTW",
-	"OUTSB",
-	"OUTSL",
-	"OUTSW",
-	"PAUSE",
-	"POPAL",
-	"POPAW",
-	"POPFL",
-	"POPFW",
-	"POPL",
-	"POPW",
-	"PUSHAL",
-	"PUSHAW",
-	"PUSHFL",
-	"PUSHFW",
-	"PUSHL",
-	"PUSHW",
-	"RCLB",
-	"RCLL",
-	"RCLW",
-	"RCRB",
-	"RCRL",
-	"RCRW",
-	"REP",
-	"REPN",
-	"ROLB",
-	"ROLL",
-	"ROLW",
-	"RORB",
-	"RORL",
-	"RORW",
-	"SAHF",
-	"SALB",
-	"SALL",
-	"SALW",
-	"SARB",
-	"SARL",
-	"SARW",
-	"SBBB",
-	"SBBL",
-	"SBBW",
-	"SCASB",
-	"SCASL",
-	"SCASW",
-	"SETCC",
-	"SETCS",
-	"SETEQ",
-	"SETGE",
-	"SETGT",
-	"SETHI",
-	"SETLE",
-	"SETLS",
-	"SETLT",
-	"SETMI",
-	"SETNE",
-	"SETOC",
-	"SETOS",
-	"SETPC",
-	"SETPL",
-	"SETPS",
-	"CDQ",
-	"CWD",
-	"SHLB",
-	"SHLL",
-	"SHLW",
-	"SHRB",
-	"SHRL",
-	"SHRW",
-	"STC",
-	"STD",
-	"STI",
-	"STOSB",
-	"STOSL",
-	"STOSW",
-	"SUBB",
-	"SUBL",
-	"SUBW",
-	"SYSCALL",
-	"TESTB",
-	"TESTL",
-	"TESTW",
-	"VERR",
-	"VERW",
-	"WAIT",
-	"WORD",
-	"XCHGB",
-	"XCHGL",
-	"XCHGW",
-	"XLAT",
-	"XORB",
-	"XORL",
-	"XORW",
-	"FMOVB",
-	"FMOVBP",
-	"FMOVD",
-	"FMOVDP",
-	"FMOVF",
-	"FMOVFP",
-	"FMOVL",
-	"FMOVLP",
-	"FMOVV",
-	"FMOVVP",
-	"FMOVW",
-	"FMOVWP",
-	"FMOVX",
-	"FMOVXP",
-	"FCOMB",
-	"FCOMBP",
-	"FCOMD",
-	"FCOMDP",
-	"FCOMDPP",
-	"FCOMF",
-	"FCOMFP",
-	"FCOML",
-	"FCOMLP",
-	"FCOMW",
-	"FCOMWP",
-	"FUCOM",
-	"FUCOMP",
-	"FUCOMPP",
-	"FADDDP",
-	"FADDW",
-	"FADDL",
-	"FADDF",
-	"FADDD",
-	"FMULDP",
-	"FMULW",
-	"FMULL",
-	"FMULF",
-	"FMULD",
-	"FSUBDP",
-	"FSUBW",
-	"FSUBL",
-	"FSUBF",
-	"FSUBD",
-	"FSUBRDP",
-	"FSUBRW",
-	"FSUBRL",
-	"FSUBRF",
-	"FSUBRD",
-	"FDIVDP",
-	"FDIVW",
-	"FDIVL",
-	"FDIVF",
-	"FDIVD",
-	"FDIVRDP",
-	"FDIVRW",
-	"FDIVRL",
-	"FDIVRF",
-	"FDIVRD",
-	"FXCHD",
-	"FFREE",
-	"FLDCW",
-	"FLDENV",
-	"FRSTOR",
-	"FSAVE",
-	"FSTCW",
-	"FSTENV",
-	"FSTSW",
-	"F2XM1",
-	"FABS",
-	"FCHS",
-	"FCLEX",
-	"FCOS",
-	"FDECSTP",
-	"FINCSTP",
-	"FINIT",
-	"FLD1",
-	"FLDL2E",
-	"FLDL2T",
-	"FLDLG2",
-	"FLDLN2",
-	"FLDPI",
-	"FLDZ",
-	"FNOP",
-	"FPATAN",
-	"FPREM",
-	"FPREM1",
-	"FPTAN",
-	"FRNDINT",
-	"FSCALE",
-	"FSIN",
-	"FSINCOS",
-	"FSQRT",
-	"FTST",
-	"FXAM",
-	"FXTRACT",
-	"FYL2X",
-	"FYL2XP1",
-	"CMPXCHGB",
-	"CMPXCHGL",
-	"CMPXCHGW",
-	"CMPXCHG8B",
-	"CPUID",
-	"INVD",
-	"INVLPG",
-	"LFENCE",
-	"MFENCE",
-	"MOVNTIL",
-	"RDMSR",
-	"RDPMC",
-	"RDTSC",
-	"RSM",
-	"SFENCE",
-	"SYSRET",
-	"WBINVD",
-	"WRMSR",
-	"XADDB",
-	"XADDL",
-	"XADDW",
-	"CMOVLCC",
-	"CMOVLCS",
-	"CMOVLEQ",
-	"CMOVLGE",
-	"CMOVLGT",
-	"CMOVLHI",
-	"CMOVLLE",
-	"CMOVLLS",
-	"CMOVLLT",
-	"CMOVLMI",
-	"CMOVLNE",
-	"CMOVLOC",
-	"CMOVLOS",
-	"CMOVLPC",
-	"CMOVLPL",
-	"CMOVLPS",
-	"CMOVQCC",
-	"CMOVQCS",
-	"CMOVQEQ",
-	"CMOVQGE",
-	"CMOVQGT",
-	"CMOVQHI",
-	"CMOVQLE",
-	"CMOVQLS",
-	"CMOVQLT",
-	"CMOVQMI",
-	"CMOVQNE",
-	"CMOVQOC",
-	"CMOVQOS",
-	"CMOVQPC",
-	"CMOVQPL",
-	"CMOVQPS",
-	"CMOVWCC",
-	"CMOVWCS",
-	"CMOVWEQ",
-	"CMOVWGE",
-	"CMOVWGT",
-	"CMOVWHI",
-	"CMOVWLE",
-	"CMOVWLS",
-	"CMOVWLT",
-	"CMOVWMI",
-	"CMOVWNE",
-	"CMOVWOC",
-	"CMOVWOS",
-	"CMOVWPC",
-	"CMOVWPL",
-	"CMOVWPS",
-	"ADCQ",
-	"ADDQ",
-	"ANDQ",
-	"BSFQ",
-	"BSRQ",
-	"BTCQ",
-	"BTQ",
-	"BTRQ",
-	"BTSQ",
-	"CMPQ",
-	"CMPSQ",
-	"CMPXCHGQ",
-	"CQO",
-	"DIVQ",
-	"IDIVQ",
-	"IMULQ",
-	"IRETQ",
-	"JCXZQ",
-	"LEAQ",
-	"LEAVEQ",
-	"LODSQ",
-	"MOVQ",
-	"MOVLQSX",
-	"MOVLQZX",
-	"MOVNTIQ",
-	"MOVSQ",
-	"MULQ",
-	"NEGQ",
-	"NOTQ",
-	"ORQ",
-	"POPFQ",
-	"POPQ",
-	"PUSHFQ",
-	"PUSHQ",
-	"RCLQ",
-	"RCRQ",
-	"ROLQ",
-	"RORQ",
-	"QUAD",
-	"SALQ",
-	"SARQ",
-	"SBBQ",
-	"SCASQ",
-	"SHLQ",
-	"SHRQ",
-	"STOSQ",
-	"SUBQ",
-	"TESTQ",
-	"XADDQ",
-	"XCHGQ",
-	"XORQ",
-	"ADDPD",
-	"ADDPS",
-	"ADDSD",
-	"ADDSS",
-	"ANDNPD",
-	"ANDNPS",
-	"ANDPD",
-	"ANDPS",
-	"CMPPD",
-	"CMPPS",
-	"CMPSD",
-	"CMPSS",
-	"COMISD",
-	"COMISS",
-	"CVTPD2PL",
-	"CVTPD2PS",
-	"CVTPL2PD",
-	"CVTPL2PS",
-	"CVTPS2PD",
-	"CVTPS2PL",
-	"CVTSD2SL",
-	"CVTSD2SQ",
-	"CVTSD2SS",
-	"CVTSL2SD",
-	"CVTSL2SS",
-	"CVTSQ2SD",
-	"CVTSQ2SS",
-	"CVTSS2SD",
-	"CVTSS2SL",
-	"CVTSS2SQ",
-	"CVTTPD2PL",
-	"CVTTPS2PL",
-	"CVTTSD2SL",
-	"CVTTSD2SQ",
-	"CVTTSS2SL",
-	"CVTTSS2SQ",
-	"DIVPD",
-	"DIVPS",
-	"DIVSD",
-	"DIVSS",
-	"EMMS",
-	"FXRSTOR",
-	"FXRSTOR64",
-	"FXSAVE",
-	"FXSAVE64",
-	"LDMXCSR",
-	"MASKMOVOU",
-	"MASKMOVQ",
-	"MAXPD",
-	"MAXPS",
-	"MAXSD",
-	"MAXSS",
-	"MINPD",
-	"MINPS",
-	"MINSD",
-	"MINSS",
-	"MOVAPD",
-	"MOVAPS",
-	"MOVOU",
-	"MOVHLPS",
-	"MOVHPD",
-	"MOVHPS",
-	"MOVLHPS",
-	"MOVLPD",
-	"MOVLPS",
-	"MOVMSKPD",
-	"MOVMSKPS",
-	"MOVNTO",
-	"MOVNTPD",
-	"MOVNTPS",
-	"MOVNTQ",
-	"MOVO",
-	"MOVQOZX",
-	"MOVSD",
-	"MOVSS",
-	"MOVUPD",
-	"MOVUPS",
-	"MULPD",
-	"MULPS",
-	"MULSD",
-	"MULSS",
-	"ORPD",
-	"ORPS",
-	"PACKSSLW",
-	"PACKSSWB",
-	"PACKUSWB",
-	"PADDB",
-	"PADDL",
-	"PADDQ",
-	"PADDSB",
-	"PADDSW",
-	"PADDUSB",
-	"PADDUSW",
-	"PADDW",
-	"PANDB",
-	"PANDL",
-	"PANDSB",
-	"PANDSW",
-	"PANDUSB",
-	"PANDUSW",
-	"PANDW",
-	"PAND",
-	"PANDN",
-	"PAVGB",
-	"PAVGW",
-	"PCMPEQB",
-	"PCMPEQL",
-	"PCMPEQW",
-	"PCMPGTB",
-	"PCMPGTL",
-	"PCMPGTW",
-	"PEXTRW",
-	"PFACC",
-	"PFADD",
-	"PFCMPEQ",
-	"PFCMPGE",
-	"PFCMPGT",
-	"PFMAX",
-	"PFMIN",
-	"PFMUL",
-	"PFNACC",
-	"PFPNACC",
-	"PFRCP",
-	"PFRCPIT1",
-	"PFRCPI2T",
-	"PFRSQIT1",
-	"PFRSQRT",
-	"PFSUB",
-	"PFSUBR",
-	"PINSRW",
-	"PINSRD",
-	"PINSRQ",
-	"PMADDWL",
-	"PMAXSW",
-	"PMAXUB",
-	"PMINSW",
-	"PMINUB",
-	"PMOVMSKB",
-	"PMULHRW",
-	"PMULHUW",
-	"PMULHW",
-	"PMULLW",
-	"PMULULQ",
-	"POR",
-	"PSADBW",
-	"PSHUFHW",
-	"PSHUFL",
-	"PSHUFLW",
-	"PSHUFW",
-	"PSHUFB",
-	"PSLLO",
-	"PSLLL",
-	"PSLLQ",
-	"PSLLW",
-	"PSRAL",
-	"PSRAW",
-	"PSRLO",
-	"PSRLL",
-	"PSRLQ",
-	"PSRLW",
-	"PSUBB",
-	"PSUBL",
-	"PSUBQ",
-	"PSUBSB",
-	"PSUBSW",
-	"PSUBUSB",
-	"PSUBUSW",
-	"PSUBW",
-	"PSWAPL",
-	"PUNPCKHBW",
-	"PUNPCKHLQ",
-	"PUNPCKHQDQ",
-	"PUNPCKHWL",
-	"PUNPCKLBW",
-	"PUNPCKLLQ",
-	"PUNPCKLQDQ",
-	"PUNPCKLWL",
-	"PXOR",
-	"RCPPS",
-	"RCPSS",
-	"RSQRTPS",
-	"RSQRTSS",
-	"SHUFPD",
-	"SHUFPS",
-	"SQRTPD",
-	"SQRTPS",
-	"SQRTSD",
-	"SQRTSS",
-	"STMXCSR",
-	"SUBPD",
-	"SUBPS",
-	"SUBSD",
-	"SUBSS",
-	"UCOMISD",
-	"UCOMISS",
-	"UNPCKHPD",
-	"UNPCKHPS",
-	"UNPCKLPD",
-	"UNPCKLPS",
-	"XORPD",
-	"XORPS",
-	"PF2IW",
-	"PF2IL",
-	"PI2FW",
-	"PI2FL",
-	"RETFW",
-	"RETFL",
-	"RETFQ",
-	"SWAPGS",
-	"MODE",
-	"CRC32B",
-	"CRC32Q",
-	"IMUL3Q",
-	"PREFETCHT0",
-	"PREFETCHT1",
-	"PREFETCHT2",
-	"PREFETCHNTA",
-	"MOVQL",
-	"BSWAPL",
-	"BSWAPQ",
-	"AESENC",
-	"AESENCLAST",
-	"AESDEC",
-	"AESDECLAST",
-	"AESIMC",
-	"AESKEYGENASSIST",
-	"ROUNDPS",
-	"ROUNDSS",
-	"ROUNDPD",
-	"ROUNDSD",
-	"PSHUFD",
-	"PCLMULQDQ",
-	"JCXZW",
-	"FCMOVCC",
-	"FCMOVCS",
-	"FCMOVEQ",
-	"FCMOVHI",
-	"FCMOVLS",
-	"FCMOVNE",
-	"FCMOVNU",
-	"FCMOVUN",
-	"FCOMI",
-	"FCOMIP",
-	"FUCOMI",
-	"FUCOMIP",
-	"LAST",
-}
-
-func (name Instr) String() string {
-	return InstrString[int(name)]
-}
-
-func GetInstrFromStr(name string) (Instr, error) {
-	for i, n := range InstrString {
-		if n == name {
-			return Instr(i), nil
-		}
+func GetInstr(tinst InstructionType, datatype InstrDataType) Instr {
+	if datatype.op == INTEGER_OP {
+		return GetInstruction(tinst).GetSized(datatype.size)
+	} else {
+		panic("XMM INSTR")
 	}
-	return Instr(0), fmt.Errorf("Couldn't find Instr for instr:%v", name)
 }
 
 // asmZeroMemory generates "MOVQ $0, name+offset(REG)" instructions,
 // size is in bytes
 func asmZeroMemory(indent string, name string, offset int, size uint, reg *register) string {
 
-	var dataSize uint
-	dataSize = 1
-
+	chunk := uint(1)
 	if size%8 == 0 {
-		dataSize = 8
+		chunk = 8
 	} else if size%4 == 0 {
-		dataSize = 4
+
+		chunk = 4
 	} else if size%2 == 0 {
-		dataSize = 2
+
+		chunk = 2
+	} else {
+
+		chunk = 1
 	}
 
 	asm := ""
-	mov := GetInstr(I_MOV, dataSize).String()
+	datatype := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: chunk}, XMM_INVALID}
+	mov := GetInstr(I_MOV, datatype).String()
 
-	for i := uint(0); i < size/dataSize; i++ {
-		ioffset := int(i*dataSize) + offset
+	for i := uint(0); i < size/chunk; i++ {
+		ioffset := int(i*chunk) + offset
 		asm += indent
 		asm += fmt.Sprintf("%v    $0, %v+%v(%v)\n", mov, name, ioffset, reg.name)
 	}
@@ -1737,28 +259,41 @@ func asmZeroMemory(indent string, name string, offset int, size uint, reg *regis
 
 // asmZeroReg generates "XORQ reg, reg" instructions
 func asmZeroReg(indent string, reg *register) string {
-	xor := GetInstr(I_XOR, reg.width/8)
+	var datatype InstrDataType
+
+	if reg.typ == XmmReg {
+		datatype = InstrDataType{XMM_OP, NonXmmData{}, DOUBLE_F64}
+
+	} else {
+		datatype = InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: reg.width / 8}, XMM_INVALID}
+	}
+
+	xor := GetInstr(I_XOR, datatype)
 	return indent + fmt.Sprintf("%v    %v, %v\n", xor.String(), reg.name, reg.name)
 }
 
-func asmMovRegReg(indent string, srcReg *register, dstReg *register, size uint) string {
+func asmMovRegReg(indent string, datatype InstrOpType, srcReg *register, dstReg *register, size uint) string {
 	if srcReg.width != dstReg.width || size*8 > srcReg.width {
 		panic(fmt.Sprintf("(%v) srcReg.width != (%v) dstReg.width or invalid size in asmMoveRegToReg", srcReg.width, dstReg.width))
 	}
-
-	mov := GetInstr(I_MOV, size).String()
+	if datatype != INTEGER_OP {
+		panic("Unsupported arithmetic data type")
+	}
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: size}, XMM_INVALID}
+	mov := GetInstr(I_MOV, data).String()
 	asm := indent + fmt.Sprintf("%v    %v, %v\n", mov, srcReg.name, dstReg.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmMovRegMem(indent string, srcReg *register, dstName string, dstReg *register, dstOffset int, size uint) string {
+func asmMovRegMem(indent string, datatype InstrOpType, srcReg *register, dstName string, dstReg *register, dstOffset int, size uint) string {
 	if srcReg.width < size*8 {
 		panic("srcReg.width < size * 8")
 	}
 	if size == 0 {
 		panic("size == 0")
 	}
-	mov := GetInstr(I_MOV, size)
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: size}, XMM_INVALID}
+	mov := GetInstr(I_MOV, data)
 	asm := indent + fmt.Sprintf("// BEGIN asmMovRegMem, size (%v), mov (%v), mov.String (%v)\n", size, mov, mov.String())
 	asm += indent + fmt.Sprintf("%v    %v, %v+%v(%v)\n", mov.String(), srcReg.name, dstName, dstOffset, dstReg.name)
 	asm += indent + fmt.Sprintf("// END asmMovRegMem, size (%v), mov (%v), mov.String (%v)\n", size, mov, mov.String())
@@ -1769,13 +304,14 @@ func asmMovRegMemIndirect(indent string, srcReg *register, dstName string, dstRe
 	if tmp.width != srcReg.width {
 		panic("Invalid register width for asmMovRegMemIndirect")
 	}
-	mov := GetInstr(I_MOV, srcReg.width/8)
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: srcReg.width / 8}, XMM_INVALID}
+	mov := GetInstr(I_MOV, data)
 	asm := indent + fmt.Sprintf("%v    %v+%v(%v), %v\n", mov.String(), dstName, dstOffset, dstReg, tmp)
 	asm += indent + fmt.Sprintf("%v    %v, (%v)\n", mov.String(), srcReg.name, tmp.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmMovMemMem(indent string, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, size uint) string {
+func asmMovMemMem(indent string, datatype InstrOpType, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, size uint) string {
 	if srcReg.width != 64 || dstReg.width != 64 {
 		panic("Invalid register width for asmMemMem")
 	}
@@ -1786,13 +322,14 @@ func asmMovMemMem(indent string, srcName string, srcOffset int, srcReg *register
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmMovMemReg(indent string, srcName string, srcOffset int, srcReg *register, size uint, dstReg *register) string {
-	mov := GetInstr(I_MOV, size)
+func asmMovMemReg(indent string, datatype InstrOpType, srcName string, srcOffset int, srcReg *register, size uint, dstReg *register) string {
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: size}, XMM_INVALID}
+	mov := GetInstr(I_MOV, data)
 	asm := indent + fmt.Sprintf("%v    %v+%v(%v), %v\n", mov.String(), srcName, srcOffset, srcReg.name, dstReg.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmMovMemMemIndirect(indent string, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, tmp *register) string {
+func asmMovMemMemIndirect(indent string, datatype InstrOpType, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, tmp *register) string {
 	if srcReg.width != 64 || dstReg.width != 64 {
 		panic("Invalid register width for asmMovMemMemIndirect")
 	}
@@ -1801,11 +338,12 @@ func asmMovMemMemIndirect(indent string, srcName string, srcOffset int, srcReg *
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmMovMemIndirectReg(indent string, srcName string, srcOffset int, srcReg *register, dstReg *register, tmp *register) string {
+func asmMovMemIndirectReg(indent string, datatype InstrOpType, srcName string, srcOffset int, srcReg *register, dstReg *register, tmp *register) string {
 	if dstReg.width != tmp.width {
 		panic("Invalid register width for asmMovMemIndirectReg")
 	}
-	mov := GetInstr(I_MOV, dstReg.width/8)
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: dstReg.width / 8}, XMM_INVALID}
+	mov := GetInstr(I_MOV, data)
 	asm := indent
 	asm += fmt.Sprintf("%v    %v+%v(%v), %v\n", mov.String(), srcName, srcOffset, srcReg, tmp)
 
@@ -1814,7 +352,7 @@ func asmMovMemIndirectReg(indent string, srcName string, srcOffset int, srcReg *
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmMovMemIndirectMem(indent string, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, size uint, tmp1 *register, tmp2 *register) string {
+func asmMovMemIndirectMem(indent string, datatype InstrOpType, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, size uint, tmp1 *register, tmp2 *register) string {
 	if tmp1.width != tmp2.width {
 		panic("Mismatched register widths in asmMovMemIndirectMem")
 	}
@@ -1824,7 +362,8 @@ func asmMovMemIndirectMem(indent string, srcName string, srcOffset int, srcReg *
 	if size%(tmp1.width/8) != 0 {
 		panic("Invalid size in asmMovMemIndirectMem")
 	}
-	mov := GetInstr(I_MOV, tmp1.width/8)
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: tmp1.width / 8}, XMM_INVALID}
+	mov := GetInstr(I_MOV, data)
 	asm := ""
 	for i := uint(0); i < size/(tmp1.width/8); i++ {
 
@@ -1846,11 +385,12 @@ func asmMovMemIndirectMem(indent string, srcName string, srcOffset int, srcReg *
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmMovMemIndirectMemIndirect(indent string, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, tmp1 *register, tmp2 *register) string {
+func asmMovMemIndirectMemIndirect(indent string, datatype InstrOpType, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, tmp1 *register, tmp2 *register) string {
 	if srcReg.width != 64 || dstReg.width != 64 {
 		panic("Invalid register width for asmCopyIndirectRegValueToMemory")
 	}
-	mov := GetInstr(I_MOV, tmp1.width/8)
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: tmp1.width / 8}, XMM_INVALID}
+	mov := GetInstr(I_MOV, data)
 	asm := indent + fmt.Sprintf("%v    %v+%v(%v), %v\n", mov.String(), srcName, srcOffset, srcReg, tmp1)
 	asm += indent + fmt.Sprintf("%v    %v+%v(%v), %v\n", mov.String(), dstName, dstOffset, dstReg, tmp2)
 	asm += indent + fmt.Sprintf("%v    (%v), (%v)\n", mov.String(), tmp1.name, tmp2.name)
@@ -1911,7 +451,8 @@ func asmLea(indent string, srcName string, srcOffset int, srcReg *register, dstR
 	if srcReg.width != dstReg.width {
 		panic("Invalid register width for asmLea")
 	}
-	lea := GetInstr(I_LEA, srcReg.width/8)
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: srcReg.width / 8}, XMM_INVALID}
+	lea := GetInstr(I_LEA, data)
 	asm := indent + fmt.Sprintf("%v    %v+%v(%v), %v\n", lea.String(), srcName, srcOffset, srcReg.name, dstReg.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
@@ -1932,20 +473,29 @@ func asmSubImm32Reg(indent string, imm32 uint32, dstReg *register) string {
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmAddRegReg(indent string, srcReg *register, dstReg *register) string {
+func asmAddRegReg(indent string, datatype InstrOpType, srcReg *register, dstReg *register) string {
 	if dstReg.width != srcReg.width {
 		panic("Invalid register width for asmAddRegReg")
 	}
-	add := GetInstr(I_ADD, srcReg.width/8)
+	if datatype != INTEGER_OP {
+		panic("Unsupported arithmetic data type")
+	}
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: srcReg.width / 8}, XMM_INVALID}
+	add := GetInstr(I_ADD, data)
 	asm := indent + fmt.Sprintf("%v    %v, %v\n", add.String(), srcReg.name, dstReg.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmSubRegReg(indent string, srcReg *register, dstReg *register, size uint) string {
+func asmSubRegReg(indent string, datatype InstrOpType, srcReg *register, dstReg *register, size uint) string {
 	if dstReg.width != srcReg.width {
 		panic("Invalid register width for asmSubRegReg")
 	}
-	sub := GetInstr(I_SUB, size)
+	if datatype != INTEGER_OP {
+		panic("Unsupported arithmetic data type")
+	}
+
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: size}, XMM_INVALID}
+	sub := GetInstr(I_SUB, data)
 	asm := indent + fmt.Sprintf("%v    %v, %v\n", sub.String(), srcReg.name, dstReg.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
@@ -1960,11 +510,15 @@ func asmMulImm32RegReg(indent string, imm32 uint32, srcReg *register, dstReg *re
 
 // asmMulRegReg multiplies the src register by the dst register and stores
 // the result in the dst register. Overflow is discarded
-func asmMulRegReg(indent string, signed bool, src *register, dst *register, size uint) string {
+func asmMulRegReg(indent string, signed bool, datatype InstrOpType, src *register, dst *register, size uint) string {
 
 	if dst.width != 64 {
 		panic("Invalid register width for asmMulRegReg")
 	}
+	if datatype != INTEGER_OP {
+		panic("Unsupported arithmetic data type")
+	}
+
 	rax := getRegister(REG_AX)
 	rdx := getRegister(REG_DX)
 	if rax.width != 64 || rdx.width != 64 {
@@ -1972,28 +526,33 @@ func asmMulRegReg(indent string, signed bool, src *register, dst *register, size
 	}
 
 	// rax is the implicit destination for MULQ
-	asm := asmMovRegReg(indent, dst, rax, size)
+	asm := asmMovRegReg(indent, datatype, dst, rax, size)
 	// the low order part of the result is stored in rax and the high order part
 	// is stored in rdx
-	var tinstr TInstruction
+	var tinstr InstructionType
 	if signed {
 		tinstr = I_IMUL
 	} else {
 		tinstr = I_MUL
 	}
-	mul := GetInstr(tinstr, size).String()
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: size}, XMM_INVALID}
+	mul := GetInstr(tinstr, data).String()
 	asm += indent + fmt.Sprintf("%v    %v\n", mul, src.name)
-	asm += asmMovRegReg(indent, rax, dst, size)
+	asm += asmMovRegReg(indent, datatype, rax, dst, size)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
 // asmDivRegReg divides the "dividend" register by the "divisor" register and stores
 // the quotient in rax and the remainder in rdx
-func asmDivRegReg(indent string, signed bool, dividend *register, divisor *register, size uint) (asm string, rax *register, rdx *register) {
+func asmDivRegReg(indent string, signed bool, datatype InstrOpType, dividend *register, divisor *register, size uint) (asm string, rax *register, rdx *register) {
 
 	if dividend.width != divisor.width || divisor.width < size*8 {
 		panic("Invalid register width for asmDivRegReg")
 	}
+	if datatype != INTEGER_OP {
+		panic("Unsupported arithmetic data type")
+	}
+
 	rax = getRegister(REG_AX)
 
 	if size > 1 {
@@ -2011,23 +570,23 @@ func asmDivRegReg(indent string, signed bool, dividend *register, divisor *regis
 		asm += asmZeroReg(indent, rdx)
 	}
 
-	asm += asmMovRegReg(indent, dividend, rax, size)
+	asm += asmMovRegReg(indent, datatype, dividend, rax, size)
 
 	// the low order part of the result is stored in rax and the high order part
 	// is stored in rdx
-	var tinstr TInstruction
+	var tinstr InstructionType
 	if signed {
 		tinstr = I_IDIV
 	} else {
 		tinstr = I_DIV
 	}
-
-	div := GetInstr(tinstr, size).String()
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: size}, XMM_INVALID}
+	div := GetInstr(tinstr, data).String()
 	asm += indent + fmt.Sprintf("%v    %v\n", div, divisor.name)
 	return asm, rax, rdx
 }
 
-func asmArithOp(indent string, signed bool, op token.Token, x *register, y *register, result *register, size uint) string {
+func asmArithOp(indent string, signed bool, datatype InstrOpType, op token.Token, x *register, y *register, result *register, size uint) string {
 	if x.width != 64 || y.width != 64 || result.width != 64 {
 		panic("Invalid register width in asmArithOp")
 	}
@@ -2036,24 +595,24 @@ func asmArithOp(indent string, signed bool, op token.Token, x *register, y *regi
 	default:
 		panic(fmt.Sprintf("Unknown Op token (%v) in asmArithOp", op))
 	case token.ADD:
-		asm += asmMovRegReg(indent, x, result, size)
-		asm += asmAddRegReg(indent, y, result)
+		asm += asmMovRegReg(indent, datatype, x, result, size)
+		asm += asmAddRegReg(indent, datatype, y, result)
 	case token.SUB:
-		asm += asmMovRegReg(indent, x, result, size)
-		asm += asmSubRegReg(indent, y, result, size)
+		asm += asmMovRegReg(indent, datatype, x, result, size)
+		asm += asmSubRegReg(indent, datatype, y, result, size)
 	case token.MUL:
-		asm += asmMovRegReg(indent, x, result, size)
-		asm += asmMulRegReg(indent, signed, y, result, size)
+		asm += asmMovRegReg(indent, datatype, x, result, size)
+		asm += asmMulRegReg(indent, signed, datatype, y, result, size)
 	case token.QUO, token.REM:
 		// the quotient is stored in rax and
 		// the remainder is stored in rdx.
 		var rax, rdx *register
-		a, rax, rdx := asmDivRegReg(indent, signed, x, y, size)
+		a, rax, rdx := asmDivRegReg(indent, signed, datatype, x, y, size)
 		asm += a
 		if op == token.QUO {
-			asm += asmMovRegReg(indent, rax, result, size)
+			asm += asmMovRegReg(indent, datatype, rax, result, size)
 		} else {
-			asm += asmMovRegReg(indent, rdx, result, size)
+			asm += asmMovRegReg(indent, datatype, rdx, result, size)
 		}
 	}
 	return strings.Replace(asm, "+-", "-", -1)
@@ -2065,7 +624,8 @@ func asmAndRegReg(indent string, src *register, dst *register, size uint) string
 	if src.width != dst.width {
 		panic("Invalid register width for asmAndRegReg")
 	}
-	and := GetInstr(I_AND, size)
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: size}, XMM_INVALID}
+	and := GetInstr(I_AND, data)
 	asm := indent + fmt.Sprintf("%v    %v, %v\n", and.String(), src.name, dst.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
@@ -2074,7 +634,8 @@ func asmOrRegReg(indent string, src *register, dst *register) string {
 	if src.width != dst.width {
 		panic("Invalid register width for asmOrRegReg")
 	}
-	or := GetInstr(I_OR, src.width/8)
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: src.width / 8}, XMM_INVALID}
+	or := GetInstr(I_OR, data)
 	asm := indent + fmt.Sprintf("%v    %v, %v\n", or.String(), src.name, dst.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
@@ -2083,19 +644,22 @@ func asmXorRegReg(indent string, src *register, dst *register) string {
 	if src.width != dst.width {
 		panic("Invalid register width for asmXorRegReg")
 	}
-	xor := GetInstr(I_XOR, src.width/8)
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: src.width / 8}, XMM_INVALID}
+	xor := GetInstr(I_XOR, data)
 	asm := indent + fmt.Sprintf("%v    %v, %v\n", xor.String(), src.name, dst.name)
 	return asm
 }
 
 func asmXorImm32Reg(indent string, imm32 int32, dst *register, size uint) string {
-	xor := GetInstr(I_XOR, size)
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: size}, XMM_INVALID}
+	xor := GetInstr(I_XOR, data)
 	asm := indent + fmt.Sprintf("%v    $%v, %v\n", xor.String(), imm32, dst.name)
 	return asm
 }
 
 func asmXorImm64Reg(indent string, imm64 int64, dst *register, size uint) string {
-	xor := GetInstr(I_XOR, size)
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: size}, XMM_INVALID}
+	xor := GetInstr(I_XOR, data)
 	asm := indent + fmt.Sprintf("%v    $%v, %v\n", xor.String(), imm64, dst.name)
 	return asm
 }
@@ -2110,7 +674,7 @@ const (
 )
 
 func asmMovZeroExtend(indent string, src *register, dst *register, srcSize uint, dstSize uint) string {
-	var opcode TInstruction
+	var opcode InstructionType
 	switch srcSize {
 	default:
 		panic(fmt.Sprintf("Bad srcSize (%v)", srcSize))
@@ -2127,14 +691,14 @@ func asmMovZeroExtend(indent string, src *register, dst *register, srcSize uint,
 	if dstSize <= srcSize || (dstSize != 1 && dstSize != 2 && dstSize != 4 && dstSize != 8) {
 		panic(fmt.Sprintf("Bad dstSize (%v) for zero extend result", dstSize))
 	}
-
-	movzx := GetInstr(opcode, dstSize)
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: dstSize}, XMM_INVALID}
+	movzx := GetInstr(opcode, data)
 	asm := indent + fmt.Sprintf("%v %v, %v\n", movzx.String(), src.name, dst.name)
 	return asm
 }
 
 func asmMovSignExtend(indent string, src *register, dst *register, srcSize uint, dstSize uint) string {
-	var opcode TInstruction
+	var opcode InstructionType
 	switch srcSize {
 	default:
 		panic(fmt.Sprintf("Bad src size (%v)", srcSize))
@@ -2147,7 +711,8 @@ func asmMovSignExtend(indent string, src *register, dst *register, srcSize uint,
 	case 8:
 		opcode = I_MOVLSX
 	}
-	movsx := GetInstr(opcode, dstSize)
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: dstSize}, XMM_INVALID}
+	movsx := GetInstr(opcode, data)
 	if movsx == NONE {
 		panic(fmt.Sprintf("Bad dstSize (%v) for sign extend result", dstSize))
 	}
@@ -2161,7 +726,7 @@ func asmShiftRegReg(indent string, signed bool, direction int, src *register, sh
 	cx := getRegister(REG_CX)
 	regCl := cx
 
-	var opcode TInstruction
+	var opcode InstructionType
 	if direction == SHIFT_LEFT {
 		opcode = I_SHL
 	} else if !signed && direction == SHIFT_RIGHT {
@@ -2170,7 +735,8 @@ func asmShiftRegReg(indent string, signed bool, direction int, src *register, sh
 		opcode = I_SAR
 	}
 
-	shift := GetInstr(opcode, size)
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: size}, XMM_INVALID}
+	shift := GetInstr(opcode, data)
 	asm := ""
 
 	if size == 1 {
@@ -2185,7 +751,7 @@ func asmShiftRegReg(indent string, signed bool, direction int, src *register, sh
 		completeShift--
 	}
 
-	asm += asmMovRegReg(indent, shiftReg, cx, size)
+	asm += asmMovRegReg(indent, INTEGER_OP, shiftReg, cx, size)
 
 	asm += asmMovImm32Reg(indent, completeShift, tmp)
 	// compare only first byte of shift reg,
@@ -2230,24 +796,24 @@ func asmBitwiseOp(indent string, op token.Token, signed bool, x *register, y *re
 	default:
 		panic(fmt.Sprintf("Unknown Op token (%v) in asmBitwiseOp", op))
 	case token.AND:
-		asm = asmMovRegReg(indent, y, result, size)
+		asm = asmMovRegReg(indent, INTEGER_OP, y, result, size)
 		asm += asmAndRegReg(indent, x, result, size)
 	case token.OR:
-		asm = asmMovRegReg(indent, y, result, size)
+		asm = asmMovRegReg(indent, INTEGER_OP, y, result, size)
 		asm += asmOrRegReg(indent, x, result)
 	case token.XOR:
-		asm = asmMovRegReg(indent, y, result, size)
+		asm = asmMovRegReg(indent, INTEGER_OP, y, result, size)
 		asm += asmXorRegReg(indent, x, result)
 	case token.SHL:
-		asm = asmMovRegReg(indent, x, result, size)
+		asm = asmMovRegReg(indent, INTEGER_OP, x, result, size)
 		tmp := x
 		asm += asmShiftRegReg(indent, signed, SHIFT_LEFT, result, y, tmp, size)
 	case token.SHR:
-		asm = asmMovRegReg(indent, x, result, size)
+		asm = asmMovRegReg(indent, INTEGER_OP, x, result, size)
 		tmp := x
 		asm += asmShiftRegReg(indent, signed, SHIFT_RIGHT, result, y, tmp, size)
 	case token.AND_NOT:
-		asm = asmMovRegReg(indent, y, result, size)
+		asm = asmMovRegReg(indent, INTEGER_OP, y, result, size)
 		asm += asmAndNotRegReg(indent, x, result, size)
 
 	}
@@ -2258,7 +824,8 @@ func asmCmpRegReg(indent string, x *register, y *register, size uint) string {
 	if x.width != y.width {
 		panic("Invalid register width for asmCmpRegReg")
 	}
-	cmp := GetInstr(I_CMP, size).String()
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: size}, XMM_INVALID}
+	cmp := GetInstr(I_CMP, data).String()
 	asm := fmt.Sprintf("%v	%v, %v\n", cmp, x.name, y.name)
 	return strings.Replace(asm, "+-", "-", -1)
 
@@ -2268,7 +835,8 @@ func asmCmpMemImm32(indent string, name string, offset int32, r *register, imm32
 	if r.width != 64 {
 		panic("Invalid register width for asmCmpMemImm32")
 	}
-	cmp := GetInstr(I_CMP, size)
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: size}, XMM_INVALID}
+	cmp := GetInstr(I_CMP, data)
 	asm := indent + fmt.Sprintf("%v	%v+%v(%v), $%v\n", cmp, name, offset, r.name, imm32)
 	return strings.Replace(asm, "+-", "-", -1)
 
@@ -2278,7 +846,8 @@ func asmCmpRegImm32(indent string, r *register, imm32 uint32, size uint) string 
 	if r.width != 64 {
 		panic("Invalid register width for asmCmpMemImm32")
 	}
-	cmp := GetInstr(I_CMP, size).String()
+	data := InstrDataType{INTEGER_OP, NonXmmData{signed: false, size: size}, XMM_INVALID}
+	cmp := GetInstr(I_CMP, data).String()
 	asm := indent + fmt.Sprintf("%v	%v, $%v\n", cmp, r.name, imm32)
 	return asm
 

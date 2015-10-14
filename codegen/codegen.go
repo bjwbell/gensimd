@@ -699,6 +699,8 @@ func (f *Function) asmBinOp(instr *ssa.BinOp) (string, *Error) {
 		return asm, err
 	}
 
+	size = f.sizeof(instr.X)
+
 	switch instr.Op {
 	default:
 		panic(fmt.Sprintf("Unknown op (%v)", instr.Op))
@@ -707,7 +709,10 @@ func (f *Function) asmBinOp(instr *ssa.BinOp) (string, *Error) {
 	case token.AND, token.OR, token.XOR, token.SHL, token.SHR, token.AND_NOT:
 		asm += asmBitwiseOp(f.Indent, instr.Op, xIsSigned, regX, regY, &regVal, size)
 	case token.EQL, token.NEQ, token.LEQ, token.GEQ, token.LSS, token.GTR:
-		asm += asmCmpOp(f.Indent, instr.Op, regX, regY, &regVal)
+		if size != f.sizeof(instr.Y) {
+			panic("Comparing two different size values")
+		}
+		asm += asmCmpOp(f.Indent, instr.Op, xIsSigned, regX, regY, &regVal, size)
 	}
 	f.freeReg(*regX)
 	f.freeReg(*regY)
@@ -1450,6 +1455,8 @@ func signed(t types.Type) bool {
 
 func signedBasic(b types.BasicKind) bool {
 	switch b {
+	case types.Bool:
+		return false
 	case types.Int, types.Int8, types.Int16, types.Int32, types.Int64:
 		return true
 	case types.Uint, types.Uint8, types.Uint16, types.Uint32, types.Uint64:

@@ -1941,11 +1941,11 @@ func asmAddRegReg(indent string, srcReg *register, dstReg *register) string {
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmSubRegReg(indent string, srcReg *register, dstReg *register) string {
+func asmSubRegReg(indent string, srcReg *register, dstReg *register, size uint) string {
 	if dstReg.width != srcReg.width {
 		panic("Invalid register width for asmSubRegReg")
 	}
-	sub := GetInstr(I_SUB, srcReg.width/8)
+	sub := GetInstr(I_SUB, size)
 	asm := indent + fmt.Sprintf("%v    %v, %v\n", sub.String(), srcReg.name, dstReg.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
@@ -2040,7 +2040,7 @@ func asmArithOp(indent string, signed bool, op token.Token, x *register, y *regi
 		asm += asmAddRegReg(indent, y, result)
 	case token.SUB:
 		asm += asmMovRegReg(indent, x, result, size)
-		asm += asmSubRegReg(indent, y, result)
+		asm += asmSubRegReg(indent, y, result, size)
 	case token.MUL:
 		asm += asmMovRegReg(indent, x, result, size)
 		asm += asmMulRegReg(indent, signed, y, result, size)
@@ -2254,12 +2254,12 @@ func asmBitwiseOp(indent string, op token.Token, signed bool, x *register, y *re
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmCmpRegReg(indent string, x *register, y *register) string {
+func asmCmpRegReg(indent string, x *register, y *register, size uint) string {
 	if x.width != y.width {
 		panic("Invalid register width for asmCmpRegReg")
 	}
-	cmp := GetInstr(I_CMP, x.width/8)
-	asm := fmt.Sprintf("%v	%v, %v\n", cmp.String(), x.name, y.name)
+	cmp := GetInstr(I_CMP, size).String()
+	asm := fmt.Sprintf("%v	%v, %v\n", cmp, x.name, y.name)
 	return strings.Replace(asm, "+-", "-", -1)
 
 }
@@ -2268,16 +2268,7 @@ func asmCmpMemImm32(indent string, name string, offset int32, r *register, imm32
 	if r.width != 64 {
 		panic("Invalid register width for asmCmpMemImm32")
 	}
-	var cmp string
-	if size == 1 {
-		cmp = "CMPB"
-	} else if size == 2 {
-		cmp = "CMPW"
-	} else if size == 4 {
-		cmp = "CMPL"
-	} else if size == 8 {
-		cmp = "CMPQ"
-	}
+	cmp := GetInstr(I_CMP, size)
 	asm := indent + fmt.Sprintf("%v	%v+%v(%v), $%v\n", cmp, name, offset, r.name, imm32)
 	return strings.Replace(asm, "+-", "-", -1)
 
@@ -2287,25 +2278,19 @@ func asmCmpRegImm32(indent string, r *register, imm32 uint32, size uint) string 
 	if r.width != 64 {
 		panic("Invalid register width for asmCmpMemImm32")
 	}
-	cmp := "CMPQ"
-	if size == 1 {
-		cmp = "CMPB"
-	} else if size == 2 {
-		cmp = "CMPW"
-	} else if size == 4 {
-		cmp = "CMPL"
-	}
+	cmp := GetInstr(I_CMP, size).String()
 	asm := indent + fmt.Sprintf("%v	%v, $%v\n", cmp, r.name, imm32)
 	return asm
 
 }
 
-func asmCmpOp(indent string, op token.Token, x *register, y *register, result *register) string {
+// asmCmpOp compares x to y, storing the op comparison flag (EQ, NEQ, ...) in result
+func asmCmpOp(indent string, op token.Token, signed bool, x *register, y *register, result *register, size uint) string {
 	if x.width != y.width || x.width != result.width {
 		panic("Invalid register width in asmCmpOp")
 	}
 	asm := ""
-	asm += indent + asmCmpRegReg(indent, x, y)
+	asm += indent + asmCmpRegReg(indent, x, y, size)
 	switch op {
 	default:
 		panic(fmt.Sprintf("Unknown Op token (%v) in asmComparisonOp", op))
@@ -2314,13 +2299,29 @@ func asmCmpOp(indent string, op token.Token, x *register, y *register, result *r
 	case token.NEQ:
 		asm += indent + fmt.Sprintf("SETNEQ  %v\n", result.name)
 	case token.LEQ:
-		asm += indent + fmt.Sprintf("SETLS   %v\n", result.name)
+		if signed {
+			asm += indent + fmt.Sprintf("SETLE   %v\n", result.name)
+		} else {
+			asm += indent + fmt.Sprintf("SETLS   %v\n", result.name)
+		}
 	case token.GEQ:
-		asm += indent + fmt.Sprintf("SETCC   %v\n", result.name)
+		if signed {
+			asm += indent + fmt.Sprintf("SETGE   %v\n", result.name)
+		} else {
+			asm += indent + fmt.Sprintf("SETCC   %v\n", result.name)
+		}
 	case token.LSS:
-		asm += indent + fmt.Sprintf("SETCS   %v\n", result.name)
+		if signed {
+			asm += indent + fmt.Sprintf("SETLT   %v\n", result.name)
+		} else {
+			asm += indent + fmt.Sprintf("SETCS   %v\n", result.name)
+		}
 	case token.GTR:
-		asm += indent + fmt.Sprintf("SETHI   %v\n", result.name)
+		if signed {
+			asm += indent + fmt.Sprintf("SETGT   %v\n", result.name)
+		} else {
+			asm += indent + fmt.Sprintf("SETHI   %v\n", result.name)
+		}
 	}
 	return strings.Replace(asm, "+-", "-", -1)
 }

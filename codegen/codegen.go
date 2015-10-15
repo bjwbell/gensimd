@@ -140,7 +140,7 @@ func AssemblyFilePreamble() string {
 }
 
 func (f *Function) GoAssembly() (string, *Error) {
-	return f.asmFunc()
+	return f.Func()
 }
 
 func memFn(name string, offset uint, regName string) func() string {
@@ -155,7 +155,7 @@ func regFn(name string) func() string {
 	}
 }
 
-func (f *Function) asmParams() (string, *Error) {
+func (f *Function) Params() (string, *Error) {
 	// offset in bytes from frame pointer (FP)
 	offset := int(0)
 	asm := ""
@@ -192,19 +192,19 @@ func (f *Function) asmParams() (string, *Error) {
 	return asm, nil
 }
 
-func (f *Function) asmFunc() (string, *Error) {
+func (f *Function) Func() (string, *Error) {
 
-	params, err := f.asmParams()
+	params, err := f.Params()
 	if err != nil {
 		return params, err
 	}
 
-	zeroRetValue, err := f.asmZeroRetValue()
+	zeroRetValue, err := f.ZeroRetValue()
 	if err != nil {
 		return params + zeroRetValue, err
 	}
 
-	zeroSsaLocals, err := f.asmZeroSsaLocals()
+	zeroSsaLocals, err := f.ZeroSsaLocals()
 	if err != nil {
 		return params + zeroRetValue + zeroSsaLocals, err
 	}
@@ -213,12 +213,12 @@ func (f *Function) asmFunc() (string, *Error) {
 		return "", err
 	}
 
-	basicblocks, err := f.asmBasicBlocks()
+	basicblocks, err := f.BasicBlocks()
 	if err != nil {
 		return params + zeroRetValue + zeroSsaLocals + basicblocks, err
 	}
 
-	zeroNonSsaLocals, err := f.asmZeroNonSsaLocals()
+	zeroNonSsaLocals, err := f.ZeroNonSsaLocals()
 	if err != nil {
 		return zeroNonSsaLocals, err
 	}
@@ -227,7 +227,7 @@ func (f *Function) asmFunc() (string, *Error) {
 	frameSize = f.align(frameSize)
 	argsSize := f.retOffset() + int(f.retAlign())
 	asm := params
-	asm += f.asmSetStackPointer()
+	asm += f.SetStackPointer()
 	asm += zeroRetValue
 	asm += zeroSsaLocals
 	asm += zeroNonSsaLocals
@@ -263,7 +263,7 @@ func (f *Function) outfname() string {
 	return f.ssa.Name()
 }
 
-func (f *Function) asmZeroSsaLocals() (string, *Error) {
+func (f *Function) ZeroSsaLocals() (string, *Error) {
 	asm := ""
 	offset := int(0)
 	locals := f.ssa.Locals
@@ -293,7 +293,7 @@ func (f *Function) asmZeroSsaLocals() (string, *Error) {
 	return asm, nil
 }
 
-func (f *Function) asmAllocLocal(name string, typ types.Type) (nameInfo, *Error) {
+func (f *Function) AllocLocal(name string, typ types.Type) (nameInfo, *Error) {
 	size := sizeof(typ)
 	offset := int(size)
 	if align(typ) > size {
@@ -310,11 +310,11 @@ func (f *Function) asmAllocLocal(name string, typ types.Type) (nameInfo, *Error)
 		align:  align(typ)}
 	f.ssaNames[v.name] = info
 	// zeroing the memory is done at the beginning of the function
-	//asmZeroMemory(f.Indent, v.name, v.offset, v.size, sp)
+	//ZeroMemory(f.Indent, v.name, v.offset, v.size, sp)
 	return info, nil
 }
 
-func (f *Function) asmZeroNonSsaLocals() (string, *Error) {
+func (f *Function) ZeroNonSsaLocals() (string, *Error) {
 	asm := ""
 	for _, name := range f.ssaNames {
 		if name.local == nil || name.IsSsaLocal() {
@@ -326,17 +326,17 @@ func (f *Function) asmZeroNonSsaLocals() (string, *Error) {
 	return asm, nil
 }
 
-func (f *Function) asmZeroRetValue() (string, *Error) {
-	asm := f.Indent + "// BEGIN asmZeroRetValue\n"
+func (f *Function) ZeroRetValue() (string, *Error) {
+	asm := f.Indent + "// BEGIN ZeroRetValue\n"
 	asm += ZeroMemory(f.Indent, retName(), f.retOffset(), f.retSize(), getRegister(REG_FP))
-	asm += f.Indent + "// END asmZeroRetValue\n"
+	asm += f.Indent + "// END ZeroRetValue\n"
 	return asm, nil
 }
 
-func (f *Function) asmBasicBlocks() (string, *Error) {
+func (f *Function) BasicBlocks() (string, *Error) {
 	asm := ""
 	for i := 0; i < len(f.ssa.Blocks); i++ {
-		a, err := f.asmBasicBlock(f.ssa.Blocks[i])
+		a, err := f.BasicBlock(f.ssa.Blocks[i])
 		asm += a
 		if err != nil {
 			return asm, err
@@ -345,10 +345,10 @@ func (f *Function) asmBasicBlocks() (string, *Error) {
 	return asm, nil
 }
 
-func (f *Function) asmBasicBlock(block *ssa.BasicBlock) (string, *Error) {
+func (f *Function) BasicBlock(block *ssa.BasicBlock) (string, *Error) {
 	asm := "block" + strconv.Itoa(block.Index) + ":\n"
 	for i := 0; i < len(block.Instrs); i++ {
-		a, err := f.asmInstr(block.Instrs[i])
+		a, err := f.Instr(block.Instrs[i])
 		asm += a
 		if err != nil {
 			return asm, err
@@ -358,7 +358,7 @@ func (f *Function) asmBasicBlock(block *ssa.BasicBlock) (string, *Error) {
 	return asm, nil
 }
 
-func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
+func (f *Function) Instr(instr ssa.Instruction) (string, *Error) {
 
 	if instr == nil {
 		panic("Nil instr")
@@ -373,9 +373,9 @@ func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 	default:
 		caseAsm = f.Indent + fmt.Sprintf("Unknown ssa instruction: %v\n", instr)
 	case *ssa.Alloc:
-		caseAsm, caseErr = f.asmAllocInstr(instr)
+		caseAsm, caseErr = f.AllocInstr(instr)
 	case *ssa.BinOp:
-		caseAsm, caseErr = f.asmBinOp(instr)
+		caseAsm, caseErr = f.BinOp(instr)
 	case *ssa.Call:
 		caseAsm = f.Indent + fmt.Sprintf("ssa.Call: %v, name: %v\n", instr, instr.Name())
 	case *ssa.ChangeInterface:
@@ -395,13 +395,13 @@ func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 	case *ssa.Go:
 		caseAsm, caseErr = errormsg("go keyword unsupported")
 	case *ssa.If:
-		caseAsm, caseErr = f.asmIf(instr)
+		caseAsm, caseErr = f.If(instr)
 	case *ssa.Index:
 		caseAsm, caseErr = errormsg("index access unimplemented")
 	case *ssa.IndexAddr:
-		caseAsm, caseErr = f.asmIndexAddr(instr)
+		caseAsm, caseErr = f.IndexAddr(instr)
 	case *ssa.Jump:
-		caseAsm, caseErr = f.asmJump(instr)
+		caseAsm, caseErr = f.Jump(instr)
 	case *ssa.Lookup:
 		caseAsm, caseErr = errormsg("maps unsupported")
 	case *ssa.MakeChan:
@@ -417,21 +417,21 @@ func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 	case *ssa.Panic:
 		caseAsm, caseErr = errormsg("panic unimplemented")
 	case *ssa.Phi:
-		caseAsm, caseErr = f.asmPhi(instr)
+		caseAsm, caseErr = f.Phi(instr)
 	case *ssa.Range:
 		caseAsm, caseErr = errormsg("range unsupported")
 	case *ssa.Return:
-		caseAsm, caseErr = f.asmReturn(instr)
+		caseAsm, caseErr = f.Return(instr)
 	case *ssa.Select, *ssa.RunDefers, *ssa.Send:
 		caseAsm, caseErr = errormsg("select/send/defer unsupported")
 	case *ssa.Slice:
 		caseAsm, caseErr = errormsg("slice creation unimplemented")
 	case *ssa.Store:
-		caseAsm, caseErr = f.asmStore(instr)
+		caseAsm, caseErr = f.Store(instr)
 	case *ssa.TypeAssert:
 		caseAsm, caseErr = errormsg("type assert unsupported")
 	case *ssa.UnOp:
-		caseAsm, caseErr = f.asmUnOp(instr)
+		caseAsm, caseErr = f.UnOp(instr)
 	}
 
 	if caseErr != nil {
@@ -443,7 +443,7 @@ func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 	return asm, nil
 }
 
-func (f *Function) asmIf(instr *ssa.If) (string, *Error) {
+func (f *Function) If(instr *ssa.If) (string, *Error) {
 	asm := ""
 	tblock, fblock := -1, -1
 	if instr.Block() != nil && len(instr.Block().Succs) == 2 {
@@ -452,13 +452,13 @@ func (f *Function) asmIf(instr *ssa.If) (string, *Error) {
 
 	}
 	if tblock == -1 || fblock == -1 {
-		panic("asmIf: malformed CFG")
+		panic("If: malformed CFG")
 	}
 	if info, ok := f.ssaNames[instr.Cond.Name()]; !ok {
-		err := fmt.Errorf("asmIf: unhandled case, cond (%v)", instr.Cond)
+		err := fmt.Errorf("If: unhandled case, cond (%v)", instr.Cond)
 		return "", &Error{Err: err, Pos: instr.Pos()}
 	} else {
-		a, err := f.asmJumpPreamble(instr.Block().Index, fblock)
+		a, err := f.JumpPreamble(instr.Block().Index, fblock)
 		if err != nil {
 			return "", err
 		}
@@ -466,7 +466,7 @@ func (f *Function) asmIf(instr *ssa.If) (string, *Error) {
 		r, offset, size := info.Addr()
 		asm += CmpMemImm32(f.Indent, info.name, int32(offset), &r, uint32(0), size)
 		asm += f.Indent + "JEQ    " + "block" + strconv.Itoa(fblock) + "\n"
-		a, err = f.asmJumpPreamble(instr.Block().Index, tblock)
+		a, err = f.JumpPreamble(instr.Block().Index, tblock)
 		if err != nil {
 			return "", err
 		}
@@ -479,12 +479,12 @@ func (f *Function) asmIf(instr *ssa.If) (string, *Error) {
 	return asm, nil
 }
 
-func (f *Function) asmJumpPreamble(blockIndex, jmpIndex int) (string, *Error) {
+func (f *Function) JumpPreamble(blockIndex, jmpIndex int) (string, *Error) {
 	asm := ""
 	phiInfos := f.phiInfo[blockIndex][jmpIndex]
 	for _, phiInfo := range phiInfos {
 		store := ssa.Store{Addr: phiInfo.phi, Val: phiInfo.value}
-		if a, err := f.asmStore(&store); err != nil {
+		if a, err := f.Store(&store); err != nil {
 			return asm, err
 		} else {
 			asm += a
@@ -493,15 +493,15 @@ func (f *Function) asmJumpPreamble(blockIndex, jmpIndex int) (string, *Error) {
 	return asm, nil
 }
 
-func (f *Function) asmJump(jmp *ssa.Jump) (string, *Error) {
+func (f *Function) Jump(jmp *ssa.Jump) (string, *Error) {
 	asm := ""
 	block := -1
 	if jmp.Block() != nil && len(jmp.Block().Succs) == 1 {
 		block = jmp.Block().Succs[0].Index
 	} else {
-		panic("asmJump: malformed CFG")
+		panic("Jump: malformed CFG")
 	}
-	a, err := f.asmJumpPreamble(jmp.Block().Index, block)
+	a, err := f.JumpPreamble(jmp.Block().Index, block)
 	if err != nil {
 		return "", err
 	}
@@ -554,7 +554,7 @@ func (f *Function) computePhiInstr(phi *ssa.Phi) *Error {
 	return nil
 }
 
-func (f *Function) asmPhi(phi *ssa.Phi) (string, *Error) {
+func (f *Function) Phi(phi *ssa.Phi) (string, *Error) {
 	if err := f.allocValueOnDemand(phi); err != nil {
 		return "", err
 	}
@@ -566,10 +566,10 @@ func (f *Function) asmPhi(phi *ssa.Phi) (string, *Error) {
 
 var dummySpSize = uint32(math.MaxUint32)
 
-func (f *Function) asmReturn(ret *ssa.Return) (string, *Error) {
-	asm := asmResetStackPointer(f.Indent, dummySpSize)
+func (f *Function) Return(ret *ssa.Return) (string, *Error) {
+	asm := ResetStackPointer(f.Indent, dummySpSize)
 	asm = f.Indent + "// BEGIN ssa.Return\n" + asm
-	if a, err := f.asmCopyToRet(ret.Results); err != nil {
+	if a, err := f.CopyToRet(ret.Results); err != nil {
 		return "", err
 	} else {
 		asm += a
@@ -579,7 +579,7 @@ func (f *Function) asmReturn(ret *ssa.Return) (string, *Error) {
 	return asm, nil
 }
 
-func (f *Function) asmCopyToRet(val []ssa.Value) (string, *Error) {
+func (f *Function) CopyToRet(val []ssa.Value) (string, *Error) {
 	if len(val) == 0 {
 		return "", nil
 	}
@@ -590,29 +590,29 @@ func (f *Function) asmCopyToRet(val []ssa.Value) (string, *Error) {
 		return "", &err
 	}
 	retAddr := nameInfo{name: retName(), typ: f.retType(), local: nil, param: f.retParam(), size: f.retSize(), offset: f.retOffset(), align: f.retAlign()}
-	return f.asmStoreValAddr(val[0], &retAddr)
+	return f.StoreValAddr(val[0], &retAddr)
 }
 
-func asmResetStackPointer(indent string, size uint32) string {
+func ResetStackPointer(indent string, size uint32) string {
 	/*sp := getRegister(REG_SP)
-	return asmAddImm32Reg(indent, size, sp)*/
+	return AddImm32Reg(indent, size, sp)*/
 	return ""
 }
 
 func (f *Function) fixupRets(asm string) string {
-	old := asmResetStackPointer(f.Indent, dummySpSize)
-	new := asmResetStackPointer(f.Indent, f.localsSize())
+	old := ResetStackPointer(f.Indent, dummySpSize)
+	new := ResetStackPointer(f.Indent, f.localsSize())
 	return strings.Replace(asm, old, new, -1)
 }
 
-func (f *Function) asmSetStackPointer() string {
+func (f *Function) SetStackPointer() string {
 	/*sp := getRegister(REG_SP)
-	asm := asmSubImm32Reg(f.Indent, uint32(f.localsSize()), sp)
+	asm := SubImm32Reg(f.Indent, uint32(f.localsSize()), sp)
 	return asm*/
 	return ""
 }
 
-func (f *Function) asmStoreValAddr(val ssa.Value, addr *nameInfo) (string, *Error) {
+func (f *Function) StoreValAddr(val ssa.Value, addr *nameInfo) (string, *Error) {
 
 	var err *Error
 	if err = f.allocValueOnDemand(val); err != nil {
@@ -624,7 +624,7 @@ func (f *Function) asmStoreValAddr(val ssa.Value, addr *nameInfo) (string, *Erro
 	}
 
 	asm := ""
-	asm += f.Indent + fmt.Sprintf("// BEGIN asmStoreValAddr addr name:%v, val name:%v\n", addr.name, val.Name()) + asm
+	asm += f.Indent + fmt.Sprintf("// BEGIN StoreValAddr addr name:%v, val name:%v\n", addr.name, val.Name()) + asm
 
 	if isComplex(val.Type()) {
 		return "", &Error{fmt.Errorf("complex32/64 unsupported"), val.Pos()}
@@ -633,13 +633,13 @@ func (f *Function) asmStoreValAddr(val ssa.Value, addr *nameInfo) (string, *Erro
 	if isFloat(val.Type()) {
 
 		valReg := f.allocReg(regType(val.Type()), f.sizeof(val))
-		a, err := f.asmLoadValue(val, 0, f.sizeof(val), &valReg)
+		a, err := f.LoadValue(val, 0, f.sizeof(val), &valReg)
 		if err != nil {
 			return a, err
 		}
 		asm += a
 
-		a, err = f.asmStoreReg(&valReg, addr, 0)
+		a, err = f.StoreReg(&valReg, addr, 0)
 		if err != nil {
 			return a, err
 		}
@@ -673,12 +673,12 @@ func (f *Function) asmStoreValAddr(val ssa.Value, addr *nameInfo) (string, *Erro
 
 		for i := int(0); i < int(iterations); i++ {
 			offset := i * datasize
-			a, err := f.asmLoadValue(val, offset, uint(datasize), &valReg)
+			a, err := f.LoadValue(val, offset, uint(datasize), &valReg)
 			if err != nil {
 				return a, err
 			}
 			asm += a
-			a, err = f.asmStoreReg(&valReg, addr, offset)
+			a, err = f.StoreReg(&valReg, addr, offset)
 			if err != nil {
 				return a, err
 			}
@@ -689,12 +689,12 @@ func (f *Function) asmStoreValAddr(val ssa.Value, addr *nameInfo) (string, *Erro
 	}
 
 	asm += f.Indent +
-		fmt.Sprintf("// END asmStoreValAddr addr name:%v, val name:%v\n",
+		fmt.Sprintf("// END StoreValAddr addr name:%v, val name:%v\n",
 			addr.name, val.Name())
 	return asm, nil
 }
 
-func (f *Function) asmStore(instr *ssa.Store) (string, *Error) {
+func (f *Function) Store(instr *ssa.Store) (string, *Error) {
 	if err := f.allocValueOnDemand(instr.Addr); err != nil {
 		return "", err
 	}
@@ -702,10 +702,10 @@ func (f *Function) asmStore(instr *ssa.Store) (string, *Error) {
 	if !ok {
 		panic("Couldnt find instr.Addr in ssaNames")
 	}
-	return f.asmStoreValAddr(instr.Val, &addr)
+	return f.StoreValAddr(instr.Val, &addr)
 }
 
-func (f *Function) asmBinOp(instr *ssa.BinOp) (string, *Error) {
+func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 	if err := f.allocValueOnDemand(instr); err != nil {
 		return "", err
 	}
@@ -719,7 +719,7 @@ func (f *Function) asmBinOp(instr *ssa.BinOp) (string, *Error) {
 	} else {
 		regVal = f.allocReg(regType(instr.Type()), size)
 	}
-	asm, regX, regY, err := f.asmBinOpLoadXY(instr)
+	asm, regX, regY, err := f.BinOpLoadXY(instr)
 	if err != nil {
 		return asm, err
 	}
@@ -749,7 +749,7 @@ func (f *Function) asmBinOp(instr *ssa.BinOp) (string, *Error) {
 		panic(fmt.Sprintf("Unknown name (%v), instr (%v)\n", instr.Name(), instr))
 	}
 
-	a, err := f.asmStoreReg(&regVal, &addr, 0)
+	a, err := f.StoreReg(&regVal, &addr, 0)
 	if err != nil {
 		return asm, err
 	} else {
@@ -762,7 +762,7 @@ func (f *Function) asmBinOp(instr *ssa.BinOp) (string, *Error) {
 	return asm, nil
 }
 
-func (f *Function) asmBinOpLoadXY(instr *ssa.BinOp) (asm string, x *register, y *register, err *Error) {
+func (f *Function) BinOpLoadXY(instr *ssa.BinOp) (asm string, x *register, y *register, err *Error) {
 
 	if err = f.allocValueOnDemand(instr); err != nil {
 		return "", nil, nil, err
@@ -778,21 +778,21 @@ func (f *Function) asmBinOpLoadXY(instr *ssa.BinOp) (asm string, x *register, y 
 	x = &xtmp
 	ytmp := f.allocReg(regType(instr.Y.Type()), f.sizeof(instr.Y))
 	y = &ytmp
-	asm = f.Indent + "// BEGIN asmBinOpLoadXY\n"
+	asm = f.Indent + "// BEGIN BinOpLoadXY\n"
 
-	if a, err := f.asmLoadValue(instr.X, 0, f.sizeof(instr.X), x); err != nil {
+	if a, err := f.LoadValue(instr.X, 0, f.sizeof(instr.X), x); err != nil {
 		return "", nil, nil, err
 	} else {
 		asm += a
 	}
 
-	if a, err := f.asmLoadValue(instr.Y, 0, f.sizeof(instr.Y), y); err != nil {
+	if a, err := f.LoadValue(instr.Y, 0, f.sizeof(instr.Y), y); err != nil {
 		return "", nil, nil, err
 	} else {
 		asm += a
 	}
 
-	asm += f.Indent + "// END asmBinOpLoadXY\n"
+	asm += f.Indent + "// END BinOpLoadXY\n"
 	return asm, x, y, nil
 }
 
@@ -812,13 +812,13 @@ func (f *Function) sizeofConst(cnst *ssa.Const) uint {
 	return sizeof(cnst.Type())
 }
 
-func (f *Function) asmLoadValueSimple(val ssa.Value, reg *register) (string, *Error) {
-	return f.asmLoadValue(val, 0, f.sizeof(val), reg)
+func (f *Function) LoadValueSimple(val ssa.Value, reg *register) (string, *Error) {
+	return f.LoadValue(val, 0, f.sizeof(val), reg)
 }
 
-func (f *Function) asmLoadValue(val ssa.Value, offset int, size uint, reg *register) (string, *Error) {
+func (f *Function) LoadValue(val ssa.Value, offset int, size uint, reg *register) (string, *Error) {
 	if _, ok := val.(*ssa.Const); ok {
-		return f.asmLoadConstValue(val.(*ssa.Const), reg)
+		return f.LoadConstValue(val.(*ssa.Const), reg)
 	}
 	info, ok := f.ssaNames[val.Name()]
 	if !ok {
@@ -837,7 +837,7 @@ func (f *Function) asmLoadValue(val ssa.Value, offset int, size uint, reg *regis
 	return MovMemReg(f.Indent, datatype, info.name, roffset+offset, &r, reg), nil
 }
 
-func (f *Function) asmStoreReg(reg *register, addr *nameInfo, offset int) (string, *Error) {
+func (f *Function) StoreReg(reg *register, addr *nameInfo, offset int) (string, *Error) {
 	r, roffset, rsize := addr.Addr()
 	if rsize > 8 {
 		panic(fmt.Sprintf("Greater than 8 byte sized (%v) value, addr (%v), name (%v)\n", rsize, *addr, addr.name))
@@ -845,14 +845,14 @@ func (f *Function) asmStoreReg(reg *register, addr *nameInfo, offset int) (strin
 	if rsize == 0 {
 		panic(fmt.Sprintf("size == 0 for addr (%v)", *addr))
 	}
-	asm := f.Indent + fmt.Sprintf("// BEGIN asmStoreReg, size (%v)\n", rsize)
+	asm := f.Indent + fmt.Sprintf("// BEGIN StoreReg, size (%v)\n", rsize)
 	instrdata := GetInstrDataType(addr.typ)
 	asm += MovRegMem(f.Indent, instrdata, reg, addr.name, &r, offset+roffset)
-	asm += f.Indent + fmt.Sprintf("// END asmStoreReg, size (%v)\n", rsize)
+	asm += f.Indent + fmt.Sprintf("// END StoreReg, size (%v)\n", rsize)
 	return asm, nil
 }
 
-func (f *Function) asmLoadConstValue(cnst *ssa.Const, r *register) (string, *Error) {
+func (f *Function) LoadConstValue(cnst *ssa.Const, r *register) (string, *Error) {
 
 	if isBool(cnst.Type()) {
 		var val int8
@@ -892,20 +892,20 @@ func (f *Function) asmLoadConstValue(cnst *ssa.Const, r *register) (string, *Err
 	return MovImmReg(f.Indent, val, size, r), nil
 }
 
-func (f *Function) asmUnOp(instr *ssa.UnOp) (string, *Error) {
+func (f *Function) UnOp(instr *ssa.UnOp) (string, *Error) {
 	var err *Error
 	asm := ""
 	switch instr.Op {
 	default:
 		panic(fmt.Sprintf("Unknown Op token (%v): \"%v\"", instr.Op, instr))
 	case token.NOT: // logical negation
-		asm, err = f.asmUnOpXor(instr, 1)
+		asm, err = f.UnOpXor(instr, 1)
 	case token.XOR: //bitwise negation
-		asm, err = f.asmUnOpXor(instr, -1)
+		asm, err = f.UnOpXor(instr, -1)
 	case token.SUB: // arithmetic negation e.g. x=>-x
-		asm, err = f.asmUnOpSub(instr)
+		asm, err = f.UnOpSub(instr)
 	case token.MUL: //pointer indirection
-		asm, err = f.asmUnOpPointer(instr)
+		asm, err = f.UnOpPointer(instr)
 	}
 	asm = f.Indent + fmt.Sprintf("// BEGIN ssa.UnOp: %v = %v\n", instr.Name(), instr) + asm
 	asm += f.Indent + fmt.Sprintf("// END ssa.UnOp: %v = %v\n", instr.Name(), instr)
@@ -914,7 +914,7 @@ func (f *Function) asmUnOp(instr *ssa.UnOp) (string, *Error) {
 }
 
 // bitwise negation
-func (f *Function) asmUnOpXor(instr *ssa.UnOp, xorVal int32) (string, *Error) {
+func (f *Function) UnOpXor(instr *ssa.UnOp, xorVal int32) (string, *Error) {
 
 	if err := f.allocValueOnDemand(instr); err != nil {
 		return "", err
@@ -929,7 +929,7 @@ func (f *Function) asmUnOpXor(instr *ssa.UnOp, xorVal int32) (string, *Error) {
 
 	asm := ZeroReg(f.Indent, &reg)
 
-	asm, err := f.asmLoadValueSimple(instr.X, &reg)
+	asm, err := f.LoadValueSimple(instr.X, &reg)
 	if err != nil {
 		return asm, err
 	}
@@ -940,7 +940,7 @@ func (f *Function) asmUnOpXor(instr *ssa.UnOp, xorVal int32) (string, *Error) {
 		asm += XorImm64Reg(f.Indent, int64(xorVal), &reg, size)
 	}
 
-	a, err := f.asmStoreReg(&reg, &addr, 0)
+	a, err := f.StoreReg(&reg, &addr, 0)
 	f.freeReg(reg)
 
 	if err != nil {
@@ -955,7 +955,7 @@ func (f *Function) asmUnOpXor(instr *ssa.UnOp, xorVal int32) (string, *Error) {
 }
 
 // arithmetic negation
-func (f *Function) asmUnOpSub(instr *ssa.UnOp) (string, *Error) {
+func (f *Function) UnOpSub(instr *ssa.UnOp) (string, *Error) {
 
 	if err := f.allocValueOnDemand(instr); err != nil {
 		return "", err
@@ -973,7 +973,7 @@ func (f *Function) asmUnOpSub(instr *ssa.UnOp) (string, *Error) {
 		panic(fmt.Sprintf("Unknown name (%v), instr (%v)\n", instr.Name(), instr))
 	}
 
-	asm, err := f.asmLoadValueSimple(instr.X, &regX)
+	asm, err := f.LoadValueSimple(instr.X, &regX)
 	if err != nil {
 		return asm, err
 	}
@@ -984,7 +984,7 @@ func (f *Function) asmUnOpSub(instr *ssa.UnOp) (string, *Error) {
 	f.freeReg(regX)
 	f.freeReg(regSubX)
 
-	a, err := f.asmStoreReg(&regVal, &addr, 0)
+	a, err := f.StoreReg(&regVal, &addr, 0)
 	if err != nil {
 		return asm, err
 	} else {
@@ -999,7 +999,7 @@ func (f *Function) asmUnOpSub(instr *ssa.UnOp) (string, *Error) {
 }
 
 //pointer indirection
-func (f *Function) asmUnOpPointer(instr *ssa.UnOp) (string, *Error) {
+func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 	assignment, ok := f.ssaNames[instr.Name()]
 	xName := instr.X.Name()
 	xInfo, okX := f.ssaNames[xName]
@@ -1015,7 +1015,7 @@ func (f *Function) asmUnOpPointer(instr *ssa.UnOp) (string, *Error) {
 	}
 	asm := ""
 	if !ok {
-		info, err := f.asmAllocLocal(instr.Name(), instr.Type())
+		info, err := f.AllocLocal(instr.Name(), instr.Type())
 		if err != nil {
 			panic(fmt.Sprintf("Err in UnOp X (%v), instr \"(%v)\", msg: \"%v\"", instr.X, instr, err))
 		}
@@ -1040,9 +1040,9 @@ func (f *Function) asmUnOpPointer(instr *ssa.UnOp) (string, *Error) {
 	return asm, nil
 }
 
-func (f *Function) asmIndexAddr(instr *ssa.IndexAddr) (string, *Error) {
+func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 	if instr == nil {
-		return "", &Error{Err: errors.New("asmIndexAddr: nil instr"), Pos: instr.Pos()}
+		return "", &Error{Err: errors.New("IndexAddr: nil instr"), Pos: instr.Pos()}
 
 	}
 	asm := ""
@@ -1050,7 +1050,7 @@ func (f *Function) asmIndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 
 	assignment, ok := f.ssaNames[instr.Name()]
 	if !ok {
-		local, err := f.asmAllocLocal(instr.Name(), instr.Type())
+		local, err := f.AllocLocal(instr.Name(), instr.Type())
 		if err != nil {
 			msg := fmt.Errorf("err in indexaddr op, msg:\"%v\"", err)
 			return asm, &Error{Err: msg, Pos: instr.Pos()}
@@ -1063,7 +1063,7 @@ func (f *Function) asmIndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 	aReg, aOffset, _ := assignment.Addr()
 	addrReg := f.allocReg(DATA_REG, sizePtr())
 	idxReg := f.allocReg(DATA_REG, sizePtr())
-	f.asmLoadValueSimple(instr.Index, &idxReg)
+	f.LoadValueSimple(instr.Index, &idxReg)
 	asm += Lea(f.Indent, xInfo.name, xOffset, &xReg, &addrReg)
 	instrdata := InstrDataType{INTEGER_OP, InstrData{signed: false, size: idxReg.width / 8}, XMM_INVALID}
 	asm += AddRegReg(f.Indent, instrdata, &idxReg, &addrReg)
@@ -1077,14 +1077,14 @@ func (f *Function) asmIndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 	return asm, nil
 }
 
-func (f *Function) asmAllocInstr(instr *ssa.Alloc) (string, *Error) {
+func (f *Function) AllocInstr(instr *ssa.Alloc) (string, *Error) {
 	asm := ""
 	if instr == nil {
-		return "", &Error{Err: errors.New("asmAllocInstr: nil instr"), Pos: instr.Pos()}
+		return "", &Error{Err: errors.New("AllocInstr: nil instr"), Pos: instr.Pos()}
 
 	}
 	if instr.Heap {
-		return "", &Error{Err: errors.New("asmAllocInstr: heap alloc"), Pos: instr.Pos()}
+		return "", &Error{Err: errors.New("AllocInstr: heap alloc"), Pos: instr.Pos()}
 	}
 
 	//Alloc values are always addresses, and have pointer types, so the type
@@ -1101,7 +1101,7 @@ func (f *Function) asmAllocInstr(instr *ssa.Alloc) (string, *Error) {
 	return asm, nil
 }
 
-func (f *Function) asmValue(value ssa.Value, dstReg *register, dstVar *varInfo) string {
+func (f *Function) Value(value ssa.Value, dstReg *register, dstVar *varInfo) string {
 	if dstReg == nil && dstVar == nil {
 		panic("Both dstReg & dstVar are nil!")
 	}
@@ -1259,7 +1259,7 @@ func (f *Function) allocValueOnDemand(v ssa.Value) *Error {
 		return nil
 	}
 	if !ok {
-		local, err := f.asmAllocLocal(v.Name(), v.Type())
+		local, err := f.AllocLocal(v.Name(), v.Type())
 		if err != nil {
 			msg := fmt.Errorf("err in allocValueOnDemand, msg:\"%v\"", err)
 			return &Error{Err: msg, Pos: v.Pos()}

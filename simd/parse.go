@@ -407,9 +407,10 @@ func (f *File) validParamType(typ types.Type) *Error {
 			}
 			tname := named.Obj()
 			i := Int(0)
+			var i4 Int4
 			ivar := &i
 			simdIntVar := reflect.TypeOf(ivar)
-			var i4var Int4Var
+			i4var := &i4
 			simdInt4Var := reflect.TypeOf(i4var)
 			switch tname.Name() {
 			default:

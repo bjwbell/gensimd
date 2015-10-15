@@ -366,6 +366,9 @@ func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 	asm := ""
 	caseAsm := ""
 	var caseErr *Error
+	errormsg := func(msg string) (string, *Error) {
+		return "", &Error{Err: fmt.Errorf(msg), Pos: instr.Pos()}
+	}
 	switch instr := instr.(type) {
 	default:
 		caseAsm = f.Indent + fmt.Sprintf("Unknown ssa instruction: %v\n", instr)
@@ -376,65 +379,57 @@ func (f *Function) asmInstr(instr ssa.Instruction) (string, *Error) {
 	case *ssa.Call:
 		caseAsm = f.Indent + fmt.Sprintf("ssa.Call: %v, name: %v\n", instr, instr.Name())
 	case *ssa.ChangeInterface:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.ChangeInterface: %v, name: %v\n", instr, instr.Name())
+		caseAsm, caseErr = errormsg("converting interfaces unsupported")
 	case *ssa.ChangeType:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.ChangeType: %v, name: %v\n", instr, instr.Name())
+		caseAsm, caseErr = errormsg("changing between types unsupported")
 	case *ssa.Convert:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.Convert: %v, name: %v\n", instr, instr.Name())
+		caseAsm, caseErr = errormsg("type conversion unimplemented")
 	case *ssa.Defer:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.Defer: %v\n", instr)
+		caseAsm, caseErr = errormsg("defer unsupported")
 	case *ssa.Extract:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.Extra: %v, name: %v\n", instr, instr.Name())
+		caseAsm, caseErr = errormsg("extracting tuple values unsupported")
 	case *ssa.Field:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.Field: %v, name: %v\n", instr, instr.Name())
+		caseAsm, caseErr = errormsg("field access unimplemented")
 	case *ssa.FieldAddr:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.FieldAddr: %v, name: %v\n", instr, instr.Name())
+		caseAsm, caseErr = errormsg("field access unimplemented")
 	case *ssa.Go:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.Go: %v\n", instr)
+		caseAsm, caseErr = errormsg("go keyword unsupported")
 	case *ssa.If:
 		caseAsm, caseErr = f.asmIf(instr)
 	case *ssa.Index:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.Index: %v, name: %v\n", instr, instr.Name())
+		caseAsm, caseErr = errormsg("index access unimplemented")
 	case *ssa.IndexAddr:
 		caseAsm, caseErr = f.asmIndexAddr(instr)
 	case *ssa.Jump:
 		caseAsm, caseErr = f.asmJump(instr)
 	case *ssa.Lookup:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.Lookup: %v, name: %v\n", instr, instr.Name())
+		caseAsm, caseErr = errormsg("maps unsupported")
 	case *ssa.MakeChan:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.MakeChan: %v, name: %v\n", instr, instr.Name())
+		caseAsm, caseErr = errormsg("channels unsupported")
 	case *ssa.MakeClosure:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.MakeClosure: %v, name: %v\n", instr, instr.Name())
-	case *ssa.MakeInterface:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.MakeInterface: %v, name: %v\n", instr, instr.Name())
-	case *ssa.MakeMap:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.MakeMap: %v, name: %v\n", instr, instr.Name())
-	case *ssa.MakeSlice:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.MakeSlice: %v, name: %v\n", instr, instr.Name())
+		caseAsm, caseErr = errormsg("closures unsupported")
+	case *ssa.MakeInterface, *ssa.MakeMap, *ssa.MakeSlice:
+		caseAsm, caseErr = errormsg("make slice/map/interface unsupported")
 	case *ssa.MapUpdate:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.MapUpdate: %v\n", instr)
+		caseAsm, caseErr = errormsg("map update unsupported")
 	case *ssa.Next:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.Next: %v, name: %v\n", instr, instr.Name())
+		caseAsm, caseErr = errormsg("map/string iterators unsupported")
 	case *ssa.Panic:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.Panic: %v", instr) + "\n"
+		caseAsm, caseErr = errormsg("panic unimplemented")
 	case *ssa.Phi:
 		caseAsm, caseErr = f.asmPhi(instr)
 	case *ssa.Range:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.Range: %v, name: %v\n", instr, instr.Name())
+		caseAsm, caseErr = errormsg("range unsupported")
 	case *ssa.Return:
 		caseAsm, caseErr = f.asmReturn(instr)
-	case *ssa.RunDefers:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.RunDefers: %v", instr) + "\n"
-	case *ssa.Select:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.Select: %v, name: %v\n", instr, instr.Name())
-	case *ssa.Send:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.Send: %v", instr) + "\n"
+	case *ssa.Select, *ssa.RunDefers, *ssa.Send:
+		caseAsm, caseErr = errormsg("select/send/defer unsupported")
 	case *ssa.Slice:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.Slice: %v, name: %v\n", instr, instr.Name())
+		caseAsm, caseErr = errormsg("slice creation unimplemented")
 	case *ssa.Store:
 		caseAsm, caseErr = f.asmStore(instr)
 	case *ssa.TypeAssert:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.TypeAssert: %v, name: %v\n", instr, instr.Name())
+		caseAsm, caseErr = errormsg("type assert unsupported")
 	case *ssa.UnOp:
 		caseAsm, caseErr = f.asmUnOp(instr)
 	}

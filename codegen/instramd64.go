@@ -614,7 +614,7 @@ func MulRegReg(indent string, datatype InstrDataType, src *register, dst *regist
 }
 
 // DivRegReg divides the "dividend" register by the "divisor" register and stores
-// the quotient in rax and the remainder in rdx
+// the quotient in rax and the remainder in rdx. DivRegReg is only for integer division.
 func DivRegReg(indent string, signed bool, datatype InstrOpType, dividend *register, divisor *register, size uint) (asm string, rax *register, rdx *register) {
 
 	if dividend.width != divisor.width || divisor.width < size*8 {
@@ -657,6 +657,22 @@ func DivRegReg(indent string, signed bool, datatype InstrOpType, dividend *regis
 	return asm, rax, rdx
 }
 
+// DivFloatRegReg performs floating point division by dividing the dividend register
+// by the divisor register and stores the quotient in the dividend register
+func DivFloatRegReg(indent string, datatype InstrDataType, dividend *register, divisor *register) string {
+
+	if dividend.width != divisor.width {
+		panic("Invalid register width")
+	}
+	if datatype.op != XMM_OP {
+		panic("Unsupported data type for floating point division")
+	}
+
+	div := GetInstr(I_DIV, datatype).String()
+	asm := indent + fmt.Sprintf("%v    %v, %v\n", div, divisor.name, dividend.name)
+	return asm
+}
+
 func ArithOp(indent string, datatype InstrDataType, op token.Token, x *register, y *register, result *register) string {
 	if x.width != y.width || x.width != result.width {
 		panic("Invalid register width")
@@ -675,15 +691,22 @@ func ArithOp(indent string, datatype InstrDataType, op token.Token, x *register,
 		asm += MovRegReg(indent, datatype, x, result)
 		asm += MulRegReg(indent, datatype, y, result)
 	case token.QUO, token.REM:
-		// the quotient is stored in rax and
-		// the remainder is stored in rdx.
-		var rax, rdx *register
-		a, rax, rdx := DivRegReg(indent, datatype.signed, datatype.op, x, y, datatype.size)
-		asm += a
-		if op == token.QUO {
-			asm += MovRegReg(indent, datatype, rax, result)
+		if datatype.op == INTEGER_OP {
+			// the quotient is stored in rax and
+			// the remainder is stored in rdx.
+			var rax, rdx *register
+			a, rax, rdx := DivRegReg(indent, datatype.signed, datatype.op, x, y, datatype.size)
+			asm += a
+			if op == token.QUO {
+				asm += MovRegReg(indent, datatype, rax, result)
+			} else {
+				asm += MovRegReg(indent, datatype, rdx, result)
+			}
 		} else {
-			asm += MovRegReg(indent, datatype, rdx, result)
+			// assume quotient operation,
+			// since modulus isn't defined for floats
+			asm += MovRegReg(indent, datatype, x, result)
+			asm += DivFloatRegReg(indent, datatype, result, y)
 		}
 	}
 	return strings.Replace(asm, "+-", "-", -1)

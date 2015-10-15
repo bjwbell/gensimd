@@ -139,6 +139,10 @@ func CreateFunction(fn *ssa.Function, outfn string) (*Function, *Error) {
 	return &f, nil
 }
 
+func AssemblyFilePreamble() string {
+	return "// +build amd64\n\n"
+}
+
 func (f *Function) GoAssembly() (string, *Error) {
 	return f.asmFunc()
 }

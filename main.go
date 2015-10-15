@@ -123,29 +123,27 @@ func main() {
 		prog.Package(info.Pkg).Build()
 	}
 
-	assembly := ""
+	assembly := codegen.AssemblyFilePreamble()
 	goprotos := ""
 	protoPkgName := ""
-	for i := range fnnames {
-		fnname := fnnames[i]
-		outfn := outFns[i]
-		foundpkg := false
-		foundfn := false
-		for _, pkg := range prog.AllPackages() {
-			if pkg.Pkg.Path() == filePkgPath && pkg.Pkg.Name() == filePkgName {
-				foundpkg = true
+	foundpkg := false
+	for _, pkg := range prog.AllPackages() {
+		if pkg.Pkg.Path() == filePkgPath && pkg.Pkg.Name() == filePkgName {
+			foundpkg = true
+			for i := range fnnames {
+				fnname := fnnames[i]
+				outfn := outFns[i]
 				if fn := pkg.Func(fnname); fn == nil {
-					msg := "Function \"%v\" not found in package \"%v\""
+					msg := "Func \"%v\" not found in package \"%v\""
 					log.Fatalf(msg, fnname, filePkgName)
 				} else {
-					foundfn = true
 					fn, err := codegen.CreateFunction(fn, outfn)
 					if err != nil {
-						msg := "codegen.CreateFunction,  error msg \"%v\""
+						msg := "codegen error msg \"%v\""
 						log.Fatalf(msg, err)
 					}
 					if asm, err := fn.GoAssembly(); err != nil {
-						msg := "Error creating fn asm, error msg \"%v\"\n"
+						msg := "Error creating fn asm: \"%v\"\n"
 						log.Fatalf(msg, err)
 					} else {
 						if *output == "" {
@@ -164,24 +162,21 @@ func main() {
 				}
 			}
 		}
+	}
 
-		if !foundpkg {
-			msg := "Error in gensimd: didn't find package, \"%v\", for function \"%v\""
-			log.Fatalf(msg, filePkgName, fnname)
+	if !foundpkg {
+		msg := "Error didn't find package, \"%v\"\n"
+		panic(fmt.Sprintf(msg, filePkgName))
+	}
 
-		} else if foundpkg && !foundfn {
-			msg := "Error in gensimd: didn't find function, \"%v\", in package \"%v\""
-			log.Fatalf(msg, fnname, filePkgName)
-		}
-		writeFile(*output, assembly)
-		if *goprotofile != "" {
-			writeFile(*goprotofile, protoPkgName+"\n"+goprotos)
-		}
+	writeFile(*output, assembly)
+	if *goprotofile != "" {
+		writeFile(*goprotofile, protoPkgName+"\n"+goprotos)
 	}
 }
 
 func writeFile(filename, contents string) {
 	if err := ioutil.WriteFile(filename, []byte(contents), 0644); err != nil {
-		log.Fatalf("Error writing to file \"%v\", error msg \"%v\"\n", filename, err)
+		log.Fatalf("Cannot write to file \"%v\", error \"%v\"\n", filename, err)
 	}
 }

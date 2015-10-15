@@ -7,7 +7,10 @@ import (
 	"testing"
 )
 
-//go:generate gensimd -fn "addf32, subf32, negf32, mulf32, addf64, subf64, negf64, mulf64" -outfn "addf32s, subf32s, negf32s, mulf32s, addf64s, subf64s, negf64s, mulf64s" -f "$GOFILE" -o "float_test.s"
+//go:generate gensimd -fn "ptrt0, ptrt1, addf32, subf32, negf32, mulf32, addf64, subf64, negf64, mulf64" -outfn "ptrt0s, ptrt1s, addf32s, subf32s, negf32s, mulf32s, addf64s, subf64s, negf64s, mulf64s" -f "$GOFILE" -o "float_test.s"
+
+func ptrt0s(*float32) float32
+func ptrt1s(*float64) float64
 
 func addf32s(x, y float32) float32
 func subf32s(x, y float32) float32
@@ -57,6 +60,14 @@ func mulf64(x, y float64) float64 {
 	return x / y
 }*/
 
+func ptrt0(x *float32) float32 {
+	return 2.0 * *x
+}
+
+func ptrt1(x *float64) float64 {
+	return 2.0**x + *x
+}
+
 func TestFloatOps(t *testing.T) {
 
 	for i := 0; i <= 128*128; i++ {
@@ -66,6 +77,15 @@ func TestFloatOps(t *testing.T) {
 		} else {
 			y = rand.ExpFloat64()
 		}
+		yf32 := float32(y)
+
+		if ptrt0(&yf32) != ptrt0s(&yf32) {
+			t.Errorf("ptrt0s(%v)", yf32)
+		}
+		if ptrt1(&y) != ptrt1s(&y) {
+			t.Errorf("ptrt1s(%v)", y)
+		}
+
 		if negf32s(float32(y)) != negf32(float32(y)) {
 			t.Errorf("negf32s(%v)", float32(y))
 		}

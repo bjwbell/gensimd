@@ -256,7 +256,7 @@ func GetInstr(tinst InstructionType, datatype InstrDataType) Instr {
 
 // asmZeroMemory generates "MOVQ $0, name+offset(REG)" instructions,
 // size is in bytes
-func asmZeroMemory(indent string, name string, offset int, size uint, reg *register) string {
+func ZeroMemory(indent string, name string, offset int, size uint, reg *register) string {
 
 	chunk := uint(1)
 	if size%8 == 0 {
@@ -286,7 +286,7 @@ func asmZeroMemory(indent string, name string, offset int, size uint, reg *regis
 }
 
 // asmZeroReg generates "XORQ reg, reg" instructions
-func asmZeroReg(indent string, reg *register) string {
+func ZeroReg(indent string, reg *register) string {
 	var datatype InstrDataType
 
 	if reg.typ == XMM_REG {
@@ -300,7 +300,7 @@ func asmZeroReg(indent string, reg *register) string {
 	return indent + fmt.Sprintf("%v    %v, %v\n", xor.String(), reg.name, reg.name)
 }
 
-func asmMovRegReg(indent string, datatype InstrDataType, srcReg *register, dstReg *register) string {
+func MovRegReg(indent string, datatype InstrDataType, srcReg *register, dstReg *register) string {
 	if srcReg.width != dstReg.width {
 		panic(fmt.Sprintf("srcReg (%v) width (%v) != (%v) dstReg (%v) width or invalid size", srcReg.name, srcReg.width, dstReg.width, dstReg.name))
 	}
@@ -309,7 +309,7 @@ func asmMovRegReg(indent string, datatype InstrDataType, srcReg *register, dstRe
 	return asm
 }
 
-func asmMovRegMem(indent string, datatype InstrDataType, srcReg *register, dstName string, dstReg *register, dstOffset int) string {
+func MovRegMem(indent string, datatype InstrDataType, srcReg *register, dstName string, dstReg *register, dstOffset int) string {
 	mov := GetInstr(I_MOV, datatype)
 	asm := indent + fmt.Sprintf("// BEGIN asmMovRegMem, mov (%v)\n", mov)
 	asm += indent + fmt.Sprintf("%v    %v, %v+%v(%v)\n", mov.String(), srcReg.name, dstName, dstOffset, dstReg.name)
@@ -317,7 +317,7 @@ func asmMovRegMem(indent string, datatype InstrDataType, srcReg *register, dstNa
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmMovRegMemIndirect(indent string, srcReg *register, dstName string, dstReg *register, dstOffset int, tmp *register) string {
+func MovRegMemIndirect(indent string, srcReg *register, dstName string, dstReg *register, dstOffset int, tmp *register) string {
 	if tmp.width != srcReg.width {
 		panic("Invalid register width")
 	}
@@ -328,7 +328,7 @@ func asmMovRegMemIndirect(indent string, srcReg *register, dstName string, dstRe
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmMovMemMem(indent string, datatype InstrOpType, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, size uint) string {
+func MovMemMem(indent string, datatype InstrOpType, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, size uint) string {
 	if srcReg.width != 64 || dstReg.width != 64 {
 		panic("Invalid register width")
 	}
@@ -339,14 +339,14 @@ func asmMovMemMem(indent string, datatype InstrOpType, srcName string, srcOffset
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmMovMemReg(indent string, datatype InstrDataType, srcName string, srcOffset int, srcReg *register, dstReg *register) string {
+func MovMemReg(indent string, datatype InstrDataType, srcName string, srcOffset int, srcReg *register, dstReg *register) string {
 
 	mov := GetInstr(I_MOV, datatype)
 	asm := indent + fmt.Sprintf("%v    %v+%v(%v), %v\n", mov.String(), srcName, srcOffset, srcReg.name, dstReg.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmMovMemMemIndirect(indent string, datatype InstrOpType, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, tmp *register) string {
+func MovMemMemIndirect(indent string, datatype InstrOpType, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, tmp *register) string {
 	if srcReg.width != 64 || dstReg.width != 64 {
 		panic("Invalid register width")
 	}
@@ -355,7 +355,7 @@ func asmMovMemMemIndirect(indent string, datatype InstrOpType, srcName string, s
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmMovMemIndirectReg(indent string, datatype InstrOpType, srcName string, srcOffset int, srcReg *register, dstReg *register, tmp *register) string {
+func MovMemIndirectReg(indent string, datatype InstrOpType, srcName string, srcOffset int, srcReg *register, dstReg *register, tmp *register) string {
 	if dstReg.width != tmp.width {
 		panic("Invalid register width")
 	}
@@ -369,40 +369,56 @@ func asmMovMemIndirectReg(indent string, datatype InstrOpType, srcName string, s
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmMovMemIndirectMem(indent string, datatype InstrOpType, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, size uint, tmp1 *register, tmp2 *register) string {
-	if tmp1.width != tmp2.width {
-		panic("Mismatched register widths")
+func MovMemIndirectMem(indent string, datatype InstrDataType, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, size uint, tmp1 *register, tmp2 *register) string {
+	if tmp1.width/8 < sizePtr() {
+		panic("register width smaller than ptr size ")
 	}
-	if srcReg.width != 64 || dstReg.width != 64 {
-		panic("Invalid register width")
+	if size > tmp2.width/8 && size%(tmp2.width/8) != 0 {
+		panic(fmt.Sprintf("Invalid size (%v), reg width/8 (%v)", size, tmp1.width/8))
 	}
-	if size%(tmp1.width/8) != 0 {
-		panic("Invalid size")
-	}
-	data := InstrDataType{INTEGER_OP, InstrData{signed: false, size: tmp1.width / 8}, XMM_INVALID}
-	mov := GetInstr(I_MOV, data)
-	asm := ""
-	for i := uint(0); i < size/(tmp1.width/8); i++ {
+	addrdatatype := InstrDataType{INTEGER_OP,
+		InstrData{signed: false, size: sizePtr()}, XMM_INVALID}
 
-		asm += indent
-		asm += fmt.Sprintf("%v    %v+%v(%v), %v\n",
-			mov.String(), srcName, srcOffset, srcReg.name, tmp1.name)
+	mov := GetInstr(I_MOV, datatype).String()
+	movaddr := GetInstr(I_MOV, addrdatatype).String()
+
+	asm := ""
+
+	var count uint
+	var chunk uint
+	if size <= tmp2.width/8 {
+		count = 1
+		chunk = size
+	} else {
+		chunk = (tmp2.width / 8)
+		count = size / chunk
+	}
+
+	asm += indent
+	asm += fmt.Sprintf("%v    %v+%v(%v), %v\n",
+		movaddr, srcName, srcOffset, srcReg.name, tmp1.name)
+
+	for i := uint(0); i < count; i++ {
 
 		asm += indent
 		asm += fmt.Sprintf("%v    (%v), %v\n",
-			mov.String(), tmp1.name, tmp2.name)
+			mov, tmp1.name, tmp2.name)
 
 		asm += indent
 		asm += fmt.Sprintf("%v    %v, %v+%v(%v)\n",
-			mov.String(), tmp2.name, dstName, dstOffset, dstReg.name)
+			mov, tmp2.name, dstName, dstOffset, dstReg.name)
 
-		srcOffset += int((tmp1.width / 8))
-		dstOffset += int((tmp1.width / 8))
+		dstOffset += int(chunk)
+
+		if i < count-1 {
+			asm += AddImm32Reg(indent, uint32(chunk), tmp1)
+		}
 	}
+
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmMovMemIndirectMemIndirect(indent string, datatype InstrOpType, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, tmp1 *register, tmp2 *register) string {
+func MovMemIndirectMemIndirect(indent string, datatype InstrOpType, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, tmp1 *register, tmp2 *register) string {
 	if srcReg.width != 64 || dstReg.width != 64 {
 		panic("Invalid register width")
 	}
@@ -415,7 +431,7 @@ func asmMovMemIndirectMemIndirect(indent string, datatype InstrOpType, srcName s
 }
 
 // asmMovImmReg moves imm to reg after converting it to int8/16/32 if size=1/2/4.
-func asmMovImmReg(indent string, imm int64, size uint, dstReg *register) string {
+func MovImmReg(indent string, imm int64, size uint, dstReg *register) string {
 	if dstReg.width < 8*size {
 		panic("Invalid register width")
 	}
@@ -434,7 +450,7 @@ func asmMovImmReg(indent string, imm int64, size uint, dstReg *register) string 
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmMovImmFloatReg(indent string, f64 float64, isf32 bool, tmp *register, dst *register) string {
+func MovImmFloatReg(indent string, f64 float64, isf32 bool, tmp *register, dst *register) string {
 	if dst.typ != XMM_REG {
 		panic("Unexpected non xmm register")
 	}
@@ -461,35 +477,35 @@ func asmMovImmFloatReg(indent string, f64 float64, isf32 bool, tmp *register, ds
 	return asm
 }
 
-func asmMovImmf32Reg(indent string, f32 float32, tmp *register, dst *register) string {
-	return asmMovImmFloatReg(indent, float64(f32), true, tmp, dst)
+func MovImmf32Reg(indent string, f32 float32, tmp *register, dst *register) string {
+	return MovImmFloatReg(indent, float64(f32), true, tmp, dst)
 }
 
-func asmMovImmf64Reg(indent string, f64 float64, tmp *register, dst *register) string {
-	return asmMovImmFloatReg(indent, f64, false, tmp, dst)
+func MovImmf64Reg(indent string, f64 float64, tmp *register, dst *register) string {
+	return MovImmFloatReg(indent, f64, false, tmp, dst)
 }
 
-func asmMovImm8Reg(indent string, imm8 int8, dstReg *register) string {
-	return asmMovImmReg(indent, int64(imm8), 1, dstReg)
+func MovImm8Reg(indent string, imm8 int8, dstReg *register) string {
+	return MovImmReg(indent, int64(imm8), 1, dstReg)
 }
 
-func asmMovImm16Reg(indent string, imm16 int16, dstReg *register) string {
-	return asmMovImmReg(indent, int64(imm16), 2, dstReg)
-
-}
-
-func asmMovImm32Reg(indent string, imm32 int32, dstReg *register) string {
-	return asmMovImmReg(indent, int64(imm32), 4, dstReg)
+func MovImm16Reg(indent string, imm16 int16, dstReg *register) string {
+	return MovImmReg(indent, int64(imm16), 2, dstReg)
 
 }
 
-func asmMovImm64Reg(indent string, imm64 int64, dstReg *register) string {
-	return asmMovImmReg(indent, imm64, 8, dstReg)
+func MovImm32Reg(indent string, imm32 int32, dstReg *register) string {
+	return MovImmReg(indent, int64(imm32), 4, dstReg)
+
 }
 
-// asmCMovCCRegReg conditionally moves the src reg to the dst reg if the carry
+func MovImm64Reg(indent string, imm64 int64, dstReg *register) string {
+	return MovImmReg(indent, imm64, 8, dstReg)
+}
+
+// CMovCCRegReg conditionally moves the src reg to the dst reg if the carry
 // flag is clear (ie the previous compare had its src greater than its sub reg).
-func asmCMovCCRegReg(indent string, src *register, dst *register, size uint) string {
+func CMovCCRegReg(indent string, src *register, dst *register, size uint) string {
 	var cmov string
 	if size == 1 {
 		// there is conditional byte move
@@ -505,7 +521,7 @@ func asmCMovCCRegReg(indent string, src *register, dst *register, size uint) str
 	return asm
 }
 
-func asmLea(indent string, srcName string, srcOffset int, srcReg *register, dstReg *register) string {
+func Lea(indent string, srcName string, srcOffset int, srcReg *register, dstReg *register) string {
 	if srcReg.width != dstReg.width {
 		panic("Invalid register width")
 	}
@@ -515,7 +531,7 @@ func asmLea(indent string, srcName string, srcOffset int, srcReg *register, dstR
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmAddImm32Reg(indent string, imm32 uint32, dstReg *register) string {
+func AddImm32Reg(indent string, imm32 uint32, dstReg *register) string {
 	if dstReg.width < 32 {
 		panic("Invalid register width")
 	}
@@ -523,7 +539,7 @@ func asmAddImm32Reg(indent string, imm32 uint32, dstReg *register) string {
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmSubImm32Reg(indent string, imm32 uint32, dstReg *register) string {
+func SubImm32Reg(indent string, imm32 uint32, dstReg *register) string {
 	if dstReg.width < 32 {
 		panic("Invalid register width")
 	}
@@ -531,7 +547,7 @@ func asmSubImm32Reg(indent string, imm32 uint32, dstReg *register) string {
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmAddRegReg(indent string, datatype InstrDataType, srcReg *register, dstReg *register) string {
+func AddRegReg(indent string, datatype InstrDataType, srcReg *register, dstReg *register) string {
 	if dstReg.width != srcReg.width {
 		panic("Invalid register width")
 	}
@@ -540,7 +556,7 @@ func asmAddRegReg(indent string, datatype InstrDataType, srcReg *register, dstRe
 	return asm
 }
 
-func asmSubRegReg(indent string, datatype InstrDataType, srcReg *register, dstReg *register) string {
+func SubRegReg(indent string, datatype InstrDataType, srcReg *register, dstReg *register) string {
 	if dstReg.width != srcReg.width {
 		panic("Invalid register width")
 	}
@@ -550,7 +566,7 @@ func asmSubRegReg(indent string, datatype InstrDataType, srcReg *register, dstRe
 	return asm
 }
 
-func asmMulImm32RegReg(indent string, imm32 uint32, srcReg *register, dstReg *register) string {
+func MulImm32RegReg(indent string, imm32 uint32, srcReg *register, dstReg *register) string {
 	if dstReg.width < 32 {
 		panic("Invalid register width")
 	}
@@ -558,9 +574,9 @@ func asmMulImm32RegReg(indent string, imm32 uint32, srcReg *register, dstReg *re
 	return asm
 }
 
-// asmMulRegReg multiplies the src register by the dst register and stores
+// MulRegReg multiplies the src register by the dst register and stores
 // the result in the dst register. Overflow is discarded
-func asmMulRegReg(indent string, datatype InstrDataType, src *register, dst *register) string {
+func MulRegReg(indent string, datatype InstrDataType, src *register, dst *register) string {
 
 	if dst.width != src.width {
 		panic("Invalid register width")
@@ -573,7 +589,7 @@ func asmMulRegReg(indent string, datatype InstrDataType, src *register, dst *reg
 			panic("Invalid rax or rdx register width")
 		}
 		// rax is the implicit destination for MULQ
-		asm = asmMovRegReg(indent, datatype, dst, rax)
+		asm = MovRegReg(indent, datatype, dst, rax)
 		// the low order part of the result is stored in rax and the high order part
 		// is stored in rdx
 		var tinstr InstructionType
@@ -585,7 +601,7 @@ func asmMulRegReg(indent string, datatype InstrDataType, src *register, dst *reg
 
 		mul := GetInstr(tinstr, datatype).String()
 		asm += indent + fmt.Sprintf("%v    %v\n", mul, src.name)
-		asm += asmMovRegReg(indent, datatype, rax, dst)
+		asm += MovRegReg(indent, datatype, rax, dst)
 		return strings.Replace(asm, "+-", "-", -1)
 	}
 
@@ -597,12 +613,12 @@ func asmMulRegReg(indent string, datatype InstrDataType, src *register, dst *reg
 
 }
 
-// asmDivRegReg divides the "dividend" register by the "divisor" register and stores
+// DivRegReg divides the "dividend" register by the "divisor" register and stores
 // the quotient in rax and the remainder in rdx
-func asmDivRegReg(indent string, signed bool, datatype InstrOpType, dividend *register, divisor *register, size uint) (asm string, rax *register, rdx *register) {
+func DivRegReg(indent string, signed bool, datatype InstrOpType, dividend *register, divisor *register, size uint) (asm string, rax *register, rdx *register) {
 
 	if dividend.width != divisor.width || divisor.width < size*8 {
-		panic("Invalid register width for asmDivRegReg")
+		panic("Invalid register width for DivRegReg")
 	}
 	if datatype != INTEGER_OP {
 		panic("Unsupported arithmetic data type")
@@ -620,12 +636,12 @@ func asmDivRegReg(indent string, signed bool, datatype InstrOpType, dividend *re
 	// rdx:rax are the upper and lower parts of the dividend respectively,
 	// and rdx:rax are the implicit destination of DIVQ
 	asm = ""
-	asm += asmZeroReg(indent, rax)
+	asm += ZeroReg(indent, rax)
 	if size > 1 {
-		asm += asmZeroReg(indent, rdx)
+		asm += ZeroReg(indent, rdx)
 	}
 	instrdata := InstrDataType{datatype, InstrData{signed: signed, size: size}, XMM_INVALID}
-	asm += asmMovRegReg(indent, instrdata, dividend, rax)
+	asm += MovRegReg(indent, instrdata, dividend, rax)
 
 	// the low order part of the result is stored in rax and the high order part
 	// is stored in rdx
@@ -641,7 +657,7 @@ func asmDivRegReg(indent string, signed bool, datatype InstrOpType, dividend *re
 	return asm, rax, rdx
 }
 
-func asmArithOp(indent string, datatype InstrDataType, op token.Token, x *register, y *register, result *register) string {
+func ArithOp(indent string, datatype InstrDataType, op token.Token, x *register, y *register, result *register) string {
 	if x.width != y.width || x.width != result.width {
 		panic("Invalid register width")
 	}
@@ -650,32 +666,32 @@ func asmArithOp(indent string, datatype InstrDataType, op token.Token, x *regist
 	default:
 		panic(fmt.Sprintf("Unknown Op token (%v)", op))
 	case token.ADD:
-		asm += asmMovRegReg(indent, datatype, x, result)
-		asm += asmAddRegReg(indent, datatype, y, result)
+		asm += MovRegReg(indent, datatype, x, result)
+		asm += AddRegReg(indent, datatype, y, result)
 	case token.SUB:
-		asm += asmMovRegReg(indent, datatype, x, result)
-		asm += asmSubRegReg(indent, datatype, y, result)
+		asm += MovRegReg(indent, datatype, x, result)
+		asm += SubRegReg(indent, datatype, y, result)
 	case token.MUL:
-		asm += asmMovRegReg(indent, datatype, x, result)
-		asm += asmMulRegReg(indent, datatype, y, result)
+		asm += MovRegReg(indent, datatype, x, result)
+		asm += MulRegReg(indent, datatype, y, result)
 	case token.QUO, token.REM:
 		// the quotient is stored in rax and
 		// the remainder is stored in rdx.
 		var rax, rdx *register
-		a, rax, rdx := asmDivRegReg(indent, datatype.signed, datatype.op, x, y, datatype.size)
+		a, rax, rdx := DivRegReg(indent, datatype.signed, datatype.op, x, y, datatype.size)
 		asm += a
 		if op == token.QUO {
-			asm += asmMovRegReg(indent, datatype, rax, result)
+			asm += MovRegReg(indent, datatype, rax, result)
 		} else {
-			asm += asmMovRegReg(indent, datatype, rdx, result)
+			asm += MovRegReg(indent, datatype, rdx, result)
 		}
 	}
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-// asmAndRegReg AND's the src register by the dst register and stores
+// AndRegReg AND's the src register by the dst register and stores
 // the result in the dst register.
-func asmAndRegReg(indent string, src *register, dst *register, size uint) string {
+func AndRegReg(indent string, src *register, dst *register, size uint) string {
 	if src.width != dst.width {
 		panic("Invalid register width")
 	}
@@ -685,7 +701,7 @@ func asmAndRegReg(indent string, src *register, dst *register, size uint) string
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmOrRegReg(indent string, src *register, dst *register) string {
+func OrRegReg(indent string, src *register, dst *register) string {
 	if src.width != dst.width {
 		panic("Invalid register width")
 	}
@@ -695,7 +711,7 @@ func asmOrRegReg(indent string, src *register, dst *register) string {
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmXorRegReg(indent string, src *register, dst *register) string {
+func XorRegReg(indent string, src *register, dst *register) string {
 	if src.width != dst.width {
 		panic("Invalid register width")
 	}
@@ -705,22 +721,22 @@ func asmXorRegReg(indent string, src *register, dst *register) string {
 	return asm
 }
 
-func asmXorImm32Reg(indent string, imm32 int32, dst *register, size uint) string {
+func XorImm32Reg(indent string, imm32 int32, dst *register, size uint) string {
 	data := InstrDataType{INTEGER_OP, InstrData{signed: false, size: size}, XMM_INVALID}
 	xor := GetInstr(I_XOR, data)
 	asm := indent + fmt.Sprintf("%v    $%v, %v\n", xor.String(), imm32, dst.name)
 	return asm
 }
 
-func asmXorImm64Reg(indent string, imm64 int64, dst *register, size uint) string {
+func XorImm64Reg(indent string, imm64 int64, dst *register, size uint) string {
 	data := InstrDataType{INTEGER_OP, InstrData{signed: false, size: size}, XMM_INVALID}
 	xor := GetInstr(I_XOR, data)
 	asm := indent + fmt.Sprintf("%v    $%v, %v\n", xor.String(), imm64, dst.name)
 	return asm
 }
 
-func asmNotReg(indent string, reg *register, size uint) string {
-	return asmXorImm32Reg(indent, -1, reg, size)
+func NotReg(indent string, reg *register, size uint) string {
+	return XorImm32Reg(indent, -1, reg, size)
 }
 
 const (
@@ -728,7 +744,7 @@ const (
 	SHIFT_RIGHT
 )
 
-func asmMovZeroExtend(indent string, src *register, dst *register, srcSize uint, dstSize uint) string {
+func MovZeroExtend(indent string, src *register, dst *register, srcSize uint, dstSize uint) string {
 	var opcode InstructionType
 	switch srcSize {
 	default:
@@ -752,7 +768,7 @@ func asmMovZeroExtend(indent string, src *register, dst *register, srcSize uint,
 	return asm
 }
 
-func asmMovSignExtend(indent string, src *register, dst *register, srcSize uint, dstSize uint) string {
+func MovSignExtend(indent string, src *register, dst *register, srcSize uint, dstSize uint) string {
 	var opcode InstructionType
 	switch srcSize {
 	default:
@@ -775,7 +791,7 @@ func asmMovSignExtend(indent string, src *register, dst *register, srcSize uint,
 	return asm
 }
 
-func asmShiftRegReg(indent string, signed bool, direction int, src *register, shiftReg *register, tmp *register, size uint) string {
+func ShiftRegReg(indent string, signed bool, direction int, src *register, shiftReg *register, tmp *register, size uint) string {
 
 	cl := getRegister(REG_CL)
 	cx := getRegister(REG_CX)
@@ -806,43 +822,43 @@ func asmShiftRegReg(indent string, signed bool, direction int, src *register, sh
 		completeShift--
 	}
 	instrdata := InstrDataType{INTEGER_OP, InstrData{signed: false, size: size}, XMM_INVALID}
-	asm += asmMovRegReg(indent, instrdata, shiftReg, cx)
+	asm += MovRegReg(indent, instrdata, shiftReg, cx)
 
-	asm += asmMovImm32Reg(indent, completeShift, tmp)
+	asm += MovImm32Reg(indent, completeShift, tmp)
 	// compare only first byte of shift reg,
 	// since useful shift can be at most 64
-	asm += asmCmpRegImm32(indent, shiftReg, maxShift, 1)
-	asm += asmCMovCCRegReg(indent, tmp, cx, size)
+	asm += CmpRegImm32(indent, shiftReg, maxShift, 1)
+	asm += CMovCCRegReg(indent, tmp, cx, size)
 
 	var zerosize uint = 1
-	asm += asmMovZeroExtend(indent, cl, cx, zerosize, cx.width/8)
+	asm += MovZeroExtend(indent, cl, cx, zerosize, cx.width/8)
 	asm += indent + fmt.Sprintf("%v    %v, %v\n", shift.String(), regCl.name, src.name)
 
 	if maxShift == 64 || maxShift == 32 {
-		asm += asmMovImm32Reg(indent, 1, tmp)
+		asm += MovImm32Reg(indent, 1, tmp)
 		// compare only first byte of shift reg,
 		// since useful shift can be at most 64
-		asm += asmXorRegReg(indent, cx, cx)
-		asm += asmCmpRegImm32(indent, shiftReg, maxShift, 1)
-		asm += asmCMovCCRegReg(indent, tmp, cx, size)
+		asm += XorRegReg(indent, cx, cx)
+		asm += CmpRegImm32(indent, shiftReg, maxShift, 1)
+		asm += CMovCCRegReg(indent, tmp, cx, size)
 		var zerosize uint = 1
-		asm += asmMovZeroExtend(indent, cl, cx, zerosize, cx.width/8)
+		asm += MovZeroExtend(indent, cl, cx, zerosize, cx.width/8)
 		asm += indent + fmt.Sprintf("%v    %v, %v\n", shift.String(), regCl.name, src.name)
 	}
 
 	return asm
 }
 
-func asmAndNotRegReg(indent string, src *register, dst *register, size uint) string {
+func AndNotRegReg(indent string, src *register, dst *register, size uint) string {
 	if src.width != dst.width {
 		panic("Invalid register width")
 	}
-	asm := asmNotReg(indent, dst, size)
-	asm += asmAndRegReg(indent, src, dst, size)
+	asm := NotReg(indent, dst, size)
+	asm += AndRegReg(indent, src, dst, size)
 	return asm
 }
 
-func asmBitwiseOp(indent string, op token.Token, signed bool, x *register, y *register, result *register, size uint) string {
+func BitwiseOp(indent string, op token.Token, signed bool, x *register, y *register, result *register, size uint) string {
 	if x.width != y.width || x.width != result.width {
 		panic("Invalid register width")
 	}
@@ -853,31 +869,31 @@ func asmBitwiseOp(indent string, op token.Token, signed bool, x *register, y *re
 		panic(fmt.Sprintf("Unknown Op token (%v)", op))
 	case token.AND:
 
-		asm = asmMovRegReg(indent, instrdata, y, result)
-		asm += asmAndRegReg(indent, x, result, size)
+		asm = MovRegReg(indent, instrdata, y, result)
+		asm += AndRegReg(indent, x, result, size)
 	case token.OR:
-		asm = asmMovRegReg(indent, instrdata, y, result)
-		asm += asmOrRegReg(indent, x, result)
+		asm = MovRegReg(indent, instrdata, y, result)
+		asm += OrRegReg(indent, x, result)
 	case token.XOR:
-		asm = asmMovRegReg(indent, instrdata, y, result)
-		asm += asmXorRegReg(indent, x, result)
+		asm = MovRegReg(indent, instrdata, y, result)
+		asm += XorRegReg(indent, x, result)
 	case token.SHL:
-		asm = asmMovRegReg(indent, instrdata, x, result)
+		asm = MovRegReg(indent, instrdata, x, result)
 		tmp := x
-		asm += asmShiftRegReg(indent, signed, SHIFT_LEFT, result, y, tmp, size)
+		asm += ShiftRegReg(indent, signed, SHIFT_LEFT, result, y, tmp, size)
 	case token.SHR:
-		asm = asmMovRegReg(indent, instrdata, x, result)
+		asm = MovRegReg(indent, instrdata, x, result)
 		tmp := x
-		asm += asmShiftRegReg(indent, signed, SHIFT_RIGHT, result, y, tmp, size)
+		asm += ShiftRegReg(indent, signed, SHIFT_RIGHT, result, y, tmp, size)
 	case token.AND_NOT:
-		asm = asmMovRegReg(indent, instrdata, y, result)
-		asm += asmAndNotRegReg(indent, x, result, size)
+		asm = MovRegReg(indent, instrdata, y, result)
+		asm += AndNotRegReg(indent, x, result, size)
 
 	}
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmCmpRegReg(indent string, instrdata InstrDataType, x *register, y *register) string {
+func CmpRegReg(indent string, instrdata InstrDataType, x *register, y *register) string {
 	if x.width != y.width {
 		panic("Invalid register width")
 	}
@@ -887,7 +903,7 @@ func asmCmpRegReg(indent string, instrdata InstrDataType, x *register, y *regist
 
 }
 
-func asmCmpMemImm32(indent string, name string, offset int32, r *register, imm32 uint32, size uint) string {
+func CmpMemImm32(indent string, name string, offset int32, r *register, imm32 uint32, size uint) string {
 	if r.width != 64 {
 		panic("Invalid register width")
 	}
@@ -898,7 +914,7 @@ func asmCmpMemImm32(indent string, name string, offset int32, r *register, imm32
 
 }
 
-func asmCmpRegImm32(indent string, r *register, imm32 uint32, size uint) string {
+func CmpRegImm32(indent string, r *register, imm32 uint32, size uint) string {
 	if r.width != 64 {
 		panic("Invalid register width")
 	}
@@ -909,13 +925,13 @@ func asmCmpRegImm32(indent string, r *register, imm32 uint32, size uint) string 
 
 }
 
-// asmCmpOp compares x to y, storing the op comparison flag (EQ, NEQ, ...) in result
-func asmCmpOp(indent string, data InstrDataType, op token.Token, x *register, y *register, result *register) string {
+// CmpOp compares x to y, storing the op comparison flag (EQ, NEQ, ...) in result
+func CmpOp(indent string, data InstrDataType, op token.Token, x *register, y *register, result *register) string {
 	if x.width != y.width {
 		panic(fmt.Sprintf("Invalid register width, x.width (%v), y.width (%v), result.width (%v)", x.width, y.width, result.width))
 	}
 	asm := ""
-	asm += indent + asmCmpRegReg(indent, data, x, y)
+	asm += indent + CmpRegReg(indent, data, x, y)
 	switch op {
 	default:
 		panic(fmt.Sprintf("Unknown Op token (%v)", op))
@@ -971,7 +987,7 @@ func asmCmpOp(indent string, data InstrDataType, op token.Token, x *register, y 
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func asmRet(indent string) string {
+func Ret(indent string) string {
 	asm := indent + fmt.Sprintf("RET\n")
 	return asm
 }

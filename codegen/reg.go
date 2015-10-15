@@ -18,23 +18,37 @@ type RegType int
 
 const (
 	// integer register
-	DataReg = RegType(iota)
+	DATA_REG = RegType(iota)
 	// address register
-	AddrReg
+	ADDR_REG
 	// Stack pointer pseudo register
 	SpReg
 	// Frame pointer pseudo register
 	FpReg
 	// xmm register
-	XmmReg
+	XMM_REG
 )
+
+func (r RegType) String() string {
+	switch r {
+	case DATA_REG:
+		return "DATA_REG"
+	case ADDR_REG:
+		return "ADDR_REG"
+	case SpReg:
+		return "SpReg"
+	case XMM_REG:
+		return "XMM_REG"
+	}
+	panic("Invalid regtype")
+}
 
 // size in bytes
 const DataRegSize = 8
-const XmmRegSize = 16
+const XMM_REGSize = 16
 
 const NumDataRegs = 14
-const NumXmmRegs = 16
+const NumXMM_REGs = 16
 
 type regconst int
 
@@ -81,56 +95,56 @@ const (
 var LongSizes = []uint{1, 2, 4}
 var QuadSizes = []uint{1, 2, 4, 8}
 var QuadSize = []uint{8}
-var XmmDataSize = []uint{16}
+var XmmDataSizes = []uint{4, 8, 16}
 
 var registers = []register{
-	{"AL", REG_AL, DataReg, 32, LongSizes},
-	{"CL", REG_CL, DataReg, 32, LongSizes},
-	{"DL", REG_DL, DataReg, 32, LongSizes},
-	{"BL", REG_BL, DataReg, 32, LongSizes},
-	{"AX", REG_AX, DataReg, 64, QuadSizes},
-	{"CX", REG_CX, DataReg, 64, QuadSizes},
-	{"DX", REG_DX, DataReg, 64, QuadSizes},
-	{"SI", REG_SI, AddrReg, 64, QuadSize},
-	{"DI", REG_DI, AddrReg, 64, QuadSize},
-	{"BX", REG_BX, AddrReg, 64, QuadSize},
-	{"BP", REG_BP, AddrReg, 64, QuadSize},
+	{"AL", REG_AL, DATA_REG, 32, LongSizes},
+	{"CL", REG_CL, DATA_REG, 32, LongSizes},
+	{"DL", REG_DL, DATA_REG, 32, LongSizes},
+	{"BL", REG_BL, DATA_REG, 32, LongSizes},
+	{"AX", REG_AX, DATA_REG, 64, QuadSizes},
+	{"CX", REG_CX, DATA_REG, 64, QuadSizes},
+	{"DX", REG_DX, DATA_REG, 64, QuadSizes},
+	{"SI", REG_SI, ADDR_REG, 64, QuadSize},
+	{"DI", REG_DI, ADDR_REG, 64, QuadSize},
+	{"BX", REG_BX, ADDR_REG, 64, QuadSize},
+	{"BP", REG_BP, ADDR_REG, 64, QuadSize},
 	{"SP", REG_SP, SpReg, 64, QuadSize},
 	{"FP", REG_FP, FpReg, 64, QuadSize},
-	{"R8", REG_R8, DataReg, 64, QuadSizes},
-	{"R9", REG_R9, DataReg, 64, QuadSizes},
-	{"R10", REG_R10, DataReg, 64, QuadSizes},
-	{"R11", REG_R11, DataReg, 64, QuadSizes},
-	{"R12", REG_R12, DataReg, 64, QuadSizes},
-	{"R13", REG_R13, DataReg, 64, QuadSizes},
-	{"R14", REG_R14, DataReg, 64, QuadSizes},
-	{"R15", REG_R15, DataReg, 64, QuadSizes},
-	{"X0", REG_X0, XmmReg, 128, XmmDataSize},
-	{"X1", REG_X1, XmmReg, 128, XmmDataSize},
-	{"X2", REG_X2, XmmReg, 128, XmmDataSize},
-	{"X3", REG_X3, XmmReg, 128, XmmDataSize},
-	{"X4", REG_X4, XmmReg, 128, XmmDataSize},
-	{"X5", REG_X5, XmmReg, 128, XmmDataSize},
-	{"X6", REG_X6, XmmReg, 128, XmmDataSize},
-	{"X7", REG_X7, XmmReg, 128, XmmDataSize},
-	{"X8", REG_X8, XmmReg, 128, XmmDataSize},
-	{"X9", REG_X9, XmmReg, 128, XmmDataSize},
-	{"X10", REG_X10, XmmReg, 128, XmmDataSize},
-	{"X11", REG_X11, XmmReg, 128, XmmDataSize},
-	{"X12", REG_X12, XmmReg, 128, XmmDataSize},
-	{"X13", REG_X13, XmmReg, 128, XmmDataSize},
-	{"X14", REG_X14, XmmReg, 128, XmmDataSize},
-	{"X15", REG_X15, XmmReg, 128, XmmDataSize},
+	{"R8", REG_R8, DATA_REG, 64, QuadSizes},
+	{"R9", REG_R9, DATA_REG, 64, QuadSizes},
+	{"R10", REG_R10, DATA_REG, 64, QuadSizes},
+	{"R11", REG_R11, DATA_REG, 64, QuadSizes},
+	{"R12", REG_R12, DATA_REG, 64, QuadSizes},
+	{"R13", REG_R13, DATA_REG, 64, QuadSizes},
+	{"R14", REG_R14, DATA_REG, 64, QuadSizes},
+	{"R15", REG_R15, DATA_REG, 64, QuadSizes},
+	{"X0", REG_X0, XMM_REG, 128, XmmDataSizes},
+	{"X1", REG_X1, XMM_REG, 128, XmmDataSizes},
+	{"X2", REG_X2, XMM_REG, 128, XmmDataSizes},
+	{"X3", REG_X3, XMM_REG, 128, XmmDataSizes},
+	{"X4", REG_X4, XMM_REG, 128, XmmDataSizes},
+	{"X5", REG_X5, XMM_REG, 128, XmmDataSizes},
+	{"X6", REG_X6, XMM_REG, 128, XmmDataSizes},
+	{"X7", REG_X7, XMM_REG, 128, XmmDataSizes},
+	{"X8", REG_X8, XMM_REG, 128, XmmDataSizes},
+	{"X9", REG_X9, XMM_REG, 128, XmmDataSizes},
+	{"X10", REG_X10, XMM_REG, 128, XmmDataSizes},
+	{"X11", REG_X11, XMM_REG, 128, XmmDataSizes},
+	{"X12", REG_X12, XMM_REG, 128, XmmDataSizes},
+	{"X13", REG_X13, XMM_REG, 128, XmmDataSizes},
+	{"X14", REG_X14, XMM_REG, 128, XmmDataSizes},
+	{"X15", REG_X15, XMM_REG, 128, XmmDataSizes},
 }
 
 var excludedRegisters = []register{
 	// used as implicit operands in arithmetic instructions
-	{"AL", REG_AL, DataReg, 32, LongSizes},
-	{"CL", REG_CL, DataReg, 32, LongSizes},
-	{"DL", REG_DL, DataReg, 32, LongSizes},
-	{"AX", REG_AX, DataReg, 64, QuadSizes},
-	{"CX", REG_CX, DataReg, 64, QuadSizes},
-	{"DX", REG_DX, DataReg, 64, QuadSizes},
+	{"AL", REG_AL, DATA_REG, 32, LongSizes},
+	{"CL", REG_CL, DATA_REG, 32, LongSizes},
+	{"DL", REG_DL, DATA_REG, 32, LongSizes},
+	{"AX", REG_AX, DATA_REG, 64, QuadSizes},
+	{"CX", REG_CX, DATA_REG, 64, QuadSizes},
+	{"DX", REG_DX, DATA_REG, 64, QuadSizes},
 
 	// stack pointer pseudo register
 	{"SP", REG_SP, SpReg, 64, QuadSize},

@@ -43,10 +43,10 @@ type nameInfo struct {
 	align  uint
 }
 
-// RegAndOffset returns the register and offset to access the nameInfo memory.
+// Addr returns the register and offset to access the backing memory of name.
 // For locals the register is the stack pointer (SP) and for params the register
 // is the frame pointer (FP).
-func (name *nameInfo) MemRegOffsetSize() (reg register, offset int, size uint) {
+func (name *nameInfo) Addr() (reg register, offset int, size uint) {
 	offset = name.offset
 	size = name.size
 	if name.local != nil {
@@ -168,6 +168,8 @@ func (f *Function) asmParams() (string, *Error) {
 			switch basic.Kind() {
 			default:
 				return "", &Error{Err: fmt.Errorf("Unsupported param type (%v)", basic), Pos: p.Pos()}
+			case types.Float32, types.Float64:
+				break
 
 				// supported param types
 			case types.Bool, types.Int, types.Int8, types.Int16, types.Int32, types.Int64,
@@ -466,7 +468,7 @@ func (f *Function) asmIf(instr *ssa.If) (string, *Error) {
 			return "", err
 		}
 		asm += a
-		r, offset, size := info.MemRegOffsetSize()
+		r, offset, size := info.Addr()
 		asm += asmCmpMemImm32(f.Indent, info.name, int32(offset), &r, uint32(0), size)
 		asm += f.Indent + "JEQ    " + "block" + strconv.Itoa(fblock) + "\n"
 		a, err = f.asmJumpPreamble(instr.Block().Index, tblock)
@@ -616,6 +618,7 @@ func (f *Function) asmSetStackPointer() string {
 }
 
 func (f *Function) asmStoreValAddr(val ssa.Value, addr *nameInfo) (string, *Error) {
+
 	var err *Error
 	if err = f.allocValueOnDemand(val); err != nil {
 		return "", err
@@ -627,44 +630,72 @@ func (f *Function) asmStoreValAddr(val ssa.Value, addr *nameInfo) (string, *Erro
 
 	asm := ""
 	asm += f.Indent + fmt.Sprintf("// BEGIN asmStoreValAddr addr name:%v, val name:%v\n", addr.name, val.Name()) + asm
-	size := f.sizeof(val)
-	iterations := size
-	datasize := 1
-	if size >= sizeBasic(types.Int64) {
-		iterations = size / sizeBasic(types.Int64)
-		datasize = 8
-	} else if size >= sizeBasic(types.Int32) {
-		iterations = size / sizeBasic(types.Int32)
-		datasize = 4
-	} else if size >= sizeBasic(types.Int16) {
-		iterations = size / sizeBasic(types.Int16)
-		datasize = 2
+
+	if isComplex(val.Type()) {
+		return "", &Error{fmt.Errorf("complex32/64 unsupported"), val.Pos()}
 	}
 
-	if size > sizeInt() {
-		if size%sizeInt() != 0 {
-			panic(fmt.Sprintf("Size (%v) not multiple of sizeInt (%v)", size, sizeInt()))
-		}
-	}
+	if isFloat(val.Type()) {
 
-	valReg := f.allocReg(DataReg, uint(datasize))
-
-	for i := int(0); i < int(iterations); i++ {
-		offset := i * datasize
-		a, err := f.asmLoadValue(val, offset, uint(datasize), &valReg)
+		valReg := f.allocReg(regType(val.Type()), f.sizeof(val))
+		a, err := f.asmLoadValue(val, 0, f.sizeof(val), &valReg)
 		if err != nil {
 			return a, err
 		}
 		asm += a
-		a, err = f.asmStoreReg(&valReg, addr, offset)
+
+		a, err = f.asmStoreReg(&valReg, addr, 0)
 		if err != nil {
 			return a, err
 		}
 		asm += a
+		f.freeReg(valReg)
+
+	} else {
+
+		size := f.sizeof(val)
+		iterations := size
+		datasize := 1
+
+		if size >= sizeBasic(types.Int64) {
+			iterations = size / sizeBasic(types.Int64)
+			datasize = 8
+		} else if size >= sizeBasic(types.Int32) {
+			iterations = size / sizeBasic(types.Int32)
+			datasize = 4
+		} else if size >= sizeBasic(types.Int16) {
+			iterations = size / sizeBasic(types.Int16)
+			datasize = 2
+		}
+
+		if size > sizeInt() {
+			if size%sizeInt() != 0 {
+				panic(fmt.Sprintf("Size (%v) not multiple of sizeInt (%v)", size, sizeInt()))
+			}
+		}
+
+		valReg := f.allocReg(DATA_REG, uint(datasize))
+
+		for i := int(0); i < int(iterations); i++ {
+			offset := i * datasize
+			a, err := f.asmLoadValue(val, offset, uint(datasize), &valReg)
+			if err != nil {
+				return a, err
+			}
+			asm += a
+			a, err = f.asmStoreReg(&valReg, addr, offset)
+			if err != nil {
+				return a, err
+			}
+			asm += a
+		}
+		f.freeReg(valReg)
+
 	}
 
-	f.freeReg(valReg)
-	asm += f.Indent + fmt.Sprintf("// END asmStoreValAddr addr name:%v, val name:%v\n", addr.name, val.Name())
+	asm += f.Indent +
+		fmt.Sprintf("// END asmStoreValAddr addr name:%v, val name:%v\n",
+			addr.name, val.Name())
 	return asm, nil
 }
 
@@ -686,13 +717,12 @@ func (f *Function) asmBinOp(instr *ssa.BinOp) (string, *Error) {
 	var regX, regY *register
 	var regVal register
 	size := f.sizeof(instr)
-	issigned := signed(instr.Type())
 	xIsSigned := signed(instr.X.Type())
 	// comparison op results are size 1 byte, but that's not supported
 	if size == 1 {
-		regVal = f.allocReg(DataReg, 8*size)
+		regVal = f.allocReg(regType(instr.Type()), 8*size)
 	} else {
-		regVal = f.allocReg(DataReg, size)
+		regVal = f.allocReg(regType(instr.Type()), size)
 	}
 	asm, regX, regY, err := f.asmBinOpLoadXY(instr)
 	if err != nil {
@@ -705,14 +735,16 @@ func (f *Function) asmBinOp(instr *ssa.BinOp) (string, *Error) {
 	default:
 		panic(fmt.Sprintf("Unknown op (%v)", instr.Op))
 	case token.ADD, token.SUB, token.MUL, token.QUO, token.REM:
-		asm += asmArithOp(f.Indent, issigned, INTEGER_OP, instr.Op, regX, regY, &regVal, size)
+		instrdata := GetInstrDataType(instr.Type())
+		asm += asmArithOp(f.Indent, instrdata, instr.Op, regX, regY, &regVal)
 	case token.AND, token.OR, token.XOR, token.SHL, token.SHR, token.AND_NOT:
 		asm += asmBitwiseOp(f.Indent, instr.Op, xIsSigned, regX, regY, &regVal, size)
 	case token.EQL, token.NEQ, token.LEQ, token.GEQ, token.LSS, token.GTR:
 		if size != f.sizeof(instr.Y) {
 			panic("Comparing two different size values")
 		}
-		asm += asmCmpOp(f.Indent, instr.Op, xIsSigned, regX, regY, &regVal, size)
+		instrdata := GetInstrDataType(instr.X.Type())
+		asm += asmCmpOp(f.Indent, instrdata, instr.Op, regX, regY, &regVal)
 	}
 	f.freeReg(*regX)
 	f.freeReg(*regY)
@@ -747,9 +779,9 @@ func (f *Function) asmBinOpLoadXY(instr *ssa.BinOp) (asm string, x *register, y 
 		return "", nil, nil, err
 	}
 
-	xtmp := f.allocReg(DataReg, f.sizeof(instr.X))
+	xtmp := f.allocReg(regType(instr.X.Type()), f.sizeof(instr.X))
 	x = &xtmp
-	ytmp := f.allocReg(DataReg, f.sizeof(instr.Y))
+	ytmp := f.allocReg(regType(instr.Y.Type()), f.sizeof(instr.Y))
 	y = &ytmp
 	asm = f.Indent + "// BEGIN asmBinOpLoadXY\n"
 
@@ -777,7 +809,7 @@ func (f *Function) sizeof(val ssa.Value) uint {
 	if !ok {
 		panic(fmt.Sprintf("Unknown name (%v), value (%v)\n", val.Name(), val))
 	}
-	_, _, size := info.MemRegOffsetSize()
+	_, _, size := info.Addr()
 	return size
 }
 
@@ -798,7 +830,7 @@ func (f *Function) asmLoadValue(val ssa.Value, offset int, size uint, reg *regis
 		panic(fmt.Sprintf("Unknown name (%v), value (%v)\n", val.Name(), val))
 	}
 
-	r, roffset, rsize := info.MemRegOffsetSize()
+	r, roffset, rsize := info.Addr()
 	if rsize%size != 0 {
 		panic(fmt.Sprintf("Size (%v) value not divisor of value (%v) size (%v), name (%v)\n", size, val, rsize, val.Name()))
 	}
@@ -806,11 +838,12 @@ func (f *Function) asmLoadValue(val ssa.Value, offset int, size uint, reg *regis
 		panic(fmt.Sprintf("Greater than 8 byte sized (%v) value, value (%v), name (%v)\n", size, val, val.Name()))
 	}
 
-	return asmMovMemReg(f.Indent, INTEGER_OP, info.name, roffset+offset, &r, rsize, reg), nil
+	datatype := GetInstrDataType(val.Type())
+	return asmMovMemReg(f.Indent, datatype, info.name, roffset+offset, &r, reg), nil
 }
 
 func (f *Function) asmStoreReg(reg *register, addr *nameInfo, offset int) (string, *Error) {
-	r, roffset, rsize := addr.MemRegOffsetSize()
+	r, roffset, rsize := addr.Addr()
 	if rsize > 8 {
 		panic(fmt.Sprintf("Greater than 8 byte sized (%v) value, addr (%v), name (%v)\n", rsize, *addr, addr.name))
 	}
@@ -818,50 +851,50 @@ func (f *Function) asmStoreReg(reg *register, addr *nameInfo, offset int) (strin
 		panic(fmt.Sprintf("size == 0 for addr (%v)", *addr))
 	}
 	asm := f.Indent + fmt.Sprintf("// BEGIN asmStoreReg, size (%v)\n", rsize)
-	asm += asmMovRegMem(f.Indent, INTEGER_OP, reg, addr.name, &r, offset+roffset, rsize)
+	instrdata := GetInstrDataType(addr.typ)
+	asm += asmMovRegMem(f.Indent, instrdata, reg, addr.name, &r, offset+roffset)
 	asm += f.Indent + fmt.Sprintf("// END asmStoreReg, size (%v)\n", rsize)
 	return asm, nil
 }
 
 func (f *Function) asmLoadConstValue(cnst *ssa.Const, r *register) (string, *Error) {
-	size := sizeof(cnst.Type())
 
 	if isBool(cnst.Type()) {
+		var val int8
 		if cnst.Value.String() == "true" {
-			return asmMovImm8Reg(f.Indent, int8(1), r), nil
-		} else {
-			return asmMovImm8Reg(f.Indent, int8(0), r), nil
+			val = 1
 		}
+		return asmMovImm8Reg(f.Indent, val, r), nil
+	}
+	if isFloat(cnst.Type()) {
+		if r.typ != XMM_REG {
+			panic("Can't load float const into non xmm register")
+		}
+		tmp := f.allocReg(DATA_REG, 8)
+		asm := ""
+		if isFloat32(cnst.Type()) {
+			asm = asmMovImmf32Reg(f.Indent, float32(cnst.Float64()), &tmp, r)
+		} else {
+			asm = asmMovImmf64Reg(f.Indent, cnst.Float64(), &tmp, r)
+		}
+		f.freeReg(tmp)
+		return asm, nil
+
+	}
+	if isComplex(cnst.Type()) {
+		panic("Complex64/128 is unsupported ")
 	}
 
+	size := sizeof(cnst.Type())
 	signed := signed(cnst.Type())
-	switch size {
-	case 1:
-		if signed {
-			return asmMovImm8Reg(f.Indent, int8(cnst.Int64()), r), nil
-		} else {
-			return asmMovImm16Reg(f.Indent, int16(uint8(cnst.Uint64())), r), nil
-		}
-	case 2:
-		if signed {
-			return asmMovImm16Reg(f.Indent, int16(cnst.Int64()), r), nil
-		} else {
-			return asmMovImm32Reg(f.Indent, int32(uint16(cnst.Uint64())), r), nil
-		}
-	case 4:
-		if signed {
-			return asmMovImm32Reg(f.Indent, int32(cnst.Int64()), r), nil
-		} else {
-			return asmMovImm64Reg(f.Indent, int64(uint32(cnst.Uint64())), r), nil
-		}
-	case 8:
-		if signed {
-			return asmMovImm64Reg(f.Indent, cnst.Int64(), r), nil
-		} else {
-			return asmMovImm64Reg(f.Indent, int64(cnst.Uint64()), r), nil
-		}
+	var val int64
+	if signed {
+		val = cnst.Int64()
+	} else {
+
+		val = int64(cnst.Uint64())
 	}
-	panic(fmt.Sprintf("invalid size (%v)", size))
+	return asmMovImmReg(f.Indent, val, size, r), nil
 }
 
 func (f *Function) asmUnOp(instr *ssa.UnOp) (string, *Error) {
@@ -892,7 +925,7 @@ func (f *Function) asmUnOpXor(instr *ssa.UnOp, xorVal int32) (string, *Error) {
 		return "", err
 	}
 	size := f.sizeof(instr)
-	reg := f.allocReg(DataReg, size)
+	reg := f.allocReg(regType(instr.X.Type()), size)
 
 	addr, ok := f.ssaNames[instr.Name()]
 	if !ok {
@@ -935,12 +968,10 @@ func (f *Function) asmUnOpSub(instr *ssa.UnOp) (string, *Error) {
 	var regX register
 	var regSubX register
 	var regVal register
-	size := f.sizeof(instr)
-	signed := signed(instr.Type())
 
-	regVal = f.allocReg(DataReg, size)
-	regX = f.allocReg(DataReg, f.sizeof(instr.X))
-	regSubX = f.allocReg(DataReg, f.sizeof(instr.X))
+	regVal = f.allocReg(regType(instr.Type()), f.sizeof(instr))
+	regX = f.allocReg(regType(instr.X.Type()), f.sizeof(instr.X))
+	regSubX = f.allocReg(regType(instr.X.Type()), f.sizeof(instr.X))
 
 	addr, ok := f.ssaNames[instr.Name()]
 	if !ok {
@@ -953,7 +984,8 @@ func (f *Function) asmUnOpSub(instr *ssa.UnOp) (string, *Error) {
 	}
 
 	asm += asmZeroReg(f.Indent, &regSubX)
-	asm += asmArithOp(f.Indent, signed, INTEGER_OP, token.SUB, &regSubX, &regX, &regVal, size)
+	instrdata := GetInstrDataType(instr.Type())
+	asm += asmArithOp(f.Indent, instrdata, token.SUB, &regSubX, &regX, &regVal)
 	f.freeReg(regX)
 	f.freeReg(regSubX)
 
@@ -976,7 +1008,10 @@ func (f *Function) asmUnOpPointer(instr *ssa.UnOp) (string, *Error) {
 	assignment, ok := f.ssaNames[instr.Name()]
 	xName := instr.X.Name()
 	xInfo, okX := f.ssaNames[xName]
-
+	// TODO add float32/64 support
+	if isFloat(instr.Type()) || isFloat(instr.X.Type()) {
+		return "", &Error{fmt.Errorf("*float32/64 not supported"), instr.Pos()}
+	}
 	if !okX {
 		panic(fmt.Sprintf("Unknown name for UnOp X (%v), instr \"(%v)\"", instr.X, instr))
 	}
@@ -990,20 +1025,15 @@ func (f *Function) asmUnOpPointer(instr *ssa.UnOp) (string, *Error) {
 			panic(fmt.Sprintf("Err in UnOp X (%v), instr \"(%v)\", msg: \"%v\"", instr.X, instr, err))
 		}
 		assignment = info
-		/*if xInfo.local == nil && xInfo.param == nil {
-			assignment.typ = xInfo.PointerUnderlyingType()
-		} else {
-			assignment.typ = xInfo.typ
-		}*/
 	}
-	xReg, xOffset, xSize := xInfo.MemRegOffsetSize()
-	aReg, aOffset, aSize := assignment.MemRegOffsetSize()
+	xReg, xOffset, xSize := xInfo.Addr()
+	aReg, aOffset, aSize := assignment.Addr()
 	if xSize != aSize {
 		panic("xSize := aSize")
 	}
 	size := aSize
-	tmp1 := f.allocReg(DataReg, DataRegSize)
-	tmp2 := f.allocReg(DataReg, DataRegSize)
+	tmp1 := f.allocReg(DATA_REG, DataRegSize)
+	tmp2 := f.allocReg(DATA_REG, DataRegSize)
 	asm += asmMovMemIndirectMem(f.Indent, INTEGER_OP, xInfo.name, xOffset, &xReg, assignment.name, aOffset, &aReg, size, &tmp1, &tmp2)
 	f.ssaNames[assignment.name] = assignment
 	f.freeReg(tmp1)
@@ -1017,29 +1047,7 @@ func (f *Function) asmIndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 
 	}
 	asm := ""
-	constIndex := false
-	paramIndex := false
-	var cnst *ssa.Const
-	var param *ssa.Parameter
-	switch instr.Index.(type) {
-	default:
-	case *ssa.Const:
-		constIndex = true
-		cnst = instr.Index.(*ssa.Const)
-	case *ssa.Parameter:
-		paramIndex = true
-		param = instr.Index.(*ssa.Parameter)
-	}
-
 	xInfo := f.ssaNames[instr.X.Name()]
-
-	// TODO check if xInfo is pointer, array, struct, etc.
-	//if xInfo.IsPointer() || xInfo.IsArray() {
-
-	/*if xInfo.reg == nil {
-		msg := fmt.Sprintf("nil xInfo.reg (%v) in indexaddr op", xInfo.name)
-		return asm, &Error{Err: errors.New(msg), Pos: instr.Pos()}
-	}*/
 
 	assignment, ok := f.ssaNames[instr.Name()]
 	if !ok {
@@ -1052,40 +1060,18 @@ func (f *Function) asmIndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 		f.ssaNames[instr.Name()] = assignment
 	}
 
-	if constIndex {
-		tmpReg := f.allocReg(DataReg, sizePtr())
-		size := uint(sizeofElem(xInfo.typ))
-		idx := uint(cnst.Uint64())
-		xReg, xOffset, _ := xInfo.MemRegOffsetSize()
-		assignmentReg, assignmentOffset, assignmentSize := assignment.MemRegOffsetSize()
-		asm += asmLea(f.Indent, xInfo.name, xOffset+int(idx*size), &xReg, &tmpReg)
-		asm += asmMovRegMem(f.Indent, INTEGER_OP, &tmpReg, assignment.name, &assignmentReg, assignmentOffset, assignmentSize)
-		f.freeReg(tmpReg)
-	} else if paramIndex {
-		p := f.ssaNames[param.Name()]
-		tmpReg := f.allocReg(DataReg, sizePtr())
-		tmp2Reg := f.allocReg(DataReg, sizePtr())
-		xReg, xOffset, _ := xInfo.MemRegOffsetSize()
-		pReg, pOffset, pSize := p.MemRegOffsetSize()
-		if pSize != 8 {
-			fmt.Println("instr:", instr)
-			fmt.Println("pSize:", pSize)
-			panic("Index size not 8 bytes")
-		}
-		assignmentReg, assignmentOffset, aSize := assignment.MemRegOffsetSize()
-		if aSize != pSize {
-			panic("aSize != pSize")
-		}
-		asm += asmMovMemReg(f.Indent, INTEGER_OP, p.name, pOffset, &pReg, pSize, &tmp2Reg)
-		asm += asmLea(f.Indent, xInfo.name, xOffset, &xReg, &tmpReg)
-		asm += asmAddRegReg(f.Indent, INTEGER_OP, &tmpReg, &tmp2Reg)
-		asm += asmMovRegMem(f.Indent, INTEGER_OP, &tmp2Reg, assignment.name, &assignmentReg, assignmentOffset, aSize)
-		f.freeReg(tmpReg)
-		f.freeReg(tmp2Reg)
-
-	} else {
-		asm = fmt.Sprintf(f.Indent+"// Unsupported ssa.IndexAddr:%v\n", instr)
-	}
+	xReg, xOffset, _ := xInfo.Addr()
+	aReg, aOffset, _ := assignment.Addr()
+	addrReg := f.allocReg(DATA_REG, sizePtr())
+	idxReg := f.allocReg(DATA_REG, sizePtr())
+	f.asmLoadValueSimple(instr.Index, &idxReg)
+	asm += asmLea(f.Indent, xInfo.name, xOffset, &xReg, &addrReg)
+	instrdata := InstrDataType{INTEGER_OP, InstrData{signed: false, size: idxReg.width / 8}, XMM_INVALID}
+	asm += asmAddRegReg(f.Indent, instrdata, &idxReg, &addrReg)
+	instrdata = GetInstrDataType(assignment.typ)
+	asm += asmMovRegMem(f.Indent, instrdata, &addrReg, assignment.name, &aReg, aOffset)
+	f.freeReg(idxReg)
+	f.freeReg(addrReg)
 	f.ssaNames[instr.Name()] = assignment
 	asm = f.Indent + fmt.Sprintf("// BEGIN ssa.IndexAddr: %v = %v\n", instr.Name(), instr) + asm
 	asm += f.Indent + fmt.Sprintf("// END ssa.IndexAddr: %v = %v\n", instr.Name(), instr)
@@ -1182,8 +1168,8 @@ func (f *Function) allocReg(t RegType, size uint) register {
 		f.registers[reg.name] = true
 	} else {
 		// any of the data registers can be used as an address register on x86_64
-		if t == AddrReg {
-			return f.allocReg(DataReg, size)
+		if t == ADDR_REG {
+			return f.allocReg(DATA_REG, size)
 		} else {
 			panic(fmt.Sprintf("couldn't alloc register, type: %v, width in bits: %v, size in bytes:%v", t, size*8, size))
 		}
@@ -1376,7 +1362,8 @@ func sizeof(t types.Type) uint {
 	switch t := t.(type) {
 	case *types.Tuple:
 		// TODO: usage of reflect most likely wrong!
-		return uint(reflect.TypeOf(t).Elem().Size())
+		// uint(reflect.TypeOf(t).Elem().Size())
+		panic("Tuples are unsupported")
 	case *types.Basic:
 		return sizeBasic(t.Kind())
 	case *types.Pointer:
@@ -1385,10 +1372,11 @@ func sizeof(t types.Type) uint {
 		return sliceSize
 	case *types.Array:
 		// TODO: calculation most likely wrong
-		return uint(t.Len()) * sizeof(t.Elem())
+		// return uint(t.Len()) * sizeof(t.Elem())
+		panic("Arrays are unsupported")
 	case *types.Named:
 		if !isSimd(t) {
-
+			panic("Named type is unsupported")
 		}
 		if info, err := simdTypeInfo(t); err != nil {
 			panic(fmt.Sprintf("Error unknown type in sizeof err:\"%v\"", err))
@@ -1468,12 +1456,32 @@ func signedBasic(b types.BasicKind) bool {
 }
 
 func isBool(t types.Type) bool {
-	if t, ok := t.(*types.Basic); ok {
-		return t.Kind() == types.Bool
-	}
-	return false
+	return isBasicKind(t, types.Bool)
 }
 
+func isFloat(t types.Type) bool {
+	return isFloat32(t) || isFloat64(t)
+}
+
+func isFloat32(t types.Type) bool {
+	return isBasicKind(t, types.Float32)
+}
+
+func isFloat64(t types.Type) bool {
+	return isBasicKind(t, types.Float64)
+}
+
+func isComplex(t types.Type) bool {
+	return isBasicKind(t, types.Complex64) || isBasicKind(t, types.Complex128)
+}
+
+func isBasicKind(t types.Type, basickind types.BasicKind) bool {
+	if t, ok := t.(*types.Basic); ok {
+		return t.Kind() == basickind
+	}
+	return false
+
+}
 func reflectType(t types.Type) reflect.Type {
 	switch t := t.(type) {
 	case *types.Tuple:
@@ -1523,4 +1531,35 @@ func reflectBasic(b types.BasicKind) reflect.Type {
 	case types.Float64:
 		return reflect.TypeOf(float64(1))
 	}
+}
+
+var bInstrData = InstrDataType{INTEGER_OP, InstrData{signed: false, size: 1}, XMM_INVALID}
+var f32InstrData = InstrDataType{XMM_OP, InstrData{}, XMM_F32}
+var f64InstrData = InstrDataType{XMM_OP, InstrData{}, XMM_F64}
+
+func GetInstrDataType(t types.Type) InstrDataType {
+	if isBool(t) {
+		return bInstrData
+	}
+	if isFloat32(t) {
+		return f32InstrData
+	} else if isFloat64(t) {
+		return f64InstrData
+	}
+	if isComplex(t) {
+		panic("complex32/64 unsupported")
+	}
+	instrdata := InstrDataType{
+		INTEGER_OP,
+		InstrData{signed: signed(t), size: sizeof(t)},
+		XMM_INVALID}
+	return instrdata
+
+}
+
+func regType(t types.Type) RegType {
+	if isFloat(t) {
+		return XMM_REG
+	}
+	return DATA_REG
 }

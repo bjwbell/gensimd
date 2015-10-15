@@ -2,9 +2,12 @@
 
 package tests
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
-//go:generate gensimd -fn "ift0, ift1, ift2, ift3, ift4, ift5, ift6, ift7" -outfn "ift0s, ift1s, ift2s, ift3s, ift4s, ift5s, ift6s, ift7s" -f "$GOFILE" -o "if_test.s"
+//go:generate gensimd -fn "ift0, ift1, ift2, ift3, ift4, ift5, ift6, ift7, ift8, ift9" -outfn "ift0s, ift1s, ift2s, ift3s, ift4s, ift5s, ift6s, ift7s, ift8s, ift9s" -f "$GOFILE" -o "if_test.s"
 
 func ift0s(uint8) uint8
 func ift1s(uint16) uint16
@@ -14,9 +17,11 @@ func ift4s(int8) int8
 func ift5s(int16) int16
 func ift6s(int32) int32
 func ift7s(int64) int64
+func ift8s(float32) float32
+func ift9s(float64) float64
 
 func ift0(x uint8) uint8 {
-	if x < 2*x {
+	if x < 2 {
 		return x
 	} else {
 		return x * x
@@ -71,6 +76,20 @@ func ift7(x int64) int64 {
 		return 10 - x
 	}
 }
+func ift8(x float32) float32 {
+	if x < 1 {
+		return -x
+	} else {
+		return 10 - x
+	}
+}
+func ift9(x float64) float64 {
+	if x*x < 2046 {
+		return x
+	} else {
+		return 3*x - x
+	}
+}
 
 func TestIf(t *testing.T) {
 	for j := -63; j <= 63; j++ {
@@ -106,6 +125,15 @@ func TestIf(t *testing.T) {
 		}
 		if ift7s(x) != ift7(x) {
 			t.Errorf("ift7s (%v) != ift7 (%v)", ift7s(x), ift7(x))
+		}
+
+		if ift8s(float32(x)) != ift8(float32(x)) {
+			sbits := math.Float32bits(ift8s(float32(x)))
+			tbits := math.Float32bits(ift8(float32(x)))
+			t.Errorf("ift8s (x=%v) (%v=%08x) != ift8 (%v=%08x)", float32(x), ift8s(float32(x)), sbits, ift8(float32(x)), tbits)
+		}
+		if ift9s(float64(x)) != ift9(float64(x)) {
+			t.Errorf("ift9s (%v) != ift9 (%v)", ift9s(float64(x)), ift9(float64(x)))
 		}
 	}
 }

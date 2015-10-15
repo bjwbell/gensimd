@@ -4,7 +4,7 @@ package tests
 
 import "testing"
 
-//go:generate gensimd -fn "uint8_t0, uint8_t1, uint8_t2, uint8_t3, uint8_t4" -outfn "uint8_t0_simd, uint8_t1_simd, uint8_t2_simd, uint8_t3_simd, uint8_t4_simd" -f "$GOFILE" -o "basicUint8_test.s"
+//go:generate gensimd -fn "uint8_t0, uint8_t1, uint8_t2, uint8_t3, uint8_t4" -outfn "uint8_t0_simd, uint8_t1_simd, uint8_t2_simd, uint8_t3_simd, uint8_t4_simd" -f "$GOFILE" -o "basicUint8_test_amd64.s"
 
 func uint8_t0_simd(uint8) uint8
 func uint8_t1_simd(uint8) uint8

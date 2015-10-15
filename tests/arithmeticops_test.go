@@ -4,7 +4,7 @@ package tests
 
 import "testing"
 
-//go:generate gensimd -fn "add, sub, neg, mul, div, addint8, subint8, negint8, mulint8, divint8, addint16, subint16, negint16, mulint16, divint16, addint64, subint64, negint64, mulint64, divint64, adduint8, subuint8, muluint8, divuint8, adduint16, subuint16, muluint16, divuint16, adduint32, subuint32, muluint32, divuint32, adduint64, subuint64, muluint64, divuint64" -outfn "adds, subs, negs, muls, divs, addint8s, subint8s, negint8s, mulint8s, divint8s, addint16s, subint16s, negint16s, mulint16s, divint16s, addint64s, subint64s, negint64s, mulint64s, divint64s, adduint8s, subuint8s, muluint8s, divuint8s, adduint16s, subuint16s, muluint16s, divuint16s, adduint32s, subuint32s, muluint32s, divuint32s, adduint64s, subuint64s, muluint64s, divuint64s" -f "$GOFILE" -o "arithmeticops_test.s"
+//go:generate gensimd -fn "add, sub, neg, mul, div, addint8, subint8, negint8, mulint8, divint8, addint16, subint16, negint16, mulint16, divint16, addint64, subint64, negint64, mulint64, divint64, adduint8, subuint8, muluint8, divuint8, adduint16, subuint16, muluint16, divuint16, adduint32, subuint32, muluint32, divuint32, adduint64, subuint64, muluint64, divuint64" -outfn "adds, subs, negs, muls, divs, addint8s, subint8s, negint8s, mulint8s, divint8s, addint16s, subint16s, negint16s, mulint16s, divint16s, addint64s, subint64s, negint64s, mulint64s, divint64s, adduint8s, subuint8s, muluint8s, divuint8s, adduint16s, subuint16s, muluint16s, divuint16s, adduint32s, subuint32s, muluint32s, divuint32s, adduint64s, subuint64s, muluint64s, divuint64s" -f "$GOFILE" -o "arithmeticops_test_amd64.s"
 
 func adds(x, y int32) int32
 func subs(x, y int32) int32

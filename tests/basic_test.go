@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-//go:generate gensimd -fn "test0, test1, test2, test3, test4" -outfn "t0simd, t1simd,t2simd,t3simd,t4simd" -f "$GOFILE" -o "basic_test.s"
+//go:generate gensimd -fn "test0, test1, test2, test3, test4" -outfn "t0simd, t1simd,t2simd,t3simd,t4simd" -f "$GOFILE" -o "basic_test_amd64.s"
 
 func t0simd() int
 func t1simd() int

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-//go:generate gensimd -fn "ift0, ift1, ift2, ift3, ift4, ift5, ift6, ift7, ift8, ift9" -outfn "ift0s, ift1s, ift2s, ift3s, ift4s, ift5s, ift6s, ift7s, ift8s, ift9s" -f "$GOFILE" -o "if_test.s"
+//go:generate gensimd -fn "ift0, ift1, ift2, ift3, ift4, ift5, ift6, ift7, ift8, ift9" -outfn "ift0s, ift1s, ift2s, ift3s, ift4s, ift5s, ift6s, ift7s, ift8s, ift9s" -f "$GOFILE" -o "if_test_amd64.s"
 
 func ift0s(uint8) uint8
 func ift1s(uint16) uint16

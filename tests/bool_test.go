@@ -4,7 +4,7 @@ package tests
 
 import "testing"
 
-//go:generate gensimd -fn "boolt0, boolt1, boolt2, boolt3, boolt4, boolt5" -outfn "boolt0s, boolt1s, boolt2s, boolt3s, boolt4s, boolt5s" -f "$GOFILE" -o "bool_test.s"
+//go:generate gensimd -fn "boolt0, boolt1, boolt2, boolt3, boolt4, boolt5" -outfn "boolt0s, boolt1s, boolt2s, boolt3s, boolt4s, boolt5s" -f "$GOFILE" -o "bool_test_amd64.s"
 
 func boolt0s(bool) bool
 func boolt1s(bool) bool

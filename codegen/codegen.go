@@ -572,38 +572,38 @@ func (f *Function) ConvertUint64ToFloat(tmp, regU64, regFloat *register, floatSi
 		cvt = "CVTSQ2SD"
 		add = "ADDSD"
 	}
-	str := "//      U64\n" +
-		"CMPQ	%v, $-1\n" +
-		"//      jmp to rounding\n" +
-		"JEQ	%v\n" +
-		"//     U64\n" +
-		"CMPQ	%v, $-1\n" +
-		"//      jmp to no rounding\n" +
-		"JGE	%v\n" +
-		"// rounding label\n" +
-		"%v:\n" +
-		"//     U64 I64\n" +
-		"MOVQ	%v, %v\n" +
-		"//         I64\n" +
-		"SHRQ	$1, %v\n" +
-		"//     U64 TMP\n" +
-		"MOVQ	%v, %v\n" +
-		"//         TMP\n" +
-		"ANDL	$1, %v\n" +
-		"//     TMP I64\n" +
-		"ORQ	%v, %v\n" +
-		"//CVT  I64 XMM\n" +
-		"%v    %v, %v\n" +
-		"//ADD XMM, XMM\n" +
-		"%v    %v, %v\n" +
-		"//    jmp to end\n" +
-		"JMP   %v\n" +
-		"//    jmp label for no rounding\n" +
-		"%v:\n" +
-		"//CVT U64 XMM\n" +
-		"%v     %v, %v\n" +
-		"//    jmp label for end\n" +
-		"%v:\n"
+	str := f.Indent + "//      U64\n" +
+		f.Indent + "CMPQ	%v, $-1\n" +
+		f.Indent + "//      jmp to rounding\n" +
+		f.Indent + "JEQ	%v\n" +
+		f.Indent + "//     U64\n" +
+		f.Indent + "CMPQ	%v, $-1\n" +
+		f.Indent + "//      jmp to no rounding\n" +
+		f.Indent + "JGE	%v\n" +
+		f.Indent + "// rounding label\n" +
+		f.Indent + "%v:\n" +
+		f.Indent + "//     U64 I64\n" +
+		f.Indent + "MOVQ	%v, %v\n" +
+		f.Indent + "//         I64\n" +
+		f.Indent + "SHRQ	$1, %v\n" +
+		f.Indent + "//     U64 TMP\n" +
+		f.Indent + "MOVQ	%v, %v\n" +
+		f.Indent + "//         TMP\n" +
+		f.Indent + "ANDL	$1, %v\n" +
+		f.Indent + "//     TMP I64\n" +
+		f.Indent + "ORQ	%v, %v\n" +
+		f.Indent + "//CVT  I64 XMM\n" +
+		f.Indent + "%v    %v, %v\n" +
+		f.Indent + "//ADD XMM, XMM\n" +
+		f.Indent + "%v    %v, %v\n" +
+		f.Indent + "//    jmp to end\n" +
+		f.Indent + "JMP   %v\n" +
+		f.Indent + "//    jmp label for no rounding\n" +
+		f.Indent + "%v:\n" +
+		f.Indent + "//CVT U64 XMM\n" +
+		f.Indent + "%v     %v, %v\n" +
+		f.Indent + "//    jmp label for end\n" +
+		f.Indent + "%v:\n"
 
 	asm += fmt.Sprintf(str,
 		regU64.name,

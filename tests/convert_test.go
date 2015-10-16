@@ -524,9 +524,9 @@ func TestNumericConversions(t *testing.T) {
 		if F32ToF32s(float32(f64)) != F32ToF32(float32(f64)) {
 			t.Errorf("F32ToF32s(%v) %v != %v", float32(f64), F32ToF32s(float32(f64)), F32ToF32(float32(f64)))
 		}
-		/*if F32ToF64s(float32(f64)) != F32ToF64(float32(f64)) {
+		if F32ToF64s(float32(f64)) != F32ToF64(float32(f64)) {
 			t.Errorf("F32ToF64s(%v) %v != %v", float32(f64), F32ToF64s(float32(f64)), F32ToF64(float32(f64)))
-		}*/
+		}
 
 		if F64ToU8s(float64(f64)) != F64ToU8(float64(f64)) {
 			t.Errorf("F64ToU8s(%v) %v != %v", float64(f64), F64ToU8s(float64(f64)), F64ToU8(float64(f64)))
@@ -552,9 +552,9 @@ func TestNumericConversions(t *testing.T) {
 		if F64ToI64s(float64(f64)) != F64ToI64(float64(f64)) {
 			t.Errorf("F64ToI64s(%v) %v != %v", float64(f64), F64ToI64s(float64(f64)), F64ToI64(float64(f64)))
 		}
-		/*if F64ToF32s(float64(f64)) != F64ToF32(float64(f64)) {
+		if F64ToF32s(float64(f64)) != F64ToF32(float64(f64)) {
 			t.Errorf("F64ToF32s(%v) %v != %v", float64(f64), F64ToF32s(float64(f64)), F64ToF32(float64(f64)))
-		}*/
+		}
 		if F64ToF64s(float64(f64)) != F64ToF64(float64(f64)) {
 			t.Errorf("F64ToF64s(%v) %v != %v", float64(f64), F64ToF64s(float64(f64)), F64ToF64(float64(f64)))
 		}

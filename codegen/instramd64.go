@@ -102,6 +102,9 @@ const (
 	// convert f32/f64 to a uint8/int8, ..., uint64/int64
 	I_CVT_INT2FLOAT
 
+	// convert f32/f64 to f64/f32
+	I_CVT_FLOAT2FLOAT
+
 	I_DIV
 	I_IMUL
 	I_IDIV
@@ -141,6 +144,8 @@ func (tinst InstructionType) String() string {
 		return "I_CVT_FLOAT2INT"
 	case I_CVT_INT2FLOAT:
 		return "I_CVT_INT2FLOAT"
+	case I_CVT_FLOAT2FLOAT:
+		return "I_CVT_FLOAT2FLOAT"
 	case I_ADD:
 		return "ADD"
 	case I_SUB:
@@ -294,6 +299,12 @@ func GetConvertInstruction(tinst InstructionType, fromsize, tosize uint) Instr {
 		} else if fromsize == 8 && tosize == 8 {
 			// int64 to f64
 			return CVTSQ2SD
+		}
+	} else if tinst == I_CVT_FLOAT2FLOAT {
+		if fromsize == 4 && tosize == 8 {
+			return CVTSS2SD
+		} else if fromsize == 8 && tosize == 4 {
+			return CVTSD2SS
 		}
 	}
 	panic(fmt.Sprintf("Internal error in numeric type conversion instruction (%v)", tinst))
@@ -1144,7 +1155,9 @@ func FloatToInteger(indent string, from, to *register, ftype, totype InstrDataTy
 }
 
 func FloatToFloat(indent string, from, to *register, ftype, totype InstrDataType) string {
-	return ""
+	fromsize := XmmInstrDataSize(ftype.xmmvariant)
+	cvt := GetConvertInstruction(I_CVT_FLOAT2FLOAT, fromsize, totype.size).String()
+	return indent + fmt.Sprintf("%v    %v, %v\n", cvt, from.name, to.name)
 }
 
 func Ret(indent string) string {

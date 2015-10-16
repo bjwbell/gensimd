@@ -10,10 +10,22 @@ import (
 type InstrOpType int
 
 const (
-	_          InstrOpType = iota
+	INVALID_OP InstrOpType = iota
 	INTEGER_OP             // int8/uint8,,..., int64/uint64
 	XMM_OP                 // f32/f64, packed f32, packed f64
 )
+
+func (optype InstrOpType) String() string {
+	switch optype {
+	case INVALID_OP:
+		return "INVALID_OP"
+	case INTEGER_OP:
+		return "INTEGER_OP"
+	case XMM_OP:
+		return "XMM_OP"
+	}
+	return fmt.Sprintf("UNKNOWN OP TYPE: %v", int(optype))
+}
 
 type InstrDataType struct {
 	op InstrOpType
@@ -82,7 +94,18 @@ type InstructionType int
 
 const (
 	I_ADD InstructionType = iota
-	I_SUB
+	I_AND
+	I_CMP
+
+	// convert f32/64 to a uint8/int8, ..., uint64/int64
+	I_CVT_FLOAT2INT
+	// convert f32/f64 to a uint8/int8, ..., uint64/int64
+	I_CVT_INT2FLOAT
+
+	I_DIV
+	I_IMUL
+	I_IDIV
+	I_LEA
 	I_MOV
 
 	// mov byte, sign extend
@@ -98,26 +121,26 @@ const (
 	I_MOVWZX
 	// mov long, zero extend
 	I_MOVLZX
-
-	I_XOR
-	I_LEA
-	I_IMUL
 	I_MUL
-	I_IDIV
-	I_DIV
-	I_AND
+
 	I_OR
-	I_SHL
-	I_SHR
 	I_SAL
 	I_SAR
-	I_CMP
+
+	I_SHL
+	I_SHR
+	I_SUB
+	I_XOR
 )
 
 func (tinst InstructionType) String() string {
 	switch tinst {
 	default:
 		panic("Unknown TIinstruction")
+	case I_CVT_FLOAT2INT:
+		return "I_CVT_FLOAT2INT"
+	case I_CVT_INT2FLOAT:
+		return "I_CVT_INT2FLOAT"
 	case I_ADD:
 		return "ADD"
 	case I_SUB:
@@ -198,16 +221,14 @@ var Insts = []Instruction{
 }
 
 var XmmInsts = []XmmInstruction{
-	{I_MOV, MOVSS, MOVSD, MOVUPS, MOVUPD},
 
 	{I_ADD, ADDSS, ADDSD, ADDPS, ADDPD},
-	{I_SUB, SUBSS, SUBSD, SUBPS, SUBPD},
-	{I_MUL, MULSS, MULSD, MULPS, MULPD},
-	{I_DIV, DIVSS, DIVSD, DIVPS, DIVPD},
-
-	{I_XOR, NONE, NONE, XORPS, XORPD},
-
 	{I_CMP, UCOMISS, UCOMISD, NONE, NONE},
+	{I_DIV, DIVSS, DIVSD, DIVPS, DIVPD},
+	{I_MOV, MOVSS, MOVSD, MOVUPS, MOVUPD},
+	{I_MUL, MULSS, MULSD, MULPS, MULPD},
+	{I_SUB, SUBSS, SUBSD, SUBPS, SUBPD},
+	{I_XOR, NONE, NONE, XORPS, XORPD},
 }
 
 func GetInstruction(tinst InstructionType) Instruction {
@@ -243,6 +264,39 @@ func (xinstr XmmInstruction) Select(variant XmmData) Instr {
 		panic(fmt.Sprintf("unrecognized variant for %v", xinstr.XmmInstr))
 	}
 	return instr
+}
+
+func GetConvertInstruction(tinst InstructionType, fromsize, tosize uint) Instr {
+	if tinst == I_CVT_FLOAT2INT {
+		if fromsize == 4 && tosize <= 4 {
+			// f32 to int32 with truncation
+			return CVTTSS2SL
+		} else if fromsize == 4 && tosize == 8 {
+			// f32 to int64 with truncation
+			return CVTTSS2SQ
+		} else if fromsize == 8 && tosize <= 4 {
+			// f64 to int32 with truncation
+			return CVTTSD2SL
+		} else if fromsize == 8 && tosize == 8 {
+			// f64 to int64 with truncation
+			return CVTTSD2SQ
+		}
+	} else if tinst == I_CVT_INT2FLOAT {
+		if fromsize == 4 && tosize == 4 {
+			// int32 to f32
+			return CVTSL2SS
+		} else if fromsize == 4 && tosize == 8 {
+			// int32 to f64
+			return CVTSL2SD
+		} else if fromsize == 8 && tosize == 4 {
+			// int64 to f32
+			return CVTSQ2SS
+		} else if fromsize == 8 && tosize == 8 {
+			// int64 to f64
+			return CVTSQ2SD
+		}
+	}
+	panic(fmt.Sprintf("Internal error in numeric type conversion instruction (%v)", tinst))
 }
 
 // GetInstr, the size is in bytes
@@ -300,7 +354,7 @@ func ZeroReg(indent string, reg *register) string {
 	return indent + fmt.Sprintf("%v    %v, %v\n", xor.String(), reg.name, reg.name)
 }
 
-func MovRegReg(indent string, datatype InstrDataType, srcReg *register, dstReg *register) string {
+func MovRegReg(indent string, datatype InstrDataType, srcReg, dstReg *register) string {
 	if srcReg.width != dstReg.width {
 		panic(fmt.Sprintf("srcReg (%v) width (%v) != (%v) dstReg (%v) width or invalid size", srcReg.name, srcReg.width, dstReg.width, dstReg.name))
 	}
@@ -355,7 +409,7 @@ func MovMemMemIndirect(indent string, datatype InstrOpType, srcName string, srcO
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func MovMemIndirectReg(indent string, datatype InstrOpType, srcName string, srcOffset int, srcReg *register, dstReg *register, tmp *register) string {
+func MovMemIndirectReg(indent string, datatype InstrOpType, srcName string, srcOffset int, srcReg, dstReg, tmp *register) string {
 	if dstReg.width != tmp.width {
 		panic("Invalid register width")
 	}
@@ -369,7 +423,7 @@ func MovMemIndirectReg(indent string, datatype InstrOpType, srcName string, srcO
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func MovMemIndirectMem(indent string, datatype InstrDataType, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, size uint, tmp1 *register, tmp2 *register) string {
+func MovMemIndirectMem(indent string, datatype InstrDataType, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, size uint, tmp1, tmp2 *register) string {
 	if tmp1.width/8 < sizePtr() {
 		panic("register width smaller than ptr size ")
 	}
@@ -418,7 +472,7 @@ func MovMemIndirectMem(indent string, datatype InstrDataType, srcName string, sr
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func MovMemIndirectMemIndirect(indent string, datatype InstrOpType, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, tmp1 *register, tmp2 *register) string {
+func MovMemIndirectMemIndirect(indent string, datatype InstrOpType, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg, tmp1, tmp2 *register) string {
 	if srcReg.width != 64 || dstReg.width != 64 {
 		panic("Invalid register width")
 	}
@@ -450,7 +504,7 @@ func MovImmReg(indent string, imm int64, size uint, dstReg *register) string {
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func MovImmFloatReg(indent string, f64 float64, isf32 bool, tmp *register, dst *register) string {
+func MovImmFloatReg(indent string, f64 float64, isf32 bool, tmp, dst *register) string {
 	if dst.typ != XMM_REG {
 		panic("Unexpected non xmm register")
 	}
@@ -477,11 +531,11 @@ func MovImmFloatReg(indent string, f64 float64, isf32 bool, tmp *register, dst *
 	return asm
 }
 
-func MovImmf32Reg(indent string, f32 float32, tmp *register, dst *register) string {
+func MovImmf32Reg(indent string, f32 float32, tmp, dst *register) string {
 	return MovImmFloatReg(indent, float64(f32), true, tmp, dst)
 }
 
-func MovImmf64Reg(indent string, f64 float64, tmp *register, dst *register) string {
+func MovImmf64Reg(indent string, f64 float64, tmp, dst *register) string {
 	return MovImmFloatReg(indent, f64, false, tmp, dst)
 }
 
@@ -505,7 +559,7 @@ func MovImm64Reg(indent string, imm64 int64, dstReg *register) string {
 
 // CMovCCRegReg conditionally moves the src reg to the dst reg if the carry
 // flag is clear (ie the previous compare had its src greater than its sub reg).
-func CMovCCRegReg(indent string, src *register, dst *register, size uint) string {
+func CMovCCRegReg(indent string, src, dst *register, size uint) string {
 	var cmov string
 	if size == 1 {
 		// there is conditional byte move
@@ -521,7 +575,7 @@ func CMovCCRegReg(indent string, src *register, dst *register, size uint) string
 	return asm
 }
 
-func Lea(indent string, srcName string, srcOffset int, srcReg *register, dstReg *register) string {
+func Lea(indent string, srcName string, srcOffset int, srcReg, dstReg *register) string {
 	if srcReg.width != dstReg.width {
 		panic("Invalid register width")
 	}
@@ -547,7 +601,7 @@ func SubImm32Reg(indent string, imm32 uint32, dstReg *register) string {
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func AddRegReg(indent string, datatype InstrDataType, srcReg *register, dstReg *register) string {
+func AddRegReg(indent string, datatype InstrDataType, srcReg, dstReg *register) string {
 	if dstReg.width != srcReg.width {
 		panic("Invalid register width")
 	}
@@ -556,7 +610,7 @@ func AddRegReg(indent string, datatype InstrDataType, srcReg *register, dstReg *
 	return asm
 }
 
-func SubRegReg(indent string, datatype InstrDataType, srcReg *register, dstReg *register) string {
+func SubRegReg(indent string, datatype InstrDataType, srcReg, dstReg *register) string {
 	if dstReg.width != srcReg.width {
 		panic("Invalid register width")
 	}
@@ -566,7 +620,7 @@ func SubRegReg(indent string, datatype InstrDataType, srcReg *register, dstReg *
 	return asm
 }
 
-func MulImm32RegReg(indent string, imm32 uint32, srcReg *register, dstReg *register) string {
+func MulImm32RegReg(indent string, imm32 uint32, srcReg, dstReg *register) string {
 	if dstReg.width < 32 {
 		panic("Invalid register width")
 	}
@@ -576,7 +630,7 @@ func MulImm32RegReg(indent string, imm32 uint32, srcReg *register, dstReg *regis
 
 // MulRegReg multiplies the src register by the dst register and stores
 // the result in the dst register. Overflow is discarded
-func MulRegReg(indent string, datatype InstrDataType, src *register, dst *register) string {
+func MulRegReg(indent string, datatype InstrDataType, src, dst *register) string {
 
 	if dst.width != src.width {
 		panic("Invalid register width")
@@ -615,7 +669,7 @@ func MulRegReg(indent string, datatype InstrDataType, src *register, dst *regist
 
 // DivRegReg divides the "dividend" register by the "divisor" register and stores
 // the quotient in rax and the remainder in rdx. DivRegReg is only for integer division.
-func DivRegReg(indent string, signed bool, datatype InstrOpType, dividend *register, divisor *register, size uint) (asm string, rax *register, rdx *register) {
+func DivRegReg(indent string, signed bool, datatype InstrOpType, dividend, divisor *register, size uint) (asm string, rax *register, rdx *register) {
 
 	if dividend.width != divisor.width || divisor.width < size*8 {
 		panic("Invalid register width for DivRegReg")
@@ -659,7 +713,7 @@ func DivRegReg(indent string, signed bool, datatype InstrOpType, dividend *regis
 
 // DivFloatRegReg performs floating point division by dividing the dividend register
 // by the divisor register and stores the quotient in the dividend register
-func DivFloatRegReg(indent string, datatype InstrDataType, dividend *register, divisor *register) string {
+func DivFloatRegReg(indent string, datatype InstrDataType, dividend, divisor *register) string {
 
 	if dividend.width != divisor.width {
 		panic("Invalid register width")
@@ -673,7 +727,7 @@ func DivFloatRegReg(indent string, datatype InstrDataType, dividend *register, d
 	return asm
 }
 
-func ArithOp(indent string, datatype InstrDataType, op token.Token, x *register, y *register, result *register) string {
+func ArithOp(indent string, datatype InstrDataType, op token.Token, x, y, result *register) string {
 	if x.width != y.width || x.width != result.width {
 		panic("Invalid register width")
 	}
@@ -714,7 +768,7 @@ func ArithOp(indent string, datatype InstrDataType, op token.Token, x *register,
 
 // AndRegReg AND's the src register by the dst register and stores
 // the result in the dst register.
-func AndRegReg(indent string, src *register, dst *register, size uint) string {
+func AndRegReg(indent string, src, dst *register, size uint) string {
 	if src.width != dst.width {
 		panic("Invalid register width")
 	}
@@ -724,7 +778,7 @@ func AndRegReg(indent string, src *register, dst *register, size uint) string {
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func OrRegReg(indent string, src *register, dst *register) string {
+func OrRegReg(indent string, src, dst *register) string {
 	if src.width != dst.width {
 		panic("Invalid register width")
 	}
@@ -734,7 +788,7 @@ func OrRegReg(indent string, src *register, dst *register) string {
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func XorRegReg(indent string, src *register, dst *register) string {
+func XorRegReg(indent string, src, dst *register) string {
 	if src.width != dst.width {
 		panic("Invalid register width")
 	}
@@ -767,18 +821,16 @@ const (
 	SHIFT_RIGHT
 )
 
-func MovZeroExtend(indent string, src *register, dst *register, srcSize uint, dstSize uint) string {
+func MovZeroExtend(indent string, src, dst *register, srcSize, dstSize uint) string {
 	var opcode InstructionType
 	switch srcSize {
 	default:
-		panic(fmt.Sprintf("Bad srcSize (%v)", srcSize))
+		panic(fmt.Sprintf("Internal error, bad zero extend size (%v)", srcSize))
 	case 1:
 		opcode = I_MOVBZX
 	case 2:
 		opcode = I_MOVWZX
 	case 4:
-		opcode = I_MOVWZX
-	case 8:
 		opcode = I_MOVLZX
 	}
 
@@ -791,18 +843,16 @@ func MovZeroExtend(indent string, src *register, dst *register, srcSize uint, ds
 	return asm
 }
 
-func MovSignExtend(indent string, src *register, dst *register, srcSize uint, dstSize uint) string {
+func MovSignExtend(indent string, src, dst *register, srcSize, dstSize uint) string {
 	var opcode InstructionType
 	switch srcSize {
 	default:
-		panic(fmt.Sprintf("Bad src size (%v)", srcSize))
+		panic(fmt.Sprintf("Internal error, bad sign extend size (%v)", srcSize))
 	case 1:
 		opcode = I_MOVBSX
 	case 2:
 		opcode = I_MOVWSX
 	case 4:
-		opcode = I_MOVWSX
-	case 8:
 		opcode = I_MOVLSX
 	}
 	data := InstrDataType{INTEGER_OP, InstrData{signed: false, size: dstSize}, XMM_INVALID}
@@ -814,7 +864,7 @@ func MovSignExtend(indent string, src *register, dst *register, srcSize uint, ds
 	return asm
 }
 
-func ShiftRegReg(indent string, signed bool, direction int, src *register, shiftReg *register, tmp *register, size uint) string {
+func ShiftRegReg(indent string, signed bool, direction int, src, shiftReg, tmp *register, size uint) string {
 
 	cl := getRegister(REG_CL)
 	cx := getRegister(REG_CX)
@@ -872,7 +922,7 @@ func ShiftRegReg(indent string, signed bool, direction int, src *register, shift
 	return asm
 }
 
-func AndNotRegReg(indent string, src *register, dst *register, size uint) string {
+func AndNotRegReg(indent string, src, dst *register, size uint) string {
 	if src.width != dst.width {
 		panic("Invalid register width")
 	}
@@ -881,7 +931,7 @@ func AndNotRegReg(indent string, src *register, dst *register, size uint) string
 	return asm
 }
 
-func BitwiseOp(indent string, op token.Token, signed bool, x *register, y *register, result *register, size uint) string {
+func BitwiseOp(indent string, op token.Token, signed bool, x, y, result *register, size uint) string {
 	if x.width != y.width || x.width != result.width {
 		panic("Invalid register width")
 	}
@@ -916,7 +966,7 @@ func BitwiseOp(indent string, op token.Token, signed bool, x *register, y *regis
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func CmpRegReg(indent string, instrdata InstrDataType, x *register, y *register) string {
+func CmpRegReg(indent string, instrdata InstrDataType, x, y *register) string {
 	if x.width != y.width {
 		panic("Invalid register width")
 	}
@@ -1008,6 +1058,93 @@ func CmpOp(indent string, data InstrDataType, op token.Token, x *register, y *re
 		}
 	}
 	return strings.Replace(asm, "+-", "-", -1)
+}
+
+func isIntegerOp(datatype InstrDataType) bool {
+	return datatype.op == INTEGER_OP
+}
+
+func isFloatOp(datatype InstrDataType) bool {
+	return datatype.op == XMM_OP
+}
+
+func ConvertOp(indent string, from *register, fromtype InstrDataType, to *register, totype InstrDataType, tmp *register) string {
+
+	if isIntegerOp(fromtype) && isIntegerOp(totype) {
+		return IntegerToInteger(indent, from, to, fromtype, totype)
+	} else if isIntegerOp(fromtype) && isFloatOp(totype) {
+		return IntegerToFloat(indent, from, to, fromtype, totype, tmp)
+	} else if isFloatOp(fromtype) && isIntegerOp(totype) {
+		return FloatToInteger(indent, from, to, fromtype, totype)
+	} else if isFloatOp(fromtype) && isFloatOp(totype) {
+		return FloatToFloat(indent, from, to, fromtype, totype)
+	} else {
+		panic(fmt.Sprintf("Internal error, converting betwen type %v and %v", fromtype.op, totype.op))
+	}
+}
+
+func IntegerToInteger(indent string, from, to *register, ftype, totype InstrDataType) string {
+	if ftype.size < totype.size {
+
+		if ftype.signed {
+			// From Go Spec:
+			// If the value is a signed integer, it is sign extended to implicit infinite precision;
+			// It is then truncated to fit in the result type's size.
+			return MovSignExtend(indent, from, to, ftype.size, totype.size)
+		} else {
+			return MovZeroExtend(indent, from, to, ftype.size, totype.size)
+		}
+
+	}
+	return MovRegReg(indent, totype, from, to)
+}
+
+func XmmInstrDataSize(xmmtype XmmData) uint {
+	if xmmtype == XMM_F32 {
+		return 4
+	} else if xmmtype == XMM_F64 {
+		return 8
+	} else if xmmtype == XMM_4X_F32 {
+		return 16
+	} else if xmmtype == XMM_2X_F64 {
+		return 16
+	}
+	panic("Internal error getting floating point instr size")
+}
+
+func IntegerToFloat(indent string, from, to *register, ftype, totype InstrDataType, tmp *register) string {
+	tosize := XmmInstrDataSize(totype.xmmvariant)
+	fromsize := ftype.size
+	fromreg := from
+	// no direct conversion from int8/int16 to float32/float64
+	if ftype.size < 4 {
+		fromsize = 4
+		fromreg = tmp
+		if ftype.signed {
+			MovSignExtend(indent, from, tmp, ftype.size, fromsize)
+		} else {
+			MovZeroExtend(indent, from, tmp, ftype.size, fromsize)
+		}
+	} else if ftype.size == 4 && !ftype.signed {
+		fromsize = 8
+		fromreg = tmp
+		MovZeroExtend(indent, from, tmp, ftype.size, fromsize)
+	}
+	cvt := GetConvertInstruction(I_CVT_INT2FLOAT, fromsize, tosize).String()
+	return indent + fmt.Sprintf("%v    %v, %v\n", cvt, fromreg.name, to.name)
+}
+
+func FloatToInteger(indent string, from, to *register, ftype, totype InstrDataType) string {
+	// From Go Spec:
+	// When converting a floating-point number to an integer,
+	// the fraction is discarded (truncation towards zero).
+	fromsize := XmmInstrDataSize(ftype.xmmvariant)
+	cvt := GetConvertInstruction(I_CVT_FLOAT2INT, fromsize, totype.size).String()
+	return indent + fmt.Sprintf("%v    %v, %v\n", cvt, from.name, to.name)
+}
+
+func FloatToFloat(indent string, from, to *register, ftype, totype InstrDataType) string {
+	return ""
 }
 
 func Ret(indent string) string {

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-//go:generate gensimd -fn "ptrt0, ptrt1, addf32, subf32, negf32, mulf32, divf32, addf64, subf64, negf64, mulf64, divf64" -outfn "ptrt0s, ptrt1s, addf32s, subf32s, negf32s, mulf32s, divf32s, addf64s, subf64s, negf64s, mulf64s, divf64s" -f "$GOFILE" -o "float_test.s"
+//go:generate gensimd -fn "ptrt0, ptrt1, addf32, subf32, negf32, mulf32, divf32, addf64, subf64, negf64, mulf64, divf64" -outfn "ptrt0s, ptrt1s, addf32s, subf32s, negf32s, mulf32s, divf32s, addf64s, subf64s, negf64s, mulf64s, divf64s" -f "$GOFILE" -o "float_test_amd64.s"
 
 func ptrt0s(*float32) float32
 func ptrt1s(*float64) float64

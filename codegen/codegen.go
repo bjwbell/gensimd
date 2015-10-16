@@ -27,6 +27,8 @@ type Function struct {
 	ssaNames  map[string]nameInfo
 	// map from block index to the successor block indexes that need phi vars set
 	phiInfo map[int]map[int][]phiInfo
+
+	jmpLabels []string
 }
 
 type nameInfo struct {
@@ -234,6 +236,12 @@ func (f *Function) Func() (string, *Error) {
 	return a, nil
 }
 
+func (f *Function) newJmpLabel() string {
+	label := "lbl" + strconv.Itoa(len(f.jmpLabels)+1)
+	f.jmpLabels = append(f.jmpLabels, label)
+	return label
+}
+
 func (f *Function) align(size uint32) uint32 {
 	// on amd64 stack size should be 8 byte aligned
 	align := f.stackAlign()
@@ -306,7 +314,6 @@ func (f *Function) AllocLocal(name string, typ types.Type) (nameInfo, *Error) {
 		align:  align(typ)}
 	f.ssaNames[v.name] = info
 	// zeroing the memory is done at the beginning of the function
-	//ZeroMemory(f.Indent, v.name, v.offset, v.size, sp)
 	return info, nil
 }
 
@@ -433,8 +440,181 @@ func (f *Function) Instr(instr ssa.Instruction) (string, *Error) {
 	return asm, err
 }
 
+type fromto struct {
+	from types.BasicKind
+	to   types.BasicKind
+}
+
+func GetXmmVariant(t types.Type) XmmData {
+	if isFloat32(t) {
+		return XMM_F32
+	} else if isFloat64(t) {
+		return XMM_F64
+	}
+	return XMM_INVALID
+}
+
 func (f *Function) Convert(instr *ssa.Convert) (string, *Error) {
-	return "", nil
+	from := instr.X.Type()
+	to := instr.Type()
+
+	var fromType InstrOpType
+	var toType InstrOpType
+	var fromXmm XmmData
+	var toXmm XmmData
+
+	if isInteger(from) && isInteger(to) {
+		fromType = INTEGER_OP
+		toType = INTEGER_OP
+		fromXmm = XMM_INVALID
+		toXmm = XMM_INVALID
+	} else if isInteger(from) && isFloat(to) {
+		fromType = INTEGER_OP
+		toType = XMM_OP
+		fromXmm = XMM_INVALID
+		toXmm = GetXmmVariant(to)
+	} else if isFloat(from) && isInteger(to) {
+		fromType = XMM_OP
+		fromXmm = GetXmmVariant(from)
+		toType = INTEGER_OP
+		toXmm = XMM_INVALID
+	} else if isFloat(from) && isFloat(to) {
+		fromType = XMM_OP
+		fromXmm = GetXmmVariant(from)
+		toType = XMM_OP
+		toXmm = GetXmmVariant(to)
+	} else {
+		fmtstr := "Cannot convert from (%v) to (%v)"
+		msg := fmt.Sprintf(fmtstr, from.String(), to.String())
+		return ErrorMsg(msg)
+	}
+
+	return f.ConvertFromTo(instr, fromType, toType, fromXmm, toXmm)
+}
+
+func (f *Function) AllocFromToRegs(instr *ssa.Convert) (from register, to register) {
+
+	fromInfo := f.allocOnDemand(instr.X)
+	toInfo := f.allocOnDemand(instr)
+	if fromInfo == nil || toInfo == nil {
+		panic("Internal error converting between types")
+	}
+	fromreg := f.allocReg(regType(fromInfo.typ), fromInfo.size)
+	toreg := f.allocReg(regType(toInfo.typ), toInfo.size)
+
+	return fromreg, toreg
+
+}
+
+func (f *Function) ConvertFromTo(instr *ssa.Convert, fromOpType, toOpType InstrOpType, fromXmm, toXmm XmmData) (string, *Error) {
+
+	asm := ""
+	from, to := f.AllocFromToRegs(instr)
+	if a, err := f.LoadValueSimple(instr.X, &from); err != nil {
+		return "", err
+	} else {
+		asm += a
+	}
+	tmp := f.allocReg(DATA_REG, sizeInt())
+
+	fromType :=
+		InstrDataType{
+			op:         fromOpType,
+			InstrData:  InstrData{signed: signed(instr.X.Type()), size: f.sizeof(instr.X)},
+			xmmvariant: fromXmm}
+	toType :=
+		InstrDataType{
+			op:         toOpType,
+			InstrData:  InstrData{signed: signed(instr.Type()), size: f.sizeof(instr)},
+			xmmvariant: toXmm}
+
+	// round uint64 to nearest int64 before converting to float32/float64
+	if isUint(instr.X.Type()) && f.sizeof(instr.X) == 8 && isFloat(instr.Type()) {
+		var floatSize uint
+		if isFloat32(instr.Type()) {
+			floatSize = 32
+		} else if isFloat64(instr.Type()) {
+			floatSize = 64
+		} else {
+			panic("Internal error converting from uint64 to float")
+		}
+
+		asm += f.ConvertUint64ToFloat(&tmp, &from, &to, floatSize)
+	} else {
+		asm += ConvertOp(f.Indent, &from, fromType, &to, toType, &tmp)
+	}
+	toNameInfo := f.ssaNames[instr.Name()]
+	if a, err := f.StoreReg(&to, &toNameInfo, 0); err != nil {
+		return "", err
+	} else {
+		asm += a
+	}
+	f.freeReg(from)
+	f.freeReg(to)
+	f.freeReg(tmp)
+
+	return asm, nil
+}
+
+func (f *Function) ConvertUint64ToFloat(tmp, regU64, regFloat *register, floatSize uint) string {
+
+	asm := ""
+	regI64 := f.allocReg(DATA_REG, 8)
+	noround := f.newJmpLabel()
+	end := f.newJmpLabel()
+	cvt := ""
+	add := ""
+	if floatSize == 32 {
+		cvt = "CVTSQ2SS"
+		add = "ADDSS"
+	} else {
+		cvt = "CVTSQ2SD"
+		add = "ADDSD"
+	}
+	str :=
+		"//             U64\n" +
+			"CMPQ	%v, $0\n" +
+			"//      jmp to no rounding\n" +
+			"JGE	$1, %v\n" +
+			"//     U64 I64\n" +
+			"MOVQ	%v, %v\n" +
+			"//         I64\n" +
+			"SHRQ	$1, %v\n" +
+			"//     U64 TMP\n" +
+			"MOVQ	%v, %v\n" +
+			"//         TMP\n" +
+			"ANDL	$1, %v\n" +
+			"//     TMP I64\n" +
+			"ORQ	%v, %v\n" +
+			"//CVT  I64 XMM\n" +
+			"%v    %v, %v\n" +
+			"//ADD XMM, XMM\n" +
+			"%v    %v, %v\n" +
+			"//    jmp to end\n" +
+			"JMP   %v\n" +
+			"//    jmp label for no rounding\n" +
+			"%v:\n" +
+			"//CVT I64 XMM\n" +
+			"%v     %v, %v\n" +
+			"//    jmp label for end\n" +
+			"%v:\n"
+
+	asm += fmt.Sprintf(str,
+		regU64.name,
+		noround,
+		regU64.name, regI64.name,
+		regI64.name,
+		regU64.name, tmp.name,
+		tmp.name,
+		tmp.name, regI64.name,
+		cvt, regI64.name, regFloat.name,
+		add, regFloat.name, regFloat.name,
+		end,
+		noround,
+		cvt, regI64.name, regFloat.name,
+		end)
+
+	return asm
 }
 
 func (f *Function) If(instr *ssa.If) (string, *Error) {
@@ -554,7 +734,7 @@ func (f *Function) computePhiInstr(phi *ssa.Phi) *Error {
 
 func (f *Function) Phi(phi *ssa.Phi) (string, *Error) {
 
-	if nameinfo := f.allocValueOnDemand(phi); nameinfo == nil {
+	if nameinfo := f.allocOnDemand(phi); nameinfo == nil {
 		return ErrorMsg("Error in ssa.Phi allocation")
 	}
 
@@ -621,7 +801,7 @@ func (f *Function) SetStackPointer() string {
 
 func (f *Function) StoreValAddr(val ssa.Value, addr *nameInfo) (string, *Error) {
 
-	if nameinfo := f.allocValueOnDemand(val); nameinfo == nil {
+	if nameinfo := f.allocOnDemand(val); nameinfo == nil {
 		return ErrorMsg("Error in allocating local")
 	}
 	if addr.local == nil && addr.param == nil {
@@ -700,7 +880,7 @@ func (f *Function) StoreValAddr(val ssa.Value, addr *nameInfo) (string, *Error) 
 }
 
 func (f *Function) Store(instr *ssa.Store) (string, *Error) {
-	if nameinfo := f.allocValueOnDemand(instr.Addr); nameinfo == nil {
+	if nameinfo := f.allocOnDemand(instr.Addr); nameinfo == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
 	addr, ok := f.ssaNames[instr.Addr.Name()]
@@ -713,7 +893,7 @@ func (f *Function) Store(instr *ssa.Store) (string, *Error) {
 
 func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 
-	if nameinfo := f.allocValueOnDemand(instr); nameinfo == nil {
+	if nameinfo := f.allocOnDemand(instr); nameinfo == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
 
@@ -776,13 +956,13 @@ func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 
 func (f *Function) BinOpLoadXY(instr *ssa.BinOp) (asm string, x *register, y *register, err *Error) {
 
-	if nameinfo := f.allocValueOnDemand(instr); nameinfo == nil {
+	if nameinfo := f.allocOnDemand(instr); nameinfo == nil {
 		return "", nil, nil, ErrorMsg2(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
-	if nameinfo := f.allocValueOnDemand(instr.X); nameinfo == nil {
+	if nameinfo := f.allocOnDemand(instr.X); nameinfo == nil {
 		return "", nil, nil, ErrorMsg2(fmt.Sprintf("Cannot alloc value: %v", instr.X))
 	}
-	if nameinfo := f.allocValueOnDemand(instr.Y); nameinfo == nil {
+	if nameinfo := f.allocOnDemand(instr.Y); nameinfo == nil {
 		return "", nil, nil, ErrorMsg2(fmt.Sprintf("Cannot alloc value: %v", instr.Y))
 	}
 
@@ -928,7 +1108,7 @@ func (f *Function) UnOp(instr *ssa.UnOp) (string, *Error) {
 // bitwise negation
 func (f *Function) UnOpXor(instr *ssa.UnOp, xorVal int32) (string, *Error) {
 
-	if nameinfo := f.allocValueOnDemand(instr); nameinfo == nil {
+	if nameinfo := f.allocOnDemand(instr); nameinfo == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
 	size := f.sizeof(instr)
@@ -969,7 +1149,7 @@ func (f *Function) UnOpXor(instr *ssa.UnOp, xorVal int32) (string, *Error) {
 // arithmetic negation
 func (f *Function) UnOpSub(instr *ssa.UnOp) (string, *Error) {
 
-	if nameinfo := f.allocValueOnDemand(instr); nameinfo == nil {
+	if nameinfo := f.allocOnDemand(instr); nameinfo == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
 	var regX register
@@ -1012,7 +1192,7 @@ func (f *Function) UnOpSub(instr *ssa.UnOp) (string, *Error) {
 
 //pointer indirection
 func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
-	assignment := f.allocValueOnDemand(instr)
+	assignment := f.allocOnDemand(instr)
 	if assignment == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
@@ -1065,7 +1245,7 @@ func (f *Function) Index(instr *ssa.Index) (string, *Error) {
 	}
 	asm := ""
 	xInfo := f.ssaNames[instr.X.Name()]
-	assignment := f.allocValueOnDemand(instr)
+	assignment := f.allocOnDemand(instr)
 	if assignment == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
@@ -1104,7 +1284,7 @@ func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 
 	asm := ""
 	xInfo := f.ssaNames[instr.X.Name()]
-	assignment := f.allocValueOnDemand(instr)
+	assignment := f.allocOnDemand(instr)
 
 	xReg, xOffset, _ := xInfo.Addr()
 	aReg, aOffset, _ := assignment.Addr()
@@ -1303,7 +1483,7 @@ func (f *Function) retAlign() uint {
 	return align
 }
 
-func (f *Function) allocValueOnDemand(v ssa.Value) *nameInfo {
+func (f *Function) allocOnDemand(v ssa.Value) *nameInfo {
 
 	if nameinfo, ok := f.ssaNames[v.Name()]; ok {
 		return &nameinfo

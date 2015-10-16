@@ -194,6 +194,27 @@ func signedBasic(b types.BasicKind) bool {
 	panic(fmt.Sprintf("Unknown basic type (%v)", b))
 }
 
+func isUint(t types.Type) bool {
+	if t, ok := t.(*types.Basic); ok {
+		switch t.Kind() {
+		case types.Uint, types.Uint8, types.Uint16, types.Uint32, types.Uint64:
+			return true
+		}
+	}
+	return false
+}
+func isInt(t types.Type) bool {
+	if t, ok := t.(*types.Basic); ok {
+		switch t.Kind() {
+		case types.Int, types.Int8, types.Int16, types.Int32, types.Int64:
+			return true
+		}
+	}
+	return false
+}
+func isInteger(t types.Type) bool {
+	return isUint(t) || isInt(t)
+}
 func isBool(t types.Type) bool {
 	return isBasicKind(t, types.Bool)
 }

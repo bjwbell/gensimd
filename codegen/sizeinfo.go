@@ -276,6 +276,15 @@ var bInstrData = InstrDataType{INTEGER_OP, InstrData{signed: false, size: 1}, XM
 var f32InstrData = InstrDataType{XMM_OP, InstrData{}, XMM_F32}
 var f64InstrData = InstrDataType{XMM_OP, InstrData{}, XMM_F64}
 
+func GetIntegerInstrDataType(signed bool, size uint) InstrDataType {
+	instrdata := InstrDataType{
+		INTEGER_OP,
+		InstrData{signed: signed, size: size},
+		XMM_INVALID}
+	return instrdata
+
+}
+
 func GetInstrDataType(t types.Type) InstrDataType {
 	if isBool(t) {
 		return bInstrData
@@ -288,11 +297,7 @@ func GetInstrDataType(t types.Type) InstrDataType {
 	if isComplex(t) {
 		panic("complex32/64 unsupported")
 	}
-	instrdata := InstrDataType{
-		INTEGER_OP,
-		InstrData{signed: signed(t), size: sizeof(t)},
-		XMM_INVALID}
-	return instrdata
+	return GetIntegerInstrDataType(signed(t), sizeof(t))
 
 }
 

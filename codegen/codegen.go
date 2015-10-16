@@ -66,7 +66,7 @@ func (name *nameInfo) IsPointer() bool {
 
 func (name *nameInfo) PointerUnderlyingType() types.Type {
 	if !name.IsPointer() {
-		panic(fmt.Sprintf("nameInfo (%v) not pointer type in PointerUnderlyingType", name))
+		panic(fmt.Sprintf("nameInfo (%v) not ptr type", name))
 	}
 	ptrType := name.typ.(*types.Pointer)
 	return ptrType.Elem()
@@ -141,18 +141,6 @@ func AssemblyFilePreamble() string {
 
 func (f *Function) GoAssembly() (string, *Error) {
 	return f.Func()
-}
-
-func memFn(name string, offset uint, regName string) func() string {
-	return func() string {
-		return fmt.Sprintf("%v+%v(%v)", name, offset, regName)
-	}
-}
-
-func regFn(name string) func() string {
-	return func() string {
-		return name
-	}
 }
 
 func (f *Function) Params() (string, *Error) {
@@ -290,6 +278,7 @@ func (f *Function) ZeroSsaLocals() (string, *Error) {
 			offset += int(size)
 		}
 	}
+
 	return asm, nil
 }
 
@@ -353,7 +342,6 @@ func (f *Function) BasicBlock(block *ssa.BasicBlock) (string, *Error) {
 		if err != nil {
 			return asm, err
 		}
-
 	}
 	return asm, nil
 }
@@ -364,83 +352,78 @@ func (f *Function) Instr(instr ssa.Instruction) (string, *Error) {
 		panic("Nil instr")
 	}
 	asm := ""
-	caseAsm := ""
-	var caseErr *Error
+	var err *Error
+
 	errormsg := func(msg string) (string, *Error) {
 		return "", &Error{Err: fmt.Errorf(msg), Pos: instr.Pos()}
 	}
+
 	switch instr := instr.(type) {
 	default:
-		caseAsm = f.Indent + fmt.Sprintf("Unknown ssa instruction: %v\n", instr)
+		asm = f.Indent + fmt.Sprintf("Unknown ssa instruction: %v\n", instr)
 	case *ssa.Alloc:
-		caseAsm, caseErr = f.AllocInstr(instr)
+		asm, err = f.AllocInstr(instr)
 	case *ssa.BinOp:
-		caseAsm, caseErr = f.BinOp(instr)
+		asm, err = f.BinOp(instr)
 	case *ssa.Call:
-		caseAsm = f.Indent + fmt.Sprintf("ssa.Call: %v, name: %v\n", instr, instr.Name())
+		asm = f.Indent + fmt.Sprintf("ssa.Call: %v, name: %v\n", instr, instr.Name())
 	case *ssa.ChangeInterface:
-		caseAsm, caseErr = errormsg("converting interfaces unsupported")
+		asm, err = errormsg("converting interfaces unsupported")
 	case *ssa.ChangeType:
-		caseAsm, caseErr = errormsg("changing between types unsupported")
+		asm, err = errormsg("changing between types unsupported")
 	case *ssa.Convert:
-		caseAsm, caseErr = errormsg("type conversion unimplemented")
+		asm, err = errormsg("type conversion unimplemented")
 	case *ssa.Defer:
-		caseAsm, caseErr = errormsg("defer unsupported")
+		asm, err = errormsg("defer unsupported")
 	case *ssa.Extract:
-		caseAsm, caseErr = errormsg("extracting tuple values unsupported")
+		asm, err = errormsg("extracting tuple values unsupported")
 	case *ssa.Field:
-		caseAsm, caseErr = errormsg("field access unimplemented")
+		asm, err = errormsg("field access unimplemented")
 	case *ssa.FieldAddr:
-		caseAsm, caseErr = errormsg("field access unimplemented")
+		asm, err = errormsg("field access unimplemented")
 	case *ssa.Go:
-		caseAsm, caseErr = errormsg("go keyword unsupported")
+		asm, err = errormsg("go keyword unsupported")
 	case *ssa.If:
-		caseAsm, caseErr = f.If(instr)
+		asm, err = f.If(instr)
 	case *ssa.Index:
-		caseAsm, caseErr = errormsg("index access unimplemented")
+		asm, err = f.Index(instr)
 	case *ssa.IndexAddr:
-		caseAsm, caseErr = f.IndexAddr(instr)
+		asm, err = f.IndexAddr(instr)
 	case *ssa.Jump:
-		caseAsm, caseErr = f.Jump(instr)
+		asm, err = f.Jump(instr)
 	case *ssa.Lookup:
-		caseAsm, caseErr = errormsg("maps unsupported")
+		asm, err = errormsg("maps unsupported")
 	case *ssa.MakeChan:
-		caseAsm, caseErr = errormsg("channels unsupported")
+		asm, err = errormsg("channels unsupported")
 	case *ssa.MakeClosure:
-		caseAsm, caseErr = errormsg("closures unsupported")
+		asm, err = errormsg("closures unsupported")
 	case *ssa.MakeInterface, *ssa.MakeMap, *ssa.MakeSlice:
-		caseAsm, caseErr = errormsg("make slice/map/interface unsupported")
+		asm, err = errormsg("make slice/map/interface unsupported")
 	case *ssa.MapUpdate:
-		caseAsm, caseErr = errormsg("map update unsupported")
+		asm, err = errormsg("map update unsupported")
 	case *ssa.Next:
-		caseAsm, caseErr = errormsg("map/string iterators unsupported")
+		asm, err = errormsg("map/string iterators unsupported")
 	case *ssa.Panic:
-		caseAsm, caseErr = errormsg("panic unimplemented")
+		asm, err = errormsg("panic unimplemented")
 	case *ssa.Phi:
-		caseAsm, caseErr = f.Phi(instr)
+		asm, err = f.Phi(instr)
 	case *ssa.Range:
-		caseAsm, caseErr = errormsg("range unsupported")
+		asm, err = errormsg("range unsupported")
 	case *ssa.Return:
-		caseAsm, caseErr = f.Return(instr)
+		asm, err = f.Return(instr)
 	case *ssa.Select, *ssa.RunDefers, *ssa.Send:
-		caseAsm, caseErr = errormsg("select/send/defer unsupported")
+		asm, err = errormsg("select/send/defer unsupported")
 	case *ssa.Slice:
-		caseAsm, caseErr = errormsg("slice creation unimplemented")
+		asm, err = errormsg("slice creation unimplemented")
 	case *ssa.Store:
-		caseAsm, caseErr = f.Store(instr)
+		asm, err = f.Store(instr)
 	case *ssa.TypeAssert:
-		caseAsm, caseErr = errormsg("type assert unsupported")
+		asm, err = errormsg("type assert unsupported")
 	case *ssa.UnOp:
-		caseAsm, caseErr = f.UnOp(instr)
+		asm, err = f.UnOp(instr)
 	}
 
-	if caseErr != nil {
-		return caseAsm, caseErr
-	} else {
-		asm += caseAsm
-	}
-
-	return asm, nil
+	return asm, err
 }
 
 func (f *Function) If(instr *ssa.If) (string, *Error) {
@@ -454,10 +437,12 @@ func (f *Function) If(instr *ssa.If) (string, *Error) {
 	if tblock == -1 || fblock == -1 {
 		panic("If: malformed CFG")
 	}
+
 	if info, ok := f.ssaNames[instr.Cond.Name()]; !ok {
 		err := fmt.Errorf("If: unhandled case, cond (%v)", instr.Cond)
 		return "", &Error{Err: err, Pos: instr.Pos()}
 	} else {
+
 		a, err := f.JumpPreamble(instr.Block().Index, fblock)
 		if err != nil {
 			return "", err
@@ -474,8 +459,10 @@ func (f *Function) If(instr *ssa.If) (string, *Error) {
 		asm += f.Indent + "JMP    " + "block" + strconv.Itoa(tblock) + "\n"
 
 	}
+
 	asm = f.Indent + fmt.Sprintf("// BEGIN ssa.If, %v\n", instr) + asm
 	asm += f.Indent + fmt.Sprintf("// END ssa.If, %v\n", instr)
+
 	return asm, nil
 }
 
@@ -706,6 +693,7 @@ func (f *Function) Store(instr *ssa.Store) (string, *Error) {
 }
 
 func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
+
 	if err := f.allocValueOnDemand(instr); err != nil {
 		return "", err
 	}
@@ -713,13 +701,16 @@ func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 	var regVal register
 	size := f.sizeof(instr)
 	xIsSigned := signed(instr.X.Type())
+
 	// comparison op results are size 1 byte, but that's not supported
 	if size == 1 {
 		regVal = f.allocReg(regType(instr.Type()), 8*size)
 	} else {
 		regVal = f.allocReg(regType(instr.Type()), size)
 	}
+
 	asm, regX, regY, err := f.BinOpLoadXY(instr)
+
 	if err != nil {
 		return asm, err
 	}
@@ -741,6 +732,7 @@ func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 		instrdata := GetInstrDataType(instr.X.Type())
 		asm += CmpOp(f.Indent, instrdata, instr.Op, regX, regY, &regVal)
 	}
+
 	f.freeReg(*regX)
 	f.freeReg(*regY)
 
@@ -839,8 +831,8 @@ func (f *Function) LoadValue(val ssa.Value, offset int, size uint, reg *register
 
 func (f *Function) StoreReg(reg *register, addr *nameInfo, offset int) (string, *Error) {
 	r, roffset, rsize := addr.Addr()
-	if rsize > 8 {
-		panic(fmt.Sprintf("Greater than 8 byte sized (%v) value, addr (%v), name (%v)\n", rsize, *addr, addr.name))
+	if rsize > sizePtr() {
+		panic(fmt.Sprintf("Greater than ptr sized (%v), addr (%v), name (%v)\n", rsize, *addr, addr.name))
 	}
 	if rsize == 0 {
 		panic(fmt.Sprintf("size == 0 for addr (%v)", *addr))
@@ -877,7 +869,7 @@ func (f *Function) LoadConstValue(cnst *ssa.Const, r *register) (string, *Error)
 
 	}
 	if isComplex(cnst.Type()) {
-		panic("Complex64/128 is unsupported ")
+		panic("complex64/128 unsupported")
 	}
 
 	size := sizeof(cnst.Type())
@@ -1000,7 +992,7 @@ func (f *Function) UnOpSub(instr *ssa.UnOp) (string, *Error) {
 
 //pointer indirection
 func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
-	assignment, ok := f.ssaNames[instr.Name()]
+	assignment := f.OnDemandAlloc(instr.Name(), instr.Type())
 	xName := instr.X.Name()
 	xInfo, okX := f.ssaNames[xName]
 	// TODO add complex64/128 support
@@ -1014,13 +1006,6 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 		panic(fmt.Sprintf("In UnOp, X (%v) isn't a pointer, X.type (%v), instr \"(%v)\"", instr.X, instr.X.Type(), instr))
 	}
 	asm := ""
-	if !ok {
-		info, err := f.AllocLocal(instr.Name(), instr.Type())
-		if err != nil {
-			panic(fmt.Sprintf("Err in UnOp X (%v), instr \"(%v)\", msg: \"%v\"", instr.X, instr, err))
-		}
-		assignment = info
-	}
 
 	xReg, xOffset, xSize := xInfo.Addr()
 	aReg, aOffset, aSize := assignment.Addr()
@@ -1040,38 +1025,77 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 	return asm, nil
 }
 
-func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
-	if instr == nil {
-		return "", &Error{Err: errors.New("IndexAddr: nil instr"), Pos: instr.Pos()}
+func (f *Function) OnDemandAlloc(name string, datatype types.Type) nameInfo {
+	nameinfo, ok := f.ssaNames[name]
+	if !ok {
+		local, err := f.AllocLocal(name, datatype)
+		if err != nil {
+			panic("Error allocating local var/tmp")
+		}
+		nameinfo = local
+		f.ssaNames[name] = nameinfo
+	}
+	return nameinfo
+}
 
+func (f *Function) Index(instr *ssa.Index) (string, *Error) {
+	if instr == nil {
+		return "", &Error{Err: errors.New("nil instr"), Pos: instr.Pos()}
 	}
 	asm := ""
 	xInfo := f.ssaNames[instr.X.Name()]
-
-	assignment, ok := f.ssaNames[instr.Name()]
-	if !ok {
-		local, err := f.AllocLocal(instr.Name(), instr.Type())
-		if err != nil {
-			msg := fmt.Errorf("err in indexaddr op, msg:\"%v\"", err)
-			return asm, &Error{Err: msg, Pos: instr.Pos()}
-		}
-		assignment = local
-		f.ssaNames[instr.Name()] = assignment
-	}
+	assignment := f.OnDemandAlloc(instr.Name(), instr.Type())
 
 	xReg, xOffset, _ := xInfo.Addr()
 	aReg, aOffset, _ := assignment.Addr()
 	addrReg := f.allocReg(DATA_REG, sizePtr())
 	idxReg := f.allocReg(DATA_REG, sizePtr())
+
 	f.LoadValueSimple(instr.Index, &idxReg)
+
 	asm += Lea(f.Indent, xInfo.name, xOffset, &xReg, &addrReg)
-	instrdata := InstrDataType{INTEGER_OP, InstrData{signed: false, size: idxReg.width / 8}, XMM_INVALID}
+
+	instrdata := GetIntegerInstrDataType(false, idxReg.width/8)
 	asm += AddRegReg(f.Indent, instrdata, &idxReg, &addrReg)
 	instrdata = GetInstrDataType(assignment.typ)
 	asm += MovRegMem(f.Indent, instrdata, &addrReg, assignment.name, &aReg, aOffset)
 	f.freeReg(idxReg)
 	f.freeReg(addrReg)
 	f.ssaNames[instr.Name()] = assignment
+	asm = f.Indent + fmt.Sprintf("// BEGIN ssa.IndexAddr: %v = %v\n", instr.Name(), instr) + asm
+	asm += f.Indent + fmt.Sprintf("// END ssa.IndexAddr: %v = %v\n", instr.Name(), instr)
+	return asm, nil
+}
+
+func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
+	if instr == nil {
+		return "", &Error{Err: errors.New("nil instr"), Pos: instr.Pos()}
+
+	}
+	asm := ""
+	xInfo := f.ssaNames[instr.X.Name()]
+	assignment := f.OnDemandAlloc(instr.Name(), instr.Type())
+
+	xReg, xOffset, _ := xInfo.Addr()
+	aReg, aOffset, _ := assignment.Addr()
+	addrReg := f.allocReg(DATA_REG, sizePtr())
+	idxReg := f.allocReg(DATA_REG, sizePtr())
+
+	f.LoadValueSimple(instr.Index, &idxReg)
+
+	asm += Lea(f.Indent, xInfo.name, xOffset, &xReg, &addrReg)
+
+	instrdata := GetIntegerInstrDataType(false, idxReg.width/8)
+	asm += AddRegReg(f.Indent, instrdata, &idxReg, &addrReg)
+
+	instrdata = GetInstrDataType(assignment.typ)
+	asm += MovRegMem(f.Indent, instrdata, &addrReg, assignment.name, &aReg, aOffset)
+
+	f.freeReg(idxReg)
+	f.freeReg(addrReg)
+
+	f.ssaNames[instr.Name()] = assignment
+
 	asm = f.Indent + fmt.Sprintf("// BEGIN ssa.IndexAddr: %v = %v\n", instr.Name(), instr) + asm
 	asm += f.Indent + fmt.Sprintf("// END ssa.IndexAddr: %v = %v\n", instr.Name(), instr)
 	return asm, nil

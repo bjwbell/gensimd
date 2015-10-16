@@ -34,6 +34,7 @@ type nameInfo struct {
 	typ    types.Type
 	local  *varInfo
 	param  *paramInfo
+	cnst   *ssa.Const
 	offset int
 	size   uint
 	align  uint
@@ -125,9 +126,17 @@ type Error struct {
 	Pos token.Pos
 }
 
+func ErrorMsg(msg string) (string, *Error) {
+	return "", ErrorMsg2(msg)
+}
+
+func ErrorMsg2(msg string) *Error {
+	return &Error{Err: errors.New(msg), Pos: 0}
+}
+
 func CreateFunction(fn *ssa.Function, outfn string) (*Function, *Error) {
 	if fn == nil {
-		return nil, &Error{Err: errors.New("Nil function passed in")}
+		return nil, ErrorMsg2("Nil function passed in")
 	}
 	f := Function{ssa: fn, outfn: outfn}
 	f.Indent = "        "
@@ -155,7 +164,7 @@ func (f *Function) Params() (string, *Error) {
 		} else if basic, ok := p.Type().(*types.Basic); ok {
 			switch basic.Kind() {
 			default:
-				return "", &Error{Err: fmt.Errorf("Unsupported param type (%v)", basic), Pos: p.Pos()}
+				return ErrorMsg(fmt.Sprintf("Unsupported param type (%v)", basic))
 			case types.Float32, types.Float64:
 				break
 
@@ -257,9 +266,7 @@ func (f *Function) ZeroSsaLocals() (string, *Error) {
 	locals := f.ssa.Locals
 	for _, local := range locals {
 		if local.Heap {
-
-			msg := fmt.Errorf("Can't heap alloc local, name: %v", local.Name())
-			return "", &Error{Err: msg, Pos: local.Pos()}
+			return ErrorMsg(fmt.Sprintf("Can't heap alloc local, name: %v", local.Name()))
 		}
 		sp := getRegister(REG_SP)
 
@@ -372,7 +379,7 @@ func (f *Function) Instr(instr ssa.Instruction) (string, *Error) {
 	case *ssa.ChangeType:
 		asm, err = errormsg("changing between types unsupported")
 	case *ssa.Convert:
-		asm, err = errormsg("type conversion unimplemented")
+		asm, err = f.Convert(instr)
 	case *ssa.Defer:
 		asm, err = errormsg("defer unsupported")
 	case *ssa.Extract:
@@ -426,6 +433,10 @@ func (f *Function) Instr(instr ssa.Instruction) (string, *Error) {
 	return asm, err
 }
 
+func (f *Function) Convert(instr *ssa.Convert) (string, *Error) {
+	return "", nil
+}
+
 func (f *Function) If(instr *ssa.If) (string, *Error) {
 	asm := ""
 	tblock, fblock := -1, -1
@@ -439,8 +450,8 @@ func (f *Function) If(instr *ssa.If) (string, *Error) {
 	}
 
 	if info, ok := f.ssaNames[instr.Cond.Name()]; !ok {
-		err := fmt.Errorf("If: unhandled case, cond (%v)", instr.Cond)
-		return "", &Error{Err: err, Pos: instr.Pos()}
+
+		return ErrorMsg(fmt.Sprintf("If: unhandled case, cond (%v)", instr.Cond))
 	} else {
 
 		a, err := f.JumpPreamble(instr.Block().Index, fblock)
@@ -542,9 +553,11 @@ func (f *Function) computePhiInstr(phi *ssa.Phi) *Error {
 }
 
 func (f *Function) Phi(phi *ssa.Phi) (string, *Error) {
-	if err := f.allocValueOnDemand(phi); err != nil {
-		return "", err
+
+	if nameinfo := f.allocValueOnDemand(phi); nameinfo == nil {
+		return ErrorMsg("Error in ssa.Phi allocation")
 	}
+
 	asm := f.Indent
 	asm += fmt.Sprintf("// BEGIN ssa.Phi, name (%v), comment (%v), value (%v)\n", phi.Name(), phi.Comment, phi)
 	asm += f.Indent + fmt.Sprintf("// END ssa.Phi, %v\n", phi)
@@ -571,12 +584,19 @@ func (f *Function) CopyToRet(val []ssa.Value) (string, *Error) {
 		return "", nil
 	}
 	if len(val) > 1 {
-		err := Error{
-			Err: fmt.Errorf("Multiple return values not supported"),
-			Pos: 0}
-		return "", &err
+		return ErrorMsg("Multiple return values not supported")
 	}
-	retAddr := nameInfo{name: retName(), typ: f.retType(), local: nil, param: f.retParam(), size: f.retSize(), offset: f.retOffset(), align: f.retAlign()}
+
+	retAddr :=
+		nameInfo{
+			name:   retName(),
+			typ:    f.retType(),
+			local:  nil,
+			param:  f.retParam(),
+			size:   f.retSize(),
+			offset: f.retOffset(),
+			align:  f.retAlign()}
+
 	return f.StoreValAddr(val[0], &retAddr)
 }
 
@@ -601,20 +621,18 @@ func (f *Function) SetStackPointer() string {
 
 func (f *Function) StoreValAddr(val ssa.Value, addr *nameInfo) (string, *Error) {
 
-	var err *Error
-	if err = f.allocValueOnDemand(val); err != nil {
-		return "", err
+	if nameinfo := f.allocValueOnDemand(val); nameinfo == nil {
+		return ErrorMsg("Error in allocating local")
 	}
 	if addr.local == nil && addr.param == nil {
-		msg := fmt.Errorf("Invalid addr \"%v\"", addr)
-		return "", &Error{Err: msg, Pos: 0}
+		return ErrorMsg(fmt.Sprintf("Invalid addr \"%v\"", addr))
 	}
 
 	asm := ""
 	asm += f.Indent + fmt.Sprintf("// BEGIN StoreValAddr addr name:%v, val name:%v\n", addr.name, val.Name()) + asm
 
 	if isComplex(val.Type()) {
-		return "", &Error{fmt.Errorf("complex32/64 unsupported"), val.Pos()}
+		return ErrorMsg("complex32/64 unsupported")
 	}
 
 	if isFloat(val.Type()) {
@@ -682,11 +700,12 @@ func (f *Function) StoreValAddr(val ssa.Value, addr *nameInfo) (string, *Error) 
 }
 
 func (f *Function) Store(instr *ssa.Store) (string, *Error) {
-	if err := f.allocValueOnDemand(instr.Addr); err != nil {
-		return "", err
+	if nameinfo := f.allocValueOnDemand(instr.Addr); nameinfo == nil {
+		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
 	addr, ok := f.ssaNames[instr.Addr.Name()]
 	if !ok {
+
 		panic("Couldnt find instr.Addr in ssaNames")
 	}
 	return f.StoreValAddr(instr.Val, &addr)
@@ -694,9 +713,10 @@ func (f *Function) Store(instr *ssa.Store) (string, *Error) {
 
 func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 
-	if err := f.allocValueOnDemand(instr); err != nil {
-		return "", err
+	if nameinfo := f.allocValueOnDemand(instr); nameinfo == nil {
+		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
+
 	var regX, regY *register
 	var regVal register
 	size := f.sizeof(instr)
@@ -756,14 +776,14 @@ func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 
 func (f *Function) BinOpLoadXY(instr *ssa.BinOp) (asm string, x *register, y *register, err *Error) {
 
-	if err = f.allocValueOnDemand(instr); err != nil {
-		return "", nil, nil, err
+	if nameinfo := f.allocValueOnDemand(instr); nameinfo == nil {
+		return "", nil, nil, ErrorMsg2(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
-	if err = f.allocValueOnDemand(instr.X); err != nil {
-		return "", nil, nil, err
+	if nameinfo := f.allocValueOnDemand(instr.X); nameinfo == nil {
+		return "", nil, nil, ErrorMsg2(fmt.Sprintf("Cannot alloc value: %v", instr.X))
 	}
-	if err = f.allocValueOnDemand(instr.Y); err != nil {
-		return "", nil, nil, err
+	if nameinfo := f.allocValueOnDemand(instr.Y); nameinfo == nil {
+		return "", nil, nil, ErrorMsg2(fmt.Sprintf("Cannot alloc value: %v", instr.Y))
 	}
 
 	xtmp := f.allocReg(regType(instr.X.Type()), f.sizeof(instr.X))
@@ -908,8 +928,8 @@ func (f *Function) UnOp(instr *ssa.UnOp) (string, *Error) {
 // bitwise negation
 func (f *Function) UnOpXor(instr *ssa.UnOp, xorVal int32) (string, *Error) {
 
-	if err := f.allocValueOnDemand(instr); err != nil {
-		return "", err
+	if nameinfo := f.allocValueOnDemand(instr); nameinfo == nil {
+		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
 	size := f.sizeof(instr)
 	reg := f.allocReg(regType(instr.X.Type()), size)
@@ -949,8 +969,8 @@ func (f *Function) UnOpXor(instr *ssa.UnOp, xorVal int32) (string, *Error) {
 // arithmetic negation
 func (f *Function) UnOpSub(instr *ssa.UnOp) (string, *Error) {
 
-	if err := f.allocValueOnDemand(instr); err != nil {
-		return "", err
+	if nameinfo := f.allocValueOnDemand(instr); nameinfo == nil {
+		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
 	var regX register
 	var regSubX register
@@ -992,59 +1012,63 @@ func (f *Function) UnOpSub(instr *ssa.UnOp) (string, *Error) {
 
 //pointer indirection
 func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
-	assignment := f.OnDemandAlloc(instr.Name(), instr.Type())
+	assignment := f.allocValueOnDemand(instr)
+	if assignment == nil {
+		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
+	}
+
 	xName := instr.X.Name()
 	xInfo, okX := f.ssaNames[xName]
+
 	// TODO add complex64/128 support
 	if isComplex(instr.Type()) || isComplex(instr.X.Type()) {
-		return "", &Error{fmt.Errorf("complex64/complex128 unimplemented"), instr.Pos()}
+		return ErrorMsg("complex64/complex128 unimplemented")
 	}
 	if !okX {
 		panic(fmt.Sprintf("Unknown name for UnOp X (%v), instr \"(%v)\"", instr.X, instr))
 	}
 	if xInfo.local == nil && xInfo.param == nil && !xInfo.IsPointer() {
-		panic(fmt.Sprintf("In UnOp, X (%v) isn't a pointer, X.type (%v), instr \"(%v)\"", instr.X, instr.X.Type(), instr))
+		fmtstr := "In UnOp, X (%v) isn't a pointer, X.type (%v), instr \"(%v)\""
+		msg := fmt.Sprintf(fmtstr, instr.X, instr.X.Type(), instr)
+		panic(msg)
 	}
+
 	asm := ""
 
 	xReg, xOffset, xSize := xInfo.Addr()
 	aReg, aOffset, aSize := assignment.Addr()
+
 	if xSize != sizePtr() {
 		fmt.Printf("instr: %v\n", instr)
 		panic(fmt.Sprintf("xSize (%v) != ptr size (%v)", xSize, sizePtr()))
 	}
 
 	size := aSize
+
 	tmp1 := f.allocReg(DATA_REG, DataRegSize)
 	tmp2 := f.allocReg(regType(instr.Type()), DataRegSize)
 	instrdata := GetInstrDataType(instr.Type())
+
 	asm += MovMemIndirectMem(f.Indent, instrdata, xInfo.name, xOffset, &xReg, assignment.name, aOffset, &aReg, size, &tmp1, &tmp2)
-	f.ssaNames[assignment.name] = assignment
+
+	f.ssaNames[assignment.name] = *assignment
+
 	f.freeReg(tmp1)
 	f.freeReg(tmp2)
-	return asm, nil
-}
 
-func (f *Function) OnDemandAlloc(name string, datatype types.Type) nameInfo {
-	nameinfo, ok := f.ssaNames[name]
-	if !ok {
-		local, err := f.AllocLocal(name, datatype)
-		if err != nil {
-			panic("Error allocating local var/tmp")
-		}
-		nameinfo = local
-		f.ssaNames[name] = nameinfo
-	}
-	return nameinfo
+	return asm, nil
 }
 
 func (f *Function) Index(instr *ssa.Index) (string, *Error) {
 	if instr == nil {
-		return "", &Error{Err: errors.New("nil instr"), Pos: instr.Pos()}
+		return ErrorMsg("nil instr")
 	}
 	asm := ""
 	xInfo := f.ssaNames[instr.X.Name()]
-	assignment := f.OnDemandAlloc(instr.Name(), instr.Type())
+	assignment := f.allocValueOnDemand(instr)
+	if assignment == nil {
+		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
+	}
 
 	xReg, xOffset, _ := xInfo.Addr()
 	aReg, aOffset, _ := assignment.Addr()
@@ -1057,24 +1081,30 @@ func (f *Function) Index(instr *ssa.Index) (string, *Error) {
 
 	instrdata := GetIntegerInstrDataType(false, idxReg.width/8)
 	asm += AddRegReg(f.Indent, instrdata, &idxReg, &addrReg)
+
 	instrdata = GetInstrDataType(assignment.typ)
 	asm += MovRegMem(f.Indent, instrdata, &addrReg, assignment.name, &aReg, aOffset)
+
 	f.freeReg(idxReg)
 	f.freeReg(addrReg)
-	f.ssaNames[instr.Name()] = assignment
+
+	f.ssaNames[instr.Name()] = *assignment
+
 	asm = f.Indent + fmt.Sprintf("// BEGIN ssa.IndexAddr: %v = %v\n", instr.Name(), instr) + asm
 	asm += f.Indent + fmt.Sprintf("// END ssa.IndexAddr: %v = %v\n", instr.Name(), instr)
+
 	return asm, nil
 }
 
 func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 	if instr == nil {
-		return "", &Error{Err: errors.New("nil instr"), Pos: instr.Pos()}
+		return ErrorMsg("nil instr")
 
 	}
+
 	asm := ""
 	xInfo := f.ssaNames[instr.X.Name()]
-	assignment := f.OnDemandAlloc(instr.Name(), instr.Type())
+	assignment := f.allocValueOnDemand(instr)
 
 	xReg, xOffset, _ := xInfo.Addr()
 	aReg, aOffset, _ := assignment.Addr()
@@ -1094,7 +1124,7 @@ func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 	f.freeReg(idxReg)
 	f.freeReg(addrReg)
 
-	f.ssaNames[instr.Name()] = assignment
+	f.ssaNames[instr.Name()] = *assignment
 
 	asm = f.Indent + fmt.Sprintf("// BEGIN ssa.IndexAddr: %v = %v\n", instr.Name(), instr) + asm
 	asm += f.Indent + fmt.Sprintf("// END ssa.IndexAddr: %v = %v\n", instr.Name(), instr)
@@ -1104,11 +1134,11 @@ func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 func (f *Function) AllocInstr(instr *ssa.Alloc) (string, *Error) {
 	asm := ""
 	if instr == nil {
-		return "", &Error{Err: errors.New("AllocInstr: nil instr"), Pos: instr.Pos()}
+		return ErrorMsg("AllocInstr: nil instr")
 
 	}
 	if instr.Heap {
-		return "", &Error{Err: errors.New("AllocInstr: heap alloc"), Pos: instr.Pos()}
+		return ErrorMsg("AllocInstr: heap alloc")
 	}
 
 	//Alloc values are always addresses, and have pointer types, so the type
@@ -1273,22 +1303,25 @@ func (f *Function) retAlign() uint {
 	return align
 }
 
-func (f *Function) allocValueOnDemand(v ssa.Value) *Error {
-	_, ok := f.ssaNames[v.Name()]
-	if ok {
-		return nil
+func (f *Function) allocValueOnDemand(v ssa.Value) *nameInfo {
+
+	if nameinfo, ok := f.ssaNames[v.Name()]; ok {
+		return &nameinfo
 	}
-	switch v.(type) {
+
+	switch v := v.(type) {
 	case *ssa.Const:
+		nameinfo := nameInfo{name: v.Name(), typ: v.Type(), local: nil, param: nil, cnst: v}
+		f.ssaNames[v.Name()] = nameinfo
+		return &nameinfo
+	}
+
+	local, err := f.AllocLocal(v.Name(), v.Type())
+	if err != nil {
 		return nil
 	}
-	if !ok {
-		local, err := f.AllocLocal(v.Name(), v.Type())
-		if err != nil {
-			msg := fmt.Errorf("err in allocValueOnDemand, msg:\"%v\"", err)
-			return &Error{Err: msg, Pos: v.Pos()}
-		}
-		f.ssaNames[v.Name()] = local
-	}
-	return nil
+
+	f.ssaNames[v.Name()] = local
+
+	return &local
 }

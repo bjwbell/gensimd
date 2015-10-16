@@ -560,6 +560,7 @@ func (f *Function) ConvertUint64ToFloat(tmp, regU64, regFloat *register, floatSi
 
 	asm := ""
 	regI64 := f.allocReg(DATA_REG, 8)
+	round := f.newJmpLabel()
 	noround := f.newJmpLabel()
 	end := f.newJmpLabel()
 	cvt := ""
@@ -571,37 +572,45 @@ func (f *Function) ConvertUint64ToFloat(tmp, regU64, regFloat *register, floatSi
 		cvt = "CVTSQ2SD"
 		add = "ADDSD"
 	}
-	str :=
-		"//             U64\n" +
-			"CMPQ	%v, $0\n" +
-			"//      jmp to no rounding\n" +
-			"JGE	$1, %v\n" +
-			"//     U64 I64\n" +
-			"MOVQ	%v, %v\n" +
-			"//         I64\n" +
-			"SHRQ	$1, %v\n" +
-			"//     U64 TMP\n" +
-			"MOVQ	%v, %v\n" +
-			"//         TMP\n" +
-			"ANDL	$1, %v\n" +
-			"//     TMP I64\n" +
-			"ORQ	%v, %v\n" +
-			"//CVT  I64 XMM\n" +
-			"%v    %v, %v\n" +
-			"//ADD XMM, XMM\n" +
-			"%v    %v, %v\n" +
-			"//    jmp to end\n" +
-			"JMP   %v\n" +
-			"//    jmp label for no rounding\n" +
-			"%v:\n" +
-			"//CVT I64 XMM\n" +
-			"%v     %v, %v\n" +
-			"//    jmp label for end\n" +
-			"%v:\n"
+	str := "//      U64\n" +
+		"CMPQ	%v, $-1\n" +
+		"//      jmp to rounding\n" +
+		"JEQ	%v\n" +
+		"//     U64\n" +
+		"CMPQ	%v, $-1\n" +
+		"//      jmp to no rounding\n" +
+		"JGE	%v\n" +
+		"// rounding label\n" +
+		"%v:\n" +
+		"//     U64 I64\n" +
+		"MOVQ	%v, %v\n" +
+		"//         I64\n" +
+		"SHRQ	$1, %v\n" +
+		"//     U64 TMP\n" +
+		"MOVQ	%v, %v\n" +
+		"//         TMP\n" +
+		"ANDL	$1, %v\n" +
+		"//     TMP I64\n" +
+		"ORQ	%v, %v\n" +
+		"//CVT  I64 XMM\n" +
+		"%v    %v, %v\n" +
+		"//ADD XMM, XMM\n" +
+		"%v    %v, %v\n" +
+		"//    jmp to end\n" +
+		"JMP   %v\n" +
+		"//    jmp label for no rounding\n" +
+		"%v:\n" +
+		"//CVT U64 XMM\n" +
+		"%v     %v, %v\n" +
+		"//    jmp label for end\n" +
+		"%v:\n"
 
 	asm += fmt.Sprintf(str,
 		regU64.name,
+		round,
+		regU64.name,
 		noround,
+		round,
 		regU64.name, regI64.name,
 		regI64.name,
 		regU64.name, tmp.name,
@@ -611,7 +620,7 @@ func (f *Function) ConvertUint64ToFloat(tmp, regU64, regFloat *register, floatSi
 		add, regFloat.name, regFloat.name,
 		end,
 		noround,
-		cvt, regI64.name, regFloat.name,
+		cvt, regU64.name, regFloat.name,
 		end)
 
 	return asm

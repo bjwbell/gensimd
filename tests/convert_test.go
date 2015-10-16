@@ -366,12 +366,12 @@ func TestNumericConversions(t *testing.T) {
 			t.Errorf("U64ToI64s(%v) %v != %v", uint64(a), U64ToI64s(uint64(a)), U64ToI64(uint64(a)))
 		}
 
-		/*if U64ToF32s(uint64(a)) != U64ToF32(uint64(a)) {
+		if U64ToF32s(uint64(a)) != U64ToF32(uint64(a)) {
 			t.Errorf("U64ToF32s(%v) %v != %v", uint64(a), U64ToF32s(uint64(a)), U64ToF32(uint64(a)))
 		}
 		if U64ToF64s(uint64(a)) != U64ToF64(uint64(a)) {
 			t.Errorf("U64ToF64s(%v) %v != %v", uint64(a), U64ToF64s(uint64(a)), U64ToF64(uint64(a)))
-		}*/
+		}
 
 		if I8ToU8s(int8(a)) != I8ToU8(int8(a)) {
 			t.Errorf("I8ToU8s(%v) %v != %v", int8(a), I8ToU8s(int8(a)), I8ToU8(int8(a)))
@@ -397,12 +397,12 @@ func TestNumericConversions(t *testing.T) {
 		if I8ToI64s(int8(a)) != I8ToI64(int8(a)) {
 			t.Errorf("I8ToI64s(%v) %v != %v", int8(a), I8ToI64s(int8(a)), I8ToI64(int8(a)))
 		}
-		/*if I8ToF32s(int8(a)) != I8ToF32(int8(a)) {
+		if I8ToF32s(int8(a)) != I8ToF32(int8(a)) {
 			t.Errorf("I8ToF32s(%v) %v != %v", int8(a), I8ToF32s(int8(a)), I8ToF32(int8(a)))
 		}
 		if I8ToF64s(int8(a)) != I8ToF64(int8(a)) {
 			t.Errorf("I8ToF64s(%v) %v != %v", int8(a), I8ToF64s(int8(a)), I8ToF64(int8(a)))
-		}*/
+		}
 
 		if I16ToU8s(int16(a)) != I16ToU8(int16(a)) {
 			t.Errorf("I16ToU8s(%v) %v != %v", int16(a), I16ToU8s(int16(a)), I16ToU8(int16(a)))
@@ -428,12 +428,12 @@ func TestNumericConversions(t *testing.T) {
 		if I16ToI64s(int16(a)) != I16ToI64(int16(a)) {
 			t.Errorf("I16ToI64s(%v) %v != %v", int16(a), I16ToI64s(int16(a)), I16ToI64(int16(a)))
 		}
-		/*if I16ToF32s(int16(a)) != I16ToF32(int16(a)) {
+		if I16ToF32s(int16(a)) != I16ToF32(int16(a)) {
 			t.Errorf("I16ToF32s(%v) %v != %v", int16(a), I16ToF32s(int16(a)), I16ToF32(int16(a)))
 		}
 		if I16ToF64s(int16(a)) != I16ToF64(int16(a)) {
 			t.Errorf("I16ToF64s(%v) %v != %v", int16(a), I16ToF64s(int16(a)), I16ToF64(int16(a)))
-		}*/
+		}
 
 		if I32ToU8s(int32(a)) != I32ToU8(int32(a)) {
 			t.Errorf("I32ToU8s(%v) %v != %v", int32(a), I32ToU8s(int32(a)), I32ToU8(int32(a)))
@@ -459,12 +459,12 @@ func TestNumericConversions(t *testing.T) {
 		if I32ToI64s(int32(a)) != I32ToI64(int32(a)) {
 			t.Errorf("I32ToI64s(%v) %v != %v", int32(a), I32ToI64s(int32(a)), I32ToI64(int32(a)))
 		}
-		/*if I32ToF32s(int32(a)) != I32ToF32(int32(a)) {
+		if I32ToF32s(int32(a)) != I32ToF32(int32(a)) {
 			t.Errorf("I32ToF32s(%v) %v != %v", int32(a), I32ToF32s(int32(a)), I32ToF32(int32(a)))
 		}
 		if I32ToF64s(int32(a)) != I32ToF64(int32(a)) {
 			t.Errorf("I32ToF64s(%v) %v != %v", int32(a), I32ToF64s(int32(a)), I32ToF64(int32(a)))
-		}*/
+		}
 
 		if I64ToU8s(int64(a)) != I64ToU8(int64(a)) {
 			t.Errorf("I64ToU8s(%v) %v != %v", int64(a), I64ToU8s(int64(a)), I64ToU8(int64(a)))
@@ -490,12 +490,12 @@ func TestNumericConversions(t *testing.T) {
 		if I64ToI64s(int64(a)) != I64ToI64(int64(a)) {
 			t.Errorf("I64ToI64s(%v) %v != %v", int64(a), I64ToI64s(int64(a)), I64ToI64(int64(a)))
 		}
-		/*if I64ToF32s(int64(a)) != I64ToF32(int64(a)) {
+		if I64ToF32s(int64(a)) != I64ToF32(int64(a)) {
 			t.Errorf("I64ToF32s(%v) %v != %v", int64(a), I64ToF32s(int64(a)), I64ToF32(int64(a)))
 		}
 		if I64ToF64s(int64(a)) != I64ToF64(int64(a)) {
 			t.Errorf("I64ToF64s(%v) %v != %v", int64(a), I64ToF64s(int64(a)), I64ToF64(int64(a)))
-		}*/
+		}
 
 		if F32ToU8s(float32(f64)) != F32ToU8(float32(f64)) {
 			t.Errorf("F32ToU8s(%v) %v != %v", float32(f64), F32ToU8s(float32(f64)), F32ToU8(float32(f64)))

@@ -428,7 +428,7 @@ func (f *Function) Instr(instr ssa.Instruction) (string, *Error) {
 	case *ssa.Select, *ssa.RunDefers, *ssa.Send:
 		asm, err = errormsg("select/send/defer unsupported")
 	case *ssa.Slice:
-		asm, err = errormsg("slice creation unimplemented")
+		asm, err = f.Slice(instr)
 	case *ssa.Store:
 		asm, err = f.Store(instr)
 	case *ssa.TypeAssert:
@@ -452,6 +452,10 @@ func GetXmmVariant(t types.Type) XmmData {
 		return XMM_F64
 	}
 	return XMM_INVALID
+}
+
+func (f *Function) Slice(instr *ssa.Slice) (string, *Error) {
+	return "", nil
 }
 
 func (f *Function) Convert(instr *ssa.Convert) (string, *Error) {

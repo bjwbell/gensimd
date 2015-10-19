@@ -60,7 +60,7 @@ func (name *identifier) Addr() (reg register, offset int, size uint) {
 	} else if name.param != nil {
 		reg = *getRegister(REG_FP)
 	} else {
-		panic(fmt.Sprintf("identifier (%v) is not a local or param", name))
+		internal(fmt.Sprintf("identifier (%v) is not a local or param", name))
 	}
 	return
 }
@@ -76,7 +76,7 @@ func (name *identifier) IsPointer() bool {
 
 func (name *identifier) PointerUnderlyingType() types.Type {
 	if !name.IsPointer() {
-		panic(fmt.Sprintf("identifier (%v) not ptr type", name))
+		internal(fmt.Sprintf("identifier (%v) not ptr type", name))
 	}
 	ptrType := name.typ.(*types.Pointer)
 	return ptrType.Elem()
@@ -369,7 +369,7 @@ func (f *Function) BasicBlock(block *ssa.BasicBlock) (string, *Error) {
 func (f *Function) Instr(instr ssa.Instruction) (string, *Error) {
 
 	if instr == nil {
-		panic("Nil instr")
+		internal("nil instr")
 	}
 	asm := ""
 	var err *Error
@@ -507,7 +507,7 @@ func (f *Function) AllocFromToRegs(instr *ssa.Convert) (from register, to regist
 	fromInfo := f.allocOnDemand(instr.X)
 	toInfo := f.allocOnDemand(instr)
 	if fromInfo == nil || toInfo == nil {
-		panic("Internal error converting between types")
+		internal("converting between types")
 	}
 	fromreg := f.allocReg(regType(fromInfo.typ), fromInfo.size())
 	toreg := f.allocReg(regType(toInfo.typ), toInfo.size())
@@ -546,7 +546,7 @@ func (f *Function) ConvertFromTo(instr *ssa.Convert, fromOpType, toOpType InstrO
 		} else if isFloat64(instr.Type()) {
 			floatSize = 64
 		} else {
-			panic("Internal error converting from uint64 to float")
+			internal("converting from uint64 to float")
 		}
 
 		asm += f.ConvertUint64ToFloat(&tmp, &from, &to, floatSize)
@@ -645,7 +645,7 @@ func (f *Function) If(instr *ssa.If) (string, *Error) {
 
 	}
 	if tblock == -1 || fblock == -1 {
-		panic("If: malformed CFG")
+		internal("malformed CFG with if stmt")
 	}
 
 	if info, ok := f.identifiers[instr.Cond.Name()]; !ok {
@@ -696,7 +696,7 @@ func (f *Function) Jump(jmp *ssa.Jump) (string, *Error) {
 	if jmp.Block() != nil && len(jmp.Block().Succs) == 1 {
 		block = jmp.Block().Succs[0].Index
 	} else {
-		panic("Jump: malformed CFG")
+		internal("malformed CFG with jmp stmt")
 	}
 	a, err := f.JumpPreamble(jmp.Block().Index, block)
 	if err != nil {
@@ -741,7 +741,7 @@ func (f *Function) computePhiInstr(phi *ssa.Phi) *Error {
 			edgeBlock = phi.Block().Preds[i].Index
 		}
 		if edgeBlock == -1 {
-			panic("computePhiInstr: malformed CFG")
+			internal("malformed CFG")
 		}
 		if _, ok := f.phiInfo[edgeBlock]; !ok {
 			f.phiInfo[edgeBlock] = make(map[int][]phiInfo)
@@ -866,7 +866,7 @@ func (f *Function) StoreValAddr(val ssa.Value, addr *identifier) (string, *Error
 
 		if size > sizeInt() {
 			if size%sizeInt() != 0 {
-				panic(fmt.Sprintf("Size (%v) not multiple of sizeInt (%v)", size, sizeInt()))
+				internal(fmt.Sprintf("Size (%v) not multiple of sizeInt (%v)", size, sizeInt()))
 			}
 		}
 
@@ -901,8 +901,7 @@ func (f *Function) Store(instr *ssa.Store) (string, *Error) {
 	}
 	addr, ok := f.identifiers[instr.Addr.Name()]
 	if !ok {
-
-		panic("Couldnt find instr.Addr in identifiers")
+		internal(fmt.Sprintf("couldnt store identifier \"%v\"", addr.name))
 	}
 	return f.StoreValAddr(instr.Val, &addr)
 }
@@ -935,7 +934,7 @@ func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 
 	switch instr.Op {
 	default:
-		panic(fmt.Sprintf("Unknown op (%v)", instr.Op))
+		internal(fmt.Sprintf("unknown op (%v)", instr.Op))
 	case token.ADD, token.SUB, token.MUL, token.QUO, token.REM:
 		instrdata := GetOpDataType(instr.Type())
 		asm += ArithOp(f.Indent, instrdata, instr.Op, regX, regY, &regVal)
@@ -943,7 +942,7 @@ func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 		asm += BitwiseOp(f.Indent, instr.Op, xIsSigned, regX, regY, &regVal, size)
 	case token.EQL, token.NEQ, token.LEQ, token.GEQ, token.LSS, token.GTR:
 		if size != f.sizeof(instr.Y) {
-			panic("Comparing two different size values")
+			internal("comparing two different size values")
 		}
 		instrdata := GetOpDataType(instr.X.Type())
 		asm += CmpOp(f.Indent, instrdata, instr.Op, regX, regY, &regVal)
@@ -954,7 +953,7 @@ func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 
 	addr, ok := f.identifiers[instr.Name()]
 	if !ok {
-		panic(fmt.Sprintf("Unknown name (%v), instr (%v)\n", instr.Name(), instr))
+		internal(fmt.Sprintf("unknown name (%v), instr (%v)\n", instr.Name(), instr))
 	}
 
 	a, err := f.StoreValue(&addr, &regVal)
@@ -1010,7 +1009,7 @@ func (f *Function) sizeof(val ssa.Value) uint {
 	}
 	info, ok := f.identifiers[val.Name()]
 	if !ok {
-		panic(fmt.Sprintf("Unknown name (%v), value (%v)\n", val.Name(), val))
+		internal(fmt.Sprintf("unknown name (%v), value (%v)\n", val.Name(), val))
 	}
 	_, _, size := info.Addr()
 	return size
@@ -1030,15 +1029,15 @@ func (f *Function) LoadValue(val ssa.Value, offset int, size uint, reg *register
 	}
 	info, ok := f.identifiers[val.Name()]
 	if !ok {
-		panic(fmt.Sprintf("Unknown name (%v), value (%v)\n", val.Name(), val))
+		internal(fmt.Sprintf("unknown name (%v), value (%v)\n", val.Name(), val))
 	}
 
 	r, roffset, rsize := info.Addr()
 	if rsize%size != 0 {
-		panic(fmt.Sprintf("Size (%v) value not divisor of value (%v) size (%v), name (%v)\n", size, val, rsize, val.Name()))
+		internal(fmt.Sprintf("size (%v) value not divisor of value (%v) size (%v), name (%v)\n", size, val, rsize, val.Name()))
 	}
 	if size > 8 {
-		panic(fmt.Sprintf("Greater than 8 byte sized (%v) value, value (%v), name (%v)\n", size, val, val.Name()))
+		internal(fmt.Sprintf("greater than 8 byte sized (%v) value, value (%v), name (%v)\n", size, val, val.Name()))
 	}
 
 	datatype := GetIntegerOpDataType(false, size)
@@ -1047,24 +1046,24 @@ func (f *Function) LoadValue(val ssa.Value, offset int, size uint, reg *register
 
 func (f *Function) StoreValue(ident *identifier, reg *register) (string, *Error) {
 	if ident.size() > reg.size() {
-		msg := fmt.Sprintf("Internal error, identifier size (%v) > register size (%v)", ident.size(), reg.size())
-		panic(msg)
-	} else {
-		return f.StoreReg(reg, ident, 0, ident.size())
+		msgstr := "identifier size (%v) > register size (%v)"
+		internal(fmt.Sprintf(msgstr, ident.size(), reg.size()))
+
 	}
+	return f.StoreReg(reg, ident, 0, ident.size())
 }
 
-func (f *Function) StoreReg(reg *register, addr *identifier, offset int, size uint) (string, *Error) {
-	r, roffset, rsize := addr.Addr()
+func (f *Function) StoreReg(reg *register, ident *identifier, offset int, size uint) (string, *Error) {
+	r, roffset, rsize := ident.Addr()
 	if rsize%size != 0 {
-		panic(fmt.Sprintf("Size (%v) value not divisor of addr (%v) size (%v), name (%v)\n", size, *addr, rsize, addr.name))
+		internal(fmt.Sprintf("storing identifier \"%v\"", ident.name))
 	}
 	if rsize == 0 {
-		panic(fmt.Sprintf("size == 0 for addr (%v)", *addr))
+		internal(fmt.Sprintf("identifier (%v) size is 0", ident.name))
 	}
 	asm := f.Indent + fmt.Sprintf("// BEGIN StoreReg, size (%v)\n", rsize)
 	instrdata := GetIntegerOpDataType(false, size)
-	asm += MovRegMem(f.Indent, instrdata, reg, addr.name, &r, offset+roffset)
+	asm += MovRegMem(f.Indent, instrdata, reg, ident.name, &r, offset+roffset)
 	asm += f.Indent + fmt.Sprintf("// END StoreReg, size (%v)\n", rsize)
 	return asm, nil
 }
@@ -1080,7 +1079,7 @@ func (f *Function) LoadConstValue(cnst *ssa.Const, r *register) (string, *Error)
 	}
 	if isFloat(cnst.Type()) {
 		if r.typ != XMM_REG {
-			panic("Can't load float const into non xmm register")
+			internal("can't load float const into non xmm register")
 		}
 		tmp := f.allocReg(DATA_REG, 8)
 		asm := ""
@@ -1094,7 +1093,7 @@ func (f *Function) LoadConstValue(cnst *ssa.Const, r *register) (string, *Error)
 
 	}
 	if isComplex(cnst.Type()) {
-		panic("complex64/128 unsupported")
+		internal("complex64/128 unsupported")
 	}
 
 	size := sizeof(cnst.Type())
@@ -1114,7 +1113,7 @@ func (f *Function) UnOp(instr *ssa.UnOp) (string, *Error) {
 	asm := ""
 	switch instr.Op {
 	default:
-		panic(fmt.Sprintf("Unknown Op token (%v): \"%v\"", instr.Op, instr))
+		internal(fmt.Sprintf("unknown Op token (%v): \"%v\"", instr.Op, instr))
 	case token.NOT: // logical negation
 		asm, err = f.UnOpXor(instr, 1)
 	case token.XOR: //bitwise negation
@@ -1141,7 +1140,8 @@ func (f *Function) UnOpXor(instr *ssa.UnOp, xorVal int32) (string, *Error) {
 
 	addr, ok := f.identifiers[instr.Name()]
 	if !ok {
-		panic(fmt.Sprintf("Unknown name (%v), instr (%v)\n", instr.Name(), instr))
+		msg := fmt.Sprintf("unknown name (%v), instr (%v)\n", instr.Name(), instr)
+		internal(msg)
 	}
 
 	asm := ZeroReg(f.Indent, &reg)
@@ -1187,7 +1187,8 @@ func (f *Function) UnOpSub(instr *ssa.UnOp) (string, *Error) {
 
 	addr, ok := f.identifiers[instr.Name()]
 	if !ok {
-		panic(fmt.Sprintf("Unknown name (%v), instr (%v)\n", instr.Name(), instr))
+		msg := fmt.Sprintf("unknown name (%v), instr (%v)\n", instr.Name(), instr)
+		internal(msg)
 	}
 
 	asm, err := f.LoadValueSimple(instr.X, &regX)
@@ -1230,12 +1231,13 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 		return ErrorMsg("complex64/complex128 unimplemented")
 	}
 	if !okX {
-		panic(fmt.Sprintf("Unknown name for UnOp X (%v), instr \"(%v)\"", instr.X, instr))
+		msgstr := "Unknown name for UnOp X (%v), instr \"(%v)\""
+		internal(fmt.Sprintf(msgstr, instr.X, instr))
 	}
 	if xInfo.local == nil && xInfo.param == nil && !xInfo.IsPointer() {
-		fmtstr := "In UnOp, X (%v) isn't a pointer, X.type (%v), instr \"(%v)\""
+		fmtstr := "in UnOp, X (%v) isn't a pointer, X.type (%v), instr \"(%v)\""
 		msg := fmt.Sprintf(fmtstr, instr.X, instr.X.Type(), instr)
-		panic(msg)
+		internal(msg)
 	}
 
 	asm := ""
@@ -1245,7 +1247,7 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 
 	if xSize != sizePtr() {
 		fmt.Printf("instr: %v\n", instr)
-		panic(fmt.Sprintf("xSize (%v) != ptr size (%v)", xSize, sizePtr()))
+		internal(fmt.Sprintf("xSize (%v) != ptr size (%v)", xSize, sizePtr()))
 	}
 
 	size := aSize
@@ -1351,7 +1353,7 @@ func (f *Function) AllocInstr(instr *ssa.Alloc) (string, *Error) {
 	//Type().Underlying().(*types.Pointer).Elem().
 	info := f.identifiers[instr.Name()]
 	if info.local == nil {
-		panic(fmt.Sprintf("Expect %v to be a local variable", instr.Name()))
+		internal(fmt.Sprintf("expected %v to be a local variable", instr.Name()))
 	}
 	if _, ok := info.typ.(*types.Pointer); ok {
 	} else {
@@ -1362,10 +1364,10 @@ func (f *Function) AllocInstr(instr *ssa.Alloc) (string, *Error) {
 
 func (f *Function) Value(value ssa.Value, dstReg *register, dstVar *varInfo) string {
 	if dstReg == nil && dstVar == nil {
-		panic("Both dstReg & dstVar are nil!")
+		internal("destination register/var are nil!")
 	}
 	if dstReg != nil && dstVar != nil {
-		panic("Both dstReg & dstVar are non nil!")
+		internal("destination register/var are both non-nil!")
 	}
 	if dstReg != nil {
 		// TODO
@@ -1429,7 +1431,8 @@ func (f *Function) allocReg(t RegType, size uint) register {
 		if t == ADDR_REG {
 			return f.allocReg(DATA_REG, size)
 		} else {
-			panic(fmt.Sprintf("couldn't alloc register, type: %v, width in bits: %v, size in bytes:%v", t, size*8, size))
+			msgstr := "couldn't alloc register (t: %v, w: %v, s: %v)"
+			internal(fmt.Sprintf(msgstr, t, size*8, size))
 		}
 	}
 	return reg
@@ -1529,4 +1532,8 @@ func (f *Function) allocOnDemand(v ssa.Value) *identifier {
 	f.identifiers[v.Name()] = local
 
 	return &local
+}
+
+func internal(msg string) {
+	panic(fmt.Sprintf("Internal error, \"%v\"", msg))
 }

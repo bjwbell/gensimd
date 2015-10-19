@@ -20,11 +20,11 @@ type phiInfo struct {
 
 type Function struct {
 	// output function name
-	outfn     string
-	Indent    string
-	ssa       *ssa.Function
-	registers map[string]bool // maps register to false if unused and true if used
-	ssaNames  map[string]nameInfo
+	outfn       string
+	Indent      string
+	ssa         *ssa.Function
+	registers   map[string]bool // maps register to false if unused and true if used
+	identifiers map[string]nameInfo
 	// map from block index to the successor block indexes that need phi vars set
 	phiInfo map[int]map[int][]phiInfo
 
@@ -181,7 +181,7 @@ func (f *Function) Params() (string, *Error) {
 		}
 		info := nameInfo{name: param.name, typ: param.info.Type(),
 			local: nil, param: &param, offset: offset, size: sizeof(p.Type()), align: align(p.Type())}
-		f.ssaNames[param.name] = info
+		f.identifiers[param.name] = info
 		if info.align > info.size {
 			offset += int(info.align)
 		} else {
@@ -286,7 +286,7 @@ func (f *Function) ZeroSsaLocals() (string, *Error) {
 		asm += ZeroMemory(f.Indent, local.Name(), offset, size, sp)
 		v := varInfo{name: local.Name(), info: local}
 		info := nameInfo{name: v.name, typ: typ, local: &v, param: nil, offset: offset, size: size, align: align(typ)}
-		f.ssaNames[v.name] = info
+		f.identifiers[v.name] = info
 		if info.align > info.size {
 			offset += int(info.align)
 		} else {
@@ -312,14 +312,14 @@ func (f *Function) AllocLocal(name string, typ types.Type) (nameInfo, *Error) {
 		offset: -int(f.localsSize()) - offset,
 		size:   size,
 		align:  align(typ)}
-	f.ssaNames[v.name] = info
+	f.identifiers[v.name] = info
 	// zeroing the memory is done at the beginning of the function
 	return info, nil
 }
 
 func (f *Function) ZeroNonSsaLocals() (string, *Error) {
 	asm := ""
-	for _, name := range f.ssaNames {
+	for _, name := range f.identifiers {
 		if name.local == nil || name.IsSsaLocal() {
 			continue
 		}
@@ -547,7 +547,7 @@ func (f *Function) ConvertFromTo(instr *ssa.Convert, fromOpType, toOpType InstrO
 	} else {
 		asm += ConvertOp(f.Indent, &from, fromType, &to, toType, &tmp)
 	}
-	toNameInfo := f.ssaNames[instr.Name()]
+	toNameInfo := f.identifiers[instr.Name()]
 	if a, err := f.StoreReg(&to, &toNameInfo, 0); err != nil {
 		return "", err
 	} else {
@@ -642,7 +642,7 @@ func (f *Function) If(instr *ssa.If) (string, *Error) {
 		panic("If: malformed CFG")
 	}
 
-	if info, ok := f.ssaNames[instr.Cond.Name()]; !ok {
+	if info, ok := f.identifiers[instr.Cond.Name()]; !ok {
 
 		return ErrorMsg(fmt.Sprintf("If: unhandled case, cond (%v)", instr.Cond))
 	} else {
@@ -896,10 +896,10 @@ func (f *Function) Store(instr *ssa.Store) (string, *Error) {
 	if nameinfo := f.allocOnDemand(instr.Addr); nameinfo == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
-	addr, ok := f.ssaNames[instr.Addr.Name()]
+	addr, ok := f.identifiers[instr.Addr.Name()]
 	if !ok {
 
-		panic("Couldnt find instr.Addr in ssaNames")
+		panic("Couldnt find instr.Addr in identifiers")
 	}
 	return f.StoreValAddr(instr.Val, &addr)
 }
@@ -949,7 +949,7 @@ func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 	f.freeReg(*regX)
 	f.freeReg(*regY)
 
-	addr, ok := f.ssaNames[instr.Name()]
+	addr, ok := f.identifiers[instr.Name()]
 	if !ok {
 		panic(fmt.Sprintf("Unknown name (%v), instr (%v)\n", instr.Name(), instr))
 	}
@@ -1005,7 +1005,7 @@ func (f *Function) sizeof(val ssa.Value) uint {
 	if _, ok := val.(*ssa.Const); ok {
 		return f.sizeofConst(val.(*ssa.Const))
 	}
-	info, ok := f.ssaNames[val.Name()]
+	info, ok := f.identifiers[val.Name()]
 	if !ok {
 		panic(fmt.Sprintf("Unknown name (%v), value (%v)\n", val.Name(), val))
 	}
@@ -1025,7 +1025,7 @@ func (f *Function) LoadValue(val ssa.Value, offset int, size uint, reg *register
 	if _, ok := val.(*ssa.Const); ok {
 		return f.LoadConstValue(val.(*ssa.Const), reg)
 	}
-	info, ok := f.ssaNames[val.Name()]
+	info, ok := f.identifiers[val.Name()]
 	if !ok {
 		panic(fmt.Sprintf("Unknown name (%v), value (%v)\n", val.Name(), val))
 	}
@@ -1127,7 +1127,7 @@ func (f *Function) UnOpXor(instr *ssa.UnOp, xorVal int32) (string, *Error) {
 	size := f.sizeof(instr)
 	reg := f.allocReg(regType(instr.X.Type()), size)
 
-	addr, ok := f.ssaNames[instr.Name()]
+	addr, ok := f.identifiers[instr.Name()]
 	if !ok {
 		panic(fmt.Sprintf("Unknown name (%v), instr (%v)\n", instr.Name(), instr))
 	}
@@ -1173,7 +1173,7 @@ func (f *Function) UnOpSub(instr *ssa.UnOp) (string, *Error) {
 	regX = f.allocReg(regType(instr.X.Type()), f.sizeof(instr.X))
 	regSubX = f.allocReg(regType(instr.X.Type()), f.sizeof(instr.X))
 
-	addr, ok := f.ssaNames[instr.Name()]
+	addr, ok := f.identifiers[instr.Name()]
 	if !ok {
 		panic(fmt.Sprintf("Unknown name (%v), instr (%v)\n", instr.Name(), instr))
 	}
@@ -1211,7 +1211,7 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 	}
 
 	xName := instr.X.Name()
-	xInfo, okX := f.ssaNames[xName]
+	xInfo, okX := f.identifiers[xName]
 
 	// TODO add complex64/128 support
 	if isComplex(instr.Type()) || isComplex(instr.X.Type()) {
@@ -1244,7 +1244,7 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 
 	asm += MovMemIndirectMem(f.Indent, instrdata, xInfo.name, xOffset, &xReg, assignment.name, aOffset, &aReg, size, &tmp1, &tmp2)
 
-	f.ssaNames[assignment.name] = *assignment
+	f.identifiers[assignment.name] = *assignment
 
 	f.freeReg(tmp1)
 	f.freeReg(tmp2)
@@ -1257,7 +1257,7 @@ func (f *Function) Index(instr *ssa.Index) (string, *Error) {
 		return ErrorMsg("nil instr")
 	}
 	asm := ""
-	xInfo := f.ssaNames[instr.X.Name()]
+	xInfo := f.identifiers[instr.X.Name()]
 	assignment := f.allocOnDemand(instr)
 	if assignment == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
@@ -1281,7 +1281,7 @@ func (f *Function) Index(instr *ssa.Index) (string, *Error) {
 	f.freeReg(idxReg)
 	f.freeReg(addrReg)
 
-	f.ssaNames[instr.Name()] = *assignment
+	f.identifiers[instr.Name()] = *assignment
 
 	asm = f.Indent + fmt.Sprintf("// BEGIN ssa.IndexAddr: %v = %v\n", instr.Name(), instr) + asm
 	asm += f.Indent + fmt.Sprintf("// END ssa.IndexAddr: %v = %v\n", instr.Name(), instr)
@@ -1296,7 +1296,7 @@ func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 	}
 
 	asm := ""
-	xInfo := f.ssaNames[instr.X.Name()]
+	xInfo := f.identifiers[instr.X.Name()]
 	assignment := f.allocOnDemand(instr)
 
 	xReg, xOffset, _ := xInfo.Addr()
@@ -1317,7 +1317,7 @@ func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 	f.freeReg(idxReg)
 	f.freeReg(addrReg)
 
-	f.ssaNames[instr.Name()] = *assignment
+	f.identifiers[instr.Name()] = *assignment
 
 	asm = f.Indent + fmt.Sprintf("// BEGIN ssa.IndexAddr: %v = %v\n", instr.Name(), instr) + asm
 	asm += f.Indent + fmt.Sprintf("// END ssa.IndexAddr: %v = %v\n", instr.Name(), instr)
@@ -1337,14 +1337,14 @@ func (f *Function) AllocInstr(instr *ssa.Alloc) (string, *Error) {
 	//Alloc values are always addresses, and have pointer types, so the type
 	//of the allocated variable is actually
 	//Type().Underlying().(*types.Pointer).Elem().
-	info := f.ssaNames[instr.Name()]
+	info := f.identifiers[instr.Name()]
 	if info.local == nil {
 		panic(fmt.Sprintf("Expect %v to be a local variable", instr.Name()))
 	}
 	if _, ok := info.typ.(*types.Pointer); ok {
 	} else {
 	}
-	f.ssaNames[instr.Name()] = info
+	f.identifiers[instr.Name()] = info
 	return asm, nil
 }
 
@@ -1366,7 +1366,7 @@ func (f *Function) Value(value ssa.Value, dstReg *register, dstVar *varInfo) str
 
 func (f *Function) localsSize() uint32 {
 	size := uint32(0)
-	for _, name := range f.ssaNames {
+	for _, name := range f.identifiers {
 		if name.local != nil {
 			size += uint32(name.size)
 		}
@@ -1376,7 +1376,7 @@ func (f *Function) localsSize() uint32 {
 
 func (f *Function) init() *Error {
 	f.registers = make(map[string]bool)
-	f.ssaNames = make(map[string]nameInfo)
+	f.identifiers = make(map[string]nameInfo)
 	f.phiInfo = make(map[int]map[int][]phiInfo)
 	f.initRegs()
 	return nil
@@ -1498,14 +1498,14 @@ func (f *Function) retAlign() uint {
 
 func (f *Function) allocOnDemand(v ssa.Value) *nameInfo {
 
-	if nameinfo, ok := f.ssaNames[v.Name()]; ok {
+	if nameinfo, ok := f.identifiers[v.Name()]; ok {
 		return &nameinfo
 	}
 
 	switch v := v.(type) {
 	case *ssa.Const:
 		nameinfo := nameInfo{name: v.Name(), typ: v.Type(), local: nil, param: nil, cnst: v}
-		f.ssaNames[v.Name()] = nameinfo
+		f.identifiers[v.Name()] = nameinfo
 		return &nameinfo
 	}
 
@@ -1514,7 +1514,7 @@ func (f *Function) allocOnDemand(v ssa.Value) *nameInfo {
 		return nil
 	}
 
-	f.ssaNames[v.Name()] = local
+	f.identifiers[v.Name()] = local
 
 	return &local
 }

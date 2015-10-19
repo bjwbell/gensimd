@@ -131,7 +131,10 @@ func sizeInt() uint {
 }
 
 func sizePtr() uint {
-	return pointerSize
+	typ := reflect.TypeOf(true)
+	ptrType := reflect.PtrTo(typ)
+	size := ptrType.Size()
+	return uint(size)
 }
 
 // sizeBasic return the size in bytes of a basic type
@@ -161,10 +164,16 @@ func align(t types.Type) uint {
 }
 
 func alignPtr() uint {
-	return 8
+	typ := reflect.TypeOf(true)
+	ptrType := reflect.PtrTo(typ)
+	align := ptrType.Align()
+	return uint(align)
+
 }
 func alignSlice() uint {
-	return 8
+	typ := reflect.TypeOf([]int{1, 2, 3})
+	align := typ.Align()
+	return uint(align)
 }
 
 func alignBasic(b types.BasicKind) uint {
@@ -249,6 +258,9 @@ func reflectType(t types.Type) reflect.Type {
 	case *types.Basic:
 		return reflectBasic(t.Kind())
 	case *types.Pointer:
+		rtype := reflectType(t.Elem())
+		ptr := reflect.PtrTo(rtype)
+		return ptr
 		// TODO
 	case *types.Slice:
 		// TODO

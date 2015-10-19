@@ -378,7 +378,8 @@ func ZeroReg(indent string, reg *register) string {
 
 func MovRegReg(indent string, datatype OpDataType, srcReg, dstReg *register) string {
 	if srcReg.width != dstReg.width {
-		internal(fmt.Sprintf("srcReg (%v) width (%v) != (%v) dstReg (%v) width or invalid size", srcReg.name, srcReg.width, dstReg.width, dstReg.name))
+		msg := "srcReg (%v) width (%v) != (%v) dstReg (%v) width or invalid size"
+		internal(fmt.Sprintf(msg, srcReg.name, srcReg.width, dstReg.width, dstReg.name))
 	}
 	mov := GetInstr(I_MOV, datatype).String()
 	asm := indent + fmt.Sprintf("%v    %v, %v\n", mov, srcReg.name, dstReg.name)

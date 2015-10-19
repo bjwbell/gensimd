@@ -1034,10 +1034,12 @@ func (f *Function) LoadValue(val ssa.Value, offset int, size uint, reg *register
 
 	r, roffset, rsize := info.Addr()
 	if rsize%size != 0 {
-		internal(fmt.Sprintf("size (%v) value not divisor of value (%v) size (%v), name (%v)\n", size, val, rsize, val.Name()))
+		msg := "size (%v) value not divisor of value (%v) size (%v), name (%v)\n"
+		internal(fmt.Sprintf(msg, size, val, rsize, val.Name()))
 	}
 	if size > 8 {
-		internal(fmt.Sprintf("greater than 8 byte sized (%v) value, value (%v), name (%v)\n", size, val, val.Name()))
+		msg := "greater than 8 byte sized (%v) value, value (%v), name (%v)\n"
+		internal(fmt.Sprintf(msg, size, val, val.Name()))
 	}
 
 	datatype := GetIntegerOpDataType(false, size)

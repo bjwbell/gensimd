@@ -1045,12 +1045,12 @@ func (f *Function) LoadValue(val ssa.Value, offset int, size uint, reg *register
 	return MovMemReg(f.Indent, datatype, info.name, roffset+offset, &r, reg), nil
 }
 
-func (f *Function) StoreValue(addr *identifier, reg *register) (string, *Error) {
-	if addr.size() > reg.size() {
-		msg := fmt.Sprintf("Internal error, identifier size (%v) > register size (%v)", addr.size(), reg.size())
+func (f *Function) StoreValue(ident *identifier, reg *register) (string, *Error) {
+	if ident.size() > reg.size() {
+		msg := fmt.Sprintf("Internal error, identifier size (%v) > register size (%v)", ident.size(), reg.size())
 		panic(msg)
 	} else {
-		return f.StoreReg(reg, addr, 0, addr.size())
+		return f.StoreReg(reg, ident, 0, ident.size())
 	}
 }
 

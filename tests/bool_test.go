@@ -36,11 +36,15 @@ func boolt5(x, y bool) bool {
 
 func TestBool(t *testing.T) {
 
+	count := 0
+
 	y := false
 	for i := 0; i <= 1; i++ {
 
 		x := false
 		for j := 0; j <= 1; j++ {
+
+			count++
 
 			if boolt0s(x) != boolt0(x) {
 				t.Errorf("boolt0s (%v) != boolt0 (%v)", boolt0s(x), boolt0(x))
@@ -64,4 +68,6 @@ func TestBool(t *testing.T) {
 		}
 		y = !y
 	}
+
+	t.Log("Test Count:", count)
 }

@@ -38,8 +38,14 @@ type identifier struct {
 	param  *paramInfo
 	cnst   *ssa.Const
 	offset int
-	size   uint
-	align  uint
+}
+
+func (ident *identifier) size() uint {
+	return sizeof(ident.typ)
+}
+
+func (ident *identifier) align() uint {
+	return align(ident.typ)
 }
 
 // Addr returns the register and offset to access the backing memory of name. It also
@@ -48,7 +54,7 @@ type identifier struct {
 // is the frame pointer (FP).
 func (name *identifier) Addr() (reg register, offset int, size uint) {
 	offset = name.offset
-	size = name.size
+	size = name.size()
 	if name.local != nil {
 		reg = *getRegister(REG_SP)
 	} else if name.param != nil {
@@ -181,12 +187,12 @@ func (f *Function) Params() (string, *Error) {
 
 		}
 		info := identifier{name: param.name, typ: param.info.Type(),
-			local: nil, param: &param, offset: offset, size: sizeof(p.Type()), align: align(p.Type())}
+			local: nil, param: &param, offset: offset}
 		f.identifiers[param.name] = info
-		if info.align > info.size {
-			offset += int(info.align)
+		if info.align() > info.size() {
+			offset += int(info.align())
 		} else {
-			offset += int(info.size)
+			offset += int(info.size())
 		}
 	}
 	return asm, nil
@@ -286,10 +292,10 @@ func (f *Function) ZeroSsaLocals() (string, *Error) {
 		size := sizeof(typ)
 		asm += ZeroMemory(f.Indent, local.Name(), offset, size, sp)
 		v := varInfo{name: local.Name(), info: local}
-		info := identifier{name: v.name, typ: typ, local: &v, param: nil, offset: offset, size: size, align: align(typ)}
+		info := identifier{name: v.name, typ: typ, local: &v, param: nil, offset: offset}
 		f.identifiers[v.name] = info
-		if info.align > info.size {
-			offset += int(info.align)
+		if info.align() > info.size() {
+			offset += int(info.align())
 		} else {
 			offset += int(size)
 		}
@@ -310,9 +316,8 @@ func (f *Function) AllocLocal(name string, typ types.Type) (identifier, *Error) 
 		typ:    typ,
 		param:  nil,
 		local:  &v,
-		offset: -int(f.localsSize()) - offset,
-		size:   size,
-		align:  align(typ)}
+		offset: -int(f.localsSize()) - offset}
+
 	f.identifiers[v.name] = info
 	// zeroing the memory is done at the beginning of the function
 	return info, nil
@@ -325,7 +330,7 @@ func (f *Function) ZeroNonSsaLocals() (string, *Error) {
 			continue
 		}
 		sp := getRegister(REG_SP)
-		asm += ZeroMemory(f.Indent, name.name, name.offset, name.size, sp)
+		asm += ZeroMemory(f.Indent, name.name, name.offset, name.size(), sp)
 	}
 	return asm, nil
 }
@@ -504,8 +509,8 @@ func (f *Function) AllocFromToRegs(instr *ssa.Convert) (from register, to regist
 	if fromInfo == nil || toInfo == nil {
 		panic("Internal error converting between types")
 	}
-	fromreg := f.allocReg(regType(fromInfo.typ), fromInfo.size)
-	toreg := f.allocReg(regType(toInfo.typ), toInfo.size)
+	fromreg := f.allocReg(regType(fromInfo.typ), fromInfo.size())
+	toreg := f.allocReg(regType(toInfo.typ), toInfo.size())
 
 	return fromreg, toreg
 
@@ -549,7 +554,7 @@ func (f *Function) ConvertFromTo(instr *ssa.Convert, fromOpType, toOpType InstrO
 		asm += ConvertOp(f.Indent, &from, fromType, &to, toType, &tmp)
 	}
 	toNameInfo := f.identifiers[instr.Name()]
-	if a, err := f.StoreReg(&to, &toNameInfo, 0); err != nil {
+	if a, err := f.StoreValue(&toNameInfo, &to); err != nil {
 		return "", err
 	} else {
 		asm += a
@@ -780,16 +785,13 @@ func (f *Function) CopyToRet(val []ssa.Value) (string, *Error) {
 	if len(val) > 1 {
 		return ErrorMsg("Multiple return values not supported")
 	}
-
 	retAddr :=
 		identifier{
 			name:   retName(),
 			typ:    f.retType(),
 			local:  nil,
 			param:  f.retParam(),
-			size:   f.retSize(),
-			offset: f.retOffset(),
-			align:  f.retAlign()}
+			offset: f.retOffset()}
 
 	return f.StoreValAddr(val[0], &retAddr)
 }
@@ -838,7 +840,7 @@ func (f *Function) StoreValAddr(val ssa.Value, addr *identifier) (string, *Error
 		}
 		asm += a
 
-		a, err = f.StoreReg(&valReg, addr, 0)
+		a, err = f.StoreValue(addr, &valReg)
 		if err != nil {
 			return a, err
 		}
@@ -877,7 +879,7 @@ func (f *Function) StoreValAddr(val ssa.Value, addr *identifier) (string, *Error
 				return a, err
 			}
 			asm += a
-			a, err = f.StoreReg(&valReg, addr, offset)
+			a, err = f.StoreReg(&valReg, addr, offset, uint(datasize))
 			if err != nil {
 				return a, err
 			}
@@ -955,7 +957,7 @@ func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 		panic(fmt.Sprintf("Unknown name (%v), instr (%v)\n", instr.Name(), instr))
 	}
 
-	a, err := f.StoreReg(&regVal, &addr, 0)
+	a, err := f.StoreValue(&addr, &regVal)
 	if err != nil {
 		return asm, err
 	} else {
@@ -1039,20 +1041,29 @@ func (f *Function) LoadValue(val ssa.Value, offset int, size uint, reg *register
 		panic(fmt.Sprintf("Greater than 8 byte sized (%v) value, value (%v), name (%v)\n", size, val, val.Name()))
 	}
 
-	datatype := GetOpDataType(val.Type())
+	datatype := GetIntegerOpDataType(false, size)
 	return MovMemReg(f.Indent, datatype, info.name, roffset+offset, &r, reg), nil
 }
 
-func (f *Function) StoreReg(reg *register, addr *identifier, offset int) (string, *Error) {
+func (f *Function) StoreValue(addr *identifier, reg *register) (string, *Error) {
+	if addr.size() > reg.size() {
+		msg := fmt.Sprintf("Internal error, identifier size (%v) > register size (%v)", addr.size(), reg.size())
+		panic(msg)
+	} else {
+		return f.StoreReg(reg, addr, 0, addr.size())
+	}
+}
+
+func (f *Function) StoreReg(reg *register, addr *identifier, offset int, size uint) (string, *Error) {
 	r, roffset, rsize := addr.Addr()
-	if rsize > sizePtr() {
-		panic(fmt.Sprintf("Greater than ptr sized (%v), addr (%v), name (%v)\n", rsize, *addr, addr.name))
+	if rsize%size != 0 {
+		panic(fmt.Sprintf("Size (%v) value not divisor of addr (%v) size (%v), name (%v)\n", size, *addr, rsize, addr.name))
 	}
 	if rsize == 0 {
 		panic(fmt.Sprintf("size == 0 for addr (%v)", *addr))
 	}
 	asm := f.Indent + fmt.Sprintf("// BEGIN StoreReg, size (%v)\n", rsize)
-	instrdata := GetOpDataType(addr.typ)
+	instrdata := GetIntegerOpDataType(false, size)
 	asm += MovRegMem(f.Indent, instrdata, reg, addr.name, &r, offset+roffset)
 	asm += f.Indent + fmt.Sprintf("// END StoreReg, size (%v)\n", rsize)
 	return asm, nil
@@ -1146,7 +1157,7 @@ func (f *Function) UnOpXor(instr *ssa.UnOp, xorVal int32) (string, *Error) {
 		asm += XorImm64Reg(f.Indent, int64(xorVal), &reg, size)
 	}
 
-	a, err := f.StoreReg(&reg, &addr, 0)
+	a, err := f.StoreValue(&addr, &reg)
 	f.freeReg(reg)
 
 	if err != nil {
@@ -1190,7 +1201,7 @@ func (f *Function) UnOpSub(instr *ssa.UnOp) (string, *Error) {
 	f.freeReg(regX)
 	f.freeReg(regSubX)
 
-	a, err := f.StoreReg(&regVal, &addr, 0)
+	a, err := f.StoreValue(&addr, &regVal)
 	if err != nil {
 		return asm, err
 	} else {
@@ -1369,7 +1380,7 @@ func (f *Function) localsSize() uint32 {
 	size := uint32(0)
 	for _, name := range f.identifiers {
 		if name.local != nil {
-			size += uint32(name.size)
+			size += uint32(name.size())
 		}
 	}
 	return size

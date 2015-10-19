@@ -92,7 +92,12 @@ func ift9(x float64) float64 {
 }
 
 func TestIf(t *testing.T) {
+
+	count := 0
+
 	for j := -63; j <= 63; j++ {
+
+		count++
 
 		x := int64(0)
 		if j < 0 {
@@ -136,4 +141,6 @@ func TestIf(t *testing.T) {
 			t.Errorf("ift9s (%v) != ift9 (%v)", ift9s(float64(x)), ift9(float64(x)))
 		}
 	}
+
+	t.Log("Test Count:", count)
 }

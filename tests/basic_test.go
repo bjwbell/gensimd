@@ -36,6 +36,9 @@ func test4() int {
 }
 
 func TestBasic(t *testing.T) {
+
+	const count = 5
+
 	if t0simd() != test0() {
 		t.Errorf("t0simd (%v) != test0 (%v)", t0simd(), test0())
 	}
@@ -51,4 +54,6 @@ func TestBasic(t *testing.T) {
 	if t4simd() != test4() {
 		t.Errorf("t4simd (%v) != test4 (%v)", t4simd(), test4())
 	}
+
+	t.Log("Test Count:", count)
 }

@@ -231,6 +231,8 @@ func F64ToF64(x float64) float64 { return float64(x) }
 
 func TestNumericConversions(t *testing.T) {
 
+	count := 0
+
 	for i := 0; i <= 128*128; i++ {
 
 		var f64 float64
@@ -247,6 +249,8 @@ func TestNumericConversions(t *testing.T) {
 		} else {
 			a = 1<<uint(j) - 1
 		}
+
+		count++
 
 		if U8ToU8s(uint8(a)) != U8ToU8(uint8(a)) {
 			t.Errorf("U8ToU8s(%v) %v != %v", uint8(a), U8ToU8s(uint8(a)), U8ToU8(uint8(a)))
@@ -561,4 +565,5 @@ func TestNumericConversions(t *testing.T) {
 
 	}
 
+	t.Log("Test Count:", count)
 }

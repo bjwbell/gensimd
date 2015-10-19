@@ -234,6 +234,8 @@ func shrint64(x int64, shift uint8) int64 {
 
 func TestBitwiseOps(t *testing.T) {
 
+	count := 0
+
 	for i := -63; i <= 63; i++ {
 
 		a := int64(0)
@@ -269,6 +271,8 @@ func TestBitwiseOps(t *testing.T) {
 		}
 
 		for j := -63; j <= 63; j++ {
+
+			count++
 
 			b := int64(0)
 			if j < 0 {
@@ -426,4 +430,6 @@ func TestBitwiseOps(t *testing.T) {
 
 		}
 	}
+
+	t.Log("Test Count:", count)
 }

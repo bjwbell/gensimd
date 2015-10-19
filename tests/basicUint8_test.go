@@ -34,6 +34,8 @@ func uint8_t4(x uint8) uint8 {
 
 func TestUint8(t *testing.T) {
 
+	const count = 5
+
 	if uint8_t0_simd(1) != uint8_t0(1) {
 		t.Errorf("uint8_t0_simd (%v) != uint_t0 (%v)", uint8_t0_simd(1), uint8_t0(1))
 	}
@@ -54,4 +56,5 @@ func TestUint8(t *testing.T) {
 		t.Errorf("uint8_t4_simd (%v) != uint8_t4 (%v)", uint8_t4_simd(8), uint8_t4(8))
 	}
 
+	t.Log("Test Count:", 5)
 }

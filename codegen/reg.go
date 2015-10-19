@@ -14,6 +14,10 @@ type register struct {
 	datasizes []uint
 }
 
+func (r *register) size() uint {
+	return r.width / 8
+}
+
 type RegType int
 
 const (

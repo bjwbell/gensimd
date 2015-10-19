@@ -68,6 +68,8 @@ func ptrt1(x *float64) float64 {
 
 func TestFloatOps(t *testing.T) {
 
+	count := 0
+
 	for i := 0; i <= 128*128; i++ {
 		var y float64
 		if i&1 == 1 {
@@ -92,6 +94,9 @@ func TestFloatOps(t *testing.T) {
 		}
 
 		for j := 0; j <= 256; j++ {
+
+			count++
+
 			var x float64
 			if j&1 == 1 {
 				x = rand.Float64()
@@ -129,4 +134,6 @@ func TestFloatOps(t *testing.T) {
 			}
 		}
 	}
+
+	t.Log("Test Count:", count)
 }

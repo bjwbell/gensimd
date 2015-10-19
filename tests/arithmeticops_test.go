@@ -154,7 +154,7 @@ func divuint64(x, y uint64) uint64 {
 }
 
 func TestArithmeticOps(t *testing.T) {
-
+	count := 0
 	for i := -63; i <= 63; i++ {
 
 		y := int64(0)
@@ -178,6 +178,8 @@ func TestArithmeticOps(t *testing.T) {
 		}
 
 		for j := -63; j <= 63; j++ {
+
+			count++
 
 			x := int64(0)
 			if j < 0 {
@@ -276,4 +278,5 @@ func TestArithmeticOps(t *testing.T) {
 
 		}
 	}
+	t.Log("Test Count: ", count)
 }

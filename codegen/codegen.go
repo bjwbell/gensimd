@@ -1027,29 +1027,29 @@ func (f *Function) LoadValue(val ssa.Value, offset int, size uint, reg *register
 	if _, ok := val.(*ssa.Const); ok {
 		return f.LoadConstValue(val.(*ssa.Const), reg)
 	}
-	info, ok := f.identifiers[val.Name()]
+	ident, ok := f.identifiers[val.Name()]
 	if !ok {
 		internal(fmt.Sprintf("unknown name (%v), value (%v)\n", val.Name(), val))
 	}
 
-	r, roffset, rsize := info.Addr()
+	r, roffset, rsize := ident.Addr()
 	if rsize%size != 0 {
-		msg := "size (%v) value not divisor of value (%v) size (%v), name (%v)\n"
-		internal(fmt.Sprintf(msg, size, val, rsize, val.Name()))
+		msg := "ident (%v), size (%v) not a multiple of chunk size (%v) in loading"
+		internal(fmt.Sprintf(msg, ident.name, ident.size(), size))
 	}
 	if size > 8 {
-		msg := "greater than 8 byte sized (%v) value, value (%v), name (%v)\n"
-		internal(fmt.Sprintf(msg, size, val, val.Name()))
+		msg := "ident (%v), loading more than 8 byte chunk"
+		internal(fmt.Sprintf(msg, ident.name))
 	}
 
 	datatype := GetIntegerOpDataType(false, size)
-	return MovMemReg(f.Indent, datatype, info.name, roffset+offset, &r, reg), nil
+	return MovMemReg(f.Indent, datatype, ident.name, roffset+offset, &r, reg), nil
 }
 
 func (f *Function) StoreValue(ident *identifier, reg *register) (string, *Error) {
 	if ident.size() > reg.size() {
-		msgstr := "identifier size (%v) > register size (%v)"
-		internal(fmt.Sprintf(msgstr, ident.size(), reg.size()))
+		msgstr := "identifier, %v, size (%v) is greater than register size (%v)"
+		internal(fmt.Sprintf(msgstr, ident.name, ident.size(), reg.size()))
 
 	}
 	return f.StoreReg(reg, ident, 0, ident.size())

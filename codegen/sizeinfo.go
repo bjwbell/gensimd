@@ -316,12 +316,12 @@ func reflectBasic(b types.BasicKind) reflect.Type {
 	}
 }
 
-var bInstrData = InstrDataType{INTEGER_OP, InstrData{signed: false, size: 1}, XMM_INVALID}
-var f32InstrData = InstrDataType{XMM_OP, InstrData{}, XMM_F32}
-var f64InstrData = InstrDataType{XMM_OP, InstrData{}, XMM_F64}
+var bInstrData = OpDataType{INTEGER_OP, InstrData{signed: false, size: 1}, XMM_INVALID}
+var f32InstrData = OpDataType{XMM_OP, InstrData{}, XMM_F32}
+var f64InstrData = OpDataType{XMM_OP, InstrData{}, XMM_F64}
 
-func GetIntegerInstrDataType(signed bool, size uint) InstrDataType {
-	instrdata := InstrDataType{
+func GetIntegerOpDataType(signed bool, size uint) OpDataType {
+	instrdata := OpDataType{
 		INTEGER_OP,
 		InstrData{signed: signed, size: size},
 		XMM_INVALID}
@@ -329,7 +329,7 @@ func GetIntegerInstrDataType(signed bool, size uint) InstrDataType {
 
 }
 
-func GetInstrDataType(t types.Type) InstrDataType {
+func GetOpDataType(t types.Type) OpDataType {
 	if isBool(t) {
 		return bInstrData
 	}
@@ -343,7 +343,7 @@ func GetInstrDataType(t types.Type) InstrDataType {
 	}
 
 	if isBasic(t) {
-		return GetIntegerInstrDataType(signed(t), sizeof(t))
+		return GetIntegerOpDataType(signed(t), sizeof(t))
 	} else {
 		panic(fmt.Sprintf("Internal error: non basic type \"%v\"", t))
 	}

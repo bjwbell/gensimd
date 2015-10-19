@@ -523,12 +523,12 @@ func (f *Function) ConvertFromTo(instr *ssa.Convert, fromOpType, toOpType InstrO
 	tmp := f.allocReg(DATA_REG, sizeInt())
 
 	fromType :=
-		InstrDataType{
+		OpDataType{
 			op:         fromOpType,
 			InstrData:  InstrData{signed: signed(instr.X.Type()), size: f.sizeof(instr.X)},
 			xmmvariant: fromXmm}
 	toType :=
-		InstrDataType{
+		OpDataType{
 			op:         toOpType,
 			InstrData:  InstrData{signed: signed(instr.Type()), size: f.sizeof(instr)},
 			xmmvariant: toXmm}
@@ -935,7 +935,7 @@ func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 	default:
 		panic(fmt.Sprintf("Unknown op (%v)", instr.Op))
 	case token.ADD, token.SUB, token.MUL, token.QUO, token.REM:
-		instrdata := GetInstrDataType(instr.Type())
+		instrdata := GetOpDataType(instr.Type())
 		asm += ArithOp(f.Indent, instrdata, instr.Op, regX, regY, &regVal)
 	case token.AND, token.OR, token.XOR, token.SHL, token.SHR, token.AND_NOT:
 		asm += BitwiseOp(f.Indent, instr.Op, xIsSigned, regX, regY, &regVal, size)
@@ -943,7 +943,7 @@ func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 		if size != f.sizeof(instr.Y) {
 			panic("Comparing two different size values")
 		}
-		instrdata := GetInstrDataType(instr.X.Type())
+		instrdata := GetOpDataType(instr.X.Type())
 		asm += CmpOp(f.Indent, instrdata, instr.Op, regX, regY, &regVal)
 	}
 
@@ -1039,7 +1039,7 @@ func (f *Function) LoadValue(val ssa.Value, offset int, size uint, reg *register
 		panic(fmt.Sprintf("Greater than 8 byte sized (%v) value, value (%v), name (%v)\n", size, val, val.Name()))
 	}
 
-	datatype := GetInstrDataType(val.Type())
+	datatype := GetOpDataType(val.Type())
 	return MovMemReg(f.Indent, datatype, info.name, roffset+offset, &r, reg), nil
 }
 
@@ -1052,7 +1052,7 @@ func (f *Function) StoreReg(reg *register, addr *identifier, offset int) (string
 		panic(fmt.Sprintf("size == 0 for addr (%v)", *addr))
 	}
 	asm := f.Indent + fmt.Sprintf("// BEGIN StoreReg, size (%v)\n", rsize)
-	instrdata := GetInstrDataType(addr.typ)
+	instrdata := GetOpDataType(addr.typ)
 	asm += MovRegMem(f.Indent, instrdata, reg, addr.name, &r, offset+roffset)
 	asm += f.Indent + fmt.Sprintf("// END StoreReg, size (%v)\n", rsize)
 	return asm, nil
@@ -1185,7 +1185,7 @@ func (f *Function) UnOpSub(instr *ssa.UnOp) (string, *Error) {
 	}
 
 	asm += ZeroReg(f.Indent, &regSubX)
-	instrdata := GetInstrDataType(instr.Type())
+	instrdata := GetOpDataType(instr.Type())
 	asm += ArithOp(f.Indent, instrdata, token.SUB, &regSubX, &regX, &regVal)
 	f.freeReg(regX)
 	f.freeReg(regSubX)
@@ -1241,7 +1241,7 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 
 	tmp1 := f.allocReg(DATA_REG, DataRegSize)
 	tmp2 := f.allocReg(regType(instr.Type()), DataRegSize)
-	instrdata := GetInstrDataType(instr.Type())
+	instrdata := GetOpDataType(instr.Type())
 
 	asm += MovMemIndirectMem(f.Indent, instrdata, xInfo.name, xOffset, &xReg, assignment.name, aOffset, &aReg, size, &tmp1, &tmp2)
 
@@ -1273,10 +1273,10 @@ func (f *Function) Index(instr *ssa.Index) (string, *Error) {
 
 	asm += Lea(f.Indent, xInfo.name, xOffset, &xReg, &addrReg)
 
-	instrdata := GetIntegerInstrDataType(false, idxReg.width/8)
+	instrdata := GetIntegerOpDataType(false, idxReg.width/8)
 	asm += AddRegReg(f.Indent, instrdata, &idxReg, &addrReg)
 
-	instrdata = GetInstrDataType(assignment.typ)
+	instrdata = GetOpDataType(assignment.typ)
 	asm += MovRegMem(f.Indent, instrdata, &addrReg, assignment.name, &aReg, aOffset)
 
 	f.freeReg(idxReg)
@@ -1309,10 +1309,10 @@ func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 
 	asm += Lea(f.Indent, xInfo.name, xOffset, &xReg, &addrReg)
 
-	instrdata := GetIntegerInstrDataType(false, idxReg.width/8)
+	instrdata := GetIntegerOpDataType(false, idxReg.width/8)
 	asm += AddRegReg(f.Indent, instrdata, &idxReg, &addrReg)
 
-	instrdata = GetInstrDataType(assignment.typ)
+	instrdata = GetOpDataType(assignment.typ)
 	asm += MovRegMem(f.Indent, instrdata, &addrReg, assignment.name, &aReg, aOffset)
 
 	f.freeReg(idxReg)

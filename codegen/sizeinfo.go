@@ -108,11 +108,9 @@ func sizeof(t types.Type) uint {
 	case *types.Pointer:
 		return sizePtr()
 	case *types.Slice:
-		return sliceSize
+		return sizeSlice(t)
 	case *types.Array:
-		// TODO: calculation most likely wrong
-		// return uint(t.Len()) * sizeof(t.Elem())
-		panic("Arrays are unsupported")
+		return sizeArray(t)
 	case *types.Named:
 		if !isSimd(t) {
 			panic("Named type is unsupported")
@@ -124,6 +122,14 @@ func sizeof(t types.Type) uint {
 		}
 	}
 	panic(fmt.Sprintf("Error unknown type: %v", t))
+}
+
+func sizeArray(t *types.Array) uint {
+	return uint(reflectType(t).Size())
+}
+
+func sizeSlice(t *types.Slice) uint {
+	return uint(reflectType(t).Size())
 }
 
 func sizeInt() uint {
@@ -146,34 +152,37 @@ func align(t types.Type) uint {
 
 	switch t := t.(type) {
 	case *types.Tuple:
-		// TODO: usage of reflect most likely wrong!
-		return uint(reflect.TypeOf(t).Elem().Size())
+		return alignTuple(t)
 	case *types.Basic:
 		return alignBasic(t.Kind())
 	case *types.Pointer:
-		return alignPtr()
+		return alignPtr(t)
 	case *types.Slice:
-		return alignSlice()
+		return alignSlice(t)
 	case *types.Array:
-		// TODO: most likely wrong
-		return alignSlice()
+		return alignArray(t)
 	case *types.Named:
 		panic(fmt.Sprintf("Error unknown named type in align:\"%v\"", t))
 	}
 	panic(fmt.Sprintf("Error unknown type (%v)", t))
 }
 
-func alignPtr() uint {
-	typ := reflect.TypeOf(true)
-	ptrType := reflect.PtrTo(typ)
-	align := ptrType.Align()
-	return uint(align)
+const tupleAlignment = 8
 
+func alignTuple(tup *types.Tuple) uint {
+	return tupleAlignment
 }
-func alignSlice() uint {
-	typ := reflect.TypeOf([]int{1, 2, 3})
-	align := typ.Align()
-	return uint(align)
+
+func alignPtr(ptr *types.Pointer) uint {
+	return uint(reflectType(ptr).Align())
+}
+
+func alignSlice(slice *types.Slice) uint {
+	return uint(reflectType(slice).Align())
+}
+
+func alignArray(arr *types.Array) uint {
+	return uint(reflectType(arr).Align())
 }
 
 func alignBasic(b types.BasicKind) uint {
@@ -249,8 +258,13 @@ func isBasicKind(t types.Type, basickind types.BasicKind) bool {
 		return t.Kind() == basickind
 	}
 	return false
-
 }
+
+func isBasic(t types.Type) bool {
+	_, ok := t.(*types.Basic)
+	return ok
+}
+
 func reflectType(t types.Type) reflect.Type {
 	switch t := t.(type) {
 	case *types.Tuple:
@@ -258,14 +272,11 @@ func reflectType(t types.Type) reflect.Type {
 	case *types.Basic:
 		return reflectBasic(t.Kind())
 	case *types.Pointer:
-		rtype := reflectType(t.Elem())
-		ptr := reflect.PtrTo(rtype)
-		return ptr
-		// TODO
+		return reflect.PtrTo(reflectType(t.Elem()))
 	case *types.Slice:
-		// TODO
+		return reflect.SliceOf(reflectType(t.Elem()))
 	case *types.Array:
-		// TODO
+		return reflect.ArrayOf(int(t.Len()), reflectType(t.Elem()))
 	case *types.Named:
 		// TODO
 	}
@@ -330,7 +341,12 @@ func GetInstrDataType(t types.Type) InstrDataType {
 	if isComplex(t) {
 		panic("complex32/64 unsupported")
 	}
-	return GetIntegerInstrDataType(signed(t), sizeof(t))
+
+	if isBasic(t) {
+		return GetIntegerInstrDataType(signed(t), sizeof(t))
+	} else {
+		panic(fmt.Sprintf("Internal error: non basic type \"%v\"", t))
+	}
 
 }
 

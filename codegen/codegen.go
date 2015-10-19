@@ -24,14 +24,14 @@ type Function struct {
 	Indent      string
 	ssa         *ssa.Function
 	registers   map[string]bool // maps register to false if unused and true if used
-	identifiers map[string]nameInfo
+	identifiers map[string]identifier
 	// map from block index to the successor block indexes that need phi vars set
 	phiInfo map[int]map[int][]phiInfo
 
 	jmpLabels []string
 }
 
-type nameInfo struct {
+type identifier struct {
 	name   string
 	typ    types.Type
 	local  *varInfo
@@ -42,10 +42,11 @@ type nameInfo struct {
 	align  uint
 }
 
-// Addr returns the register and offset to access the backing memory of name.
+// Addr returns the register and offset to access the backing memory of name. It also
+// returns the size of name in bytes.
 // For locals the register is the stack pointer (SP) and for params the register
 // is the frame pointer (FP).
-func (name *nameInfo) Addr() (reg register, offset int, size uint) {
+func (name *identifier) Addr() (reg register, offset int, size uint) {
 	offset = name.offset
 	size = name.size
 	if name.local != nil {
@@ -53,44 +54,44 @@ func (name *nameInfo) Addr() (reg register, offset int, size uint) {
 	} else if name.param != nil {
 		reg = *getRegister(REG_FP)
 	} else {
-		panic(fmt.Sprintf("nameInfo (%v) is not a local or param", name))
+		panic(fmt.Sprintf("identifier (%v) is not a local or param", name))
 	}
 	return
 }
 
-func (name *nameInfo) IsSsaLocal() bool {
+func (name *identifier) IsSsaLocal() bool {
 	return name.local != nil && name.local.info != nil
 }
 
-func (name *nameInfo) IsPointer() bool {
+func (name *identifier) IsPointer() bool {
 	_, ok := name.typ.(*types.Pointer)
 	return ok
 }
 
-func (name *nameInfo) PointerUnderlyingType() types.Type {
+func (name *identifier) PointerUnderlyingType() types.Type {
 	if !name.IsPointer() {
-		panic(fmt.Sprintf("nameInfo (%v) not ptr type", name))
+		panic(fmt.Sprintf("identifier (%v) not ptr type", name))
 	}
 	ptrType := name.typ.(*types.Pointer)
 	return ptrType.Elem()
 }
 
-func (name *nameInfo) IsArray() bool {
+func (name *identifier) IsArray() bool {
 	_, ok := name.typ.(*types.Array)
 	return ok
 }
 
-func (name *nameInfo) IsSlice() bool {
+func (name *identifier) IsSlice() bool {
 	_, ok := name.typ.(*types.Slice)
 	return ok
 }
 
-func (name *nameInfo) IsBasic() bool {
+func (name *identifier) IsBasic() bool {
 	_, ok := name.typ.(*types.Basic)
 	return ok
 }
 
-func (name *nameInfo) IsInteger() bool {
+func (name *identifier) IsInteger() bool {
 	if !name.IsBasic() {
 		return false
 	}
@@ -179,7 +180,7 @@ func (f *Function) Params() (string, *Error) {
 		} else {
 
 		}
-		info := nameInfo{name: param.name, typ: param.info.Type(),
+		info := identifier{name: param.name, typ: param.info.Type(),
 			local: nil, param: &param, offset: offset, size: sizeof(p.Type()), align: align(p.Type())}
 		f.identifiers[param.name] = info
 		if info.align > info.size {
@@ -285,7 +286,7 @@ func (f *Function) ZeroSsaLocals() (string, *Error) {
 		size := sizeof(typ)
 		asm += ZeroMemory(f.Indent, local.Name(), offset, size, sp)
 		v := varInfo{name: local.Name(), info: local}
-		info := nameInfo{name: v.name, typ: typ, local: &v, param: nil, offset: offset, size: size, align: align(typ)}
+		info := identifier{name: v.name, typ: typ, local: &v, param: nil, offset: offset, size: size, align: align(typ)}
 		f.identifiers[v.name] = info
 		if info.align > info.size {
 			offset += int(info.align)
@@ -297,14 +298,14 @@ func (f *Function) ZeroSsaLocals() (string, *Error) {
 	return asm, nil
 }
 
-func (f *Function) AllocLocal(name string, typ types.Type) (nameInfo, *Error) {
+func (f *Function) AllocLocal(name string, typ types.Type) (identifier, *Error) {
 	size := sizeof(typ)
 	offset := int(size)
 	if align(typ) > size {
 		offset = int(align(typ))
 	}
 	v := varInfo{name: name, info: nil}
-	info := nameInfo{
+	info := identifier{
 		name:   name,
 		typ:    typ,
 		param:  nil,
@@ -781,7 +782,7 @@ func (f *Function) CopyToRet(val []ssa.Value) (string, *Error) {
 	}
 
 	retAddr :=
-		nameInfo{
+		identifier{
 			name:   retName(),
 			typ:    f.retType(),
 			local:  nil,
@@ -812,7 +813,7 @@ func (f *Function) SetStackPointer() string {
 	return ""
 }
 
-func (f *Function) StoreValAddr(val ssa.Value, addr *nameInfo) (string, *Error) {
+func (f *Function) StoreValAddr(val ssa.Value, addr *identifier) (string, *Error) {
 
 	if nameinfo := f.allocOnDemand(val); nameinfo == nil {
 		return ErrorMsg("Error in allocating local")
@@ -1042,7 +1043,7 @@ func (f *Function) LoadValue(val ssa.Value, offset int, size uint, reg *register
 	return MovMemReg(f.Indent, datatype, info.name, roffset+offset, &r, reg), nil
 }
 
-func (f *Function) StoreReg(reg *register, addr *nameInfo, offset int) (string, *Error) {
+func (f *Function) StoreReg(reg *register, addr *identifier, offset int) (string, *Error) {
 	r, roffset, rsize := addr.Addr()
 	if rsize > sizePtr() {
 		panic(fmt.Sprintf("Greater than ptr sized (%v), addr (%v), name (%v)\n", rsize, *addr, addr.name))
@@ -1376,7 +1377,7 @@ func (f *Function) localsSize() uint32 {
 
 func (f *Function) init() *Error {
 	f.registers = make(map[string]bool)
-	f.identifiers = make(map[string]nameInfo)
+	f.identifiers = make(map[string]identifier)
 	f.phiInfo = make(map[int]map[int][]phiInfo)
 	f.initRegs()
 	return nil
@@ -1496,7 +1497,7 @@ func (f *Function) retAlign() uint {
 	return align
 }
 
-func (f *Function) allocOnDemand(v ssa.Value) *nameInfo {
+func (f *Function) allocOnDemand(v ssa.Value) *identifier {
 
 	if nameinfo, ok := f.identifiers[v.Name()]; ok {
 		return &nameinfo
@@ -1504,7 +1505,7 @@ func (f *Function) allocOnDemand(v ssa.Value) *nameInfo {
 
 	switch v := v.(type) {
 	case *ssa.Const:
-		nameinfo := nameInfo{name: v.Name(), typ: v.Type(), local: nil, param: nil, cnst: v}
+		nameinfo := identifier{name: v.Name(), typ: v.Type(), local: nil, param: nil, cnst: v}
 		f.identifiers[v.Name()] = nameinfo
 		return &nameinfo
 	}

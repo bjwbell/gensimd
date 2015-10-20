@@ -19,16 +19,20 @@ type phiInfo struct {
 }
 
 type Function struct {
-	// output function name
-	outfn       string
+	// if Debug is set, debug comments are included in assembly output
+	Debug       bool
 	Indent      string
-	ssa         *ssa.Function
-	registers   map[string]bool // maps register to false if unused and true if used
 	identifiers map[string]identifier
+	jmpLabels   []string
+	outfn       string // output function name
+
 	// map from block index to the successor block indexes that need phi vars set
 	phiInfo map[int]map[int][]phiInfo
 
-	jmpLabels []string
+	// maps register to false if unused and true if used
+	registers map[string]bool
+
+	ssa *ssa.Function
 }
 
 type identifier struct {
@@ -143,11 +147,11 @@ func ErrorMsg2(msg string) *Error {
 	return &Error{Err: errors.New(msg), Pos: 0}
 }
 
-func CreateFunction(fn *ssa.Function, outfn string) (*Function, *Error) {
+func CreateFunction(fn *ssa.Function, outfn string, debug bool) (*Function, *Error) {
 	if fn == nil {
 		return nil, ErrorMsg2("Nil function passed in")
 	}
-	f := Function{ssa: fn, outfn: outfn}
+	f := Function{ssa: fn, outfn: outfn, Debug: debug}
 	f.Indent = "        "
 	f.init()
 	return &f, nil
@@ -158,7 +162,11 @@ func AssemblyFilePreamble() string {
 }
 
 func (f *Function) GoAssembly() (string, *Error) {
-	return f.Func()
+	asm, err := f.Func()
+	if !f.Debug {
+		asm = StripDebugComments(asm, f.Indent)
+	}
+	return asm, err
 }
 
 func (f *Function) Params() (string, *Error) {
@@ -1594,4 +1602,19 @@ func (f *Function) allocOnDemand(v ssa.Value) *identifier {
 
 func internal(msg string) string {
 	panic(fmt.Sprintf("Internal error, \"%v\"", msg))
+}
+
+func StripDebugComments(assembly, indent string) string {
+	lines := strings.Split(assembly, "\n")
+	stripped := ""
+	begin := indent + "// BEGIN"
+	end := indent + "// END"
+	for _, line := range lines {
+		// skip debug comments
+		if strings.HasPrefix(line, begin) || strings.HasPrefix(line, end) {
+			continue
+		}
+		stripped += line + "\n"
+	}
+	return stripped
 }

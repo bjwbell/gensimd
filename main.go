@@ -45,6 +45,7 @@ func fileName(pathName string) string {
 
 func main() {
 	var ssaDump = flag.Bool("ssa", false, "dump ssa representation")
+	var debug = flag.Bool("debug", false, "add debug comments to assembly")
 	var output = flag.String("o", "", "write Go Assembly to file")
 	var f = flag.String("f", "", "input file")
 	var flagFn = flag.String("fn", "", "comma separated list of function names")
@@ -139,7 +140,7 @@ func main() {
 					msg := "Func \"%v\" not found in package \"%v\""
 					log.Fatalf(msg, fnname, filePkgName)
 				} else {
-					fn, err := codegen.CreateFunction(fn, outfn)
+					fn, err := codegen.CreateFunction(fn, outfn, *debug)
 					if err != nil {
 						msg := "codegen error msg \"%v\""
 						log.Fatalf(msg, err)

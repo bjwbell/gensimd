@@ -86,23 +86,8 @@ func (name *identifier) PointerUnderlyingType() types.Type {
 	return ptrType.Elem()
 }
 
-func (name *identifier) IsArray() bool {
-	_, ok := name.typ.(*types.Array)
-	return ok
-}
-
-func (name *identifier) IsSlice() bool {
-	_, ok := name.typ.(*types.Slice)
-	return ok
-}
-
-func (name *identifier) IsBasic() bool {
-	_, ok := name.typ.(*types.Basic)
-	return ok
-}
-
 func (name *identifier) IsInteger() bool {
-	if !name.IsBasic() {
+	if !isBasic(name.typ) {
 		return false
 	}
 	t := name.typ.(*types.Basic)
@@ -473,19 +458,73 @@ func GetXmmVariant(t types.Type) XmmData {
 	return XMM_INVALID
 }
 
-func (f *Function) Builtin(builtin *ssa.Builtin) (string, *Error) {
-	panic(internal("builtins not supported yet"))
+func (f *Function) Len(call *ssa.Call) (string, *Error) {
+	asm := fmt.Sprintf(f.Indent+"// BEGIN Builtin.Len: %v\n", call)
+	callcommon := call.Common()
+	arg := callcommon.Args[0]
+
+	if callcommon.IsInvoke() {
+		panic(internal("len is a function, not a method"))
+	}
+	if len(callcommon.Args) != 1 {
+		panic(internal(fmt.Sprintf("too many args (%v) for len", len(callcommon.Args))))
+	}
+
+	ident := f.IdentCreateOnDemand(call.Value())
+	if reflectType(ident.typ).Name() != "int" {
+		panic(internal(fmt.Sprintf("len returns int not (%v)", reflectType(ident.typ).Name())))
+	}
+
+	if isArray(arg.Type()) {
+
+		length := reflectType(arg.Type()).Len()
+		if length >= math.MaxInt32 {
+			panic(internal(fmt.Sprintf("array too large (%v), maximum (%v)", length, math.MaxInt32)))
+		}
+		reg := f.allocReg(regType(ident.typ), sizeof(ident.typ))
+		asm += MovImm32Reg(f.Indent, int32(length), &reg)
+		a, err := f.StoreValue(ident, &reg)
+		asm += a
+		if err != nil {
+			return asm, err
+		}
+
+	} else if isSlice(arg.Type()) {
+		a, err := f.SliceLen(arg, ident)
+		asm += a
+		if err != nil {
+			return asm, err
+		}
+
+	} else {
+		panic(internal(fmt.Sprintf("bad type (%v) passed to len", arg.Type())))
+	}
+	asm += fmt.Sprintf(f.Indent+"// END Builtin.Len: %v\n", call)
+	return asm, nil
+}
+
+func (f *Function) Builtin(call *ssa.Call, builtin *ssa.Builtin) (string, *Error) {
+	obj := builtin.Object()
+	if builtin.Name() == "len" && obj.String() == "builtin len" {
+		return f.Len(call)
+	} else {
+		return ErrorMsg(fmt.Sprintf("builtin (%v) not supported", builtin.Name()))
+	}
 }
 
 func (f *Function) Call(call *ssa.Call) (string, *Error) {
-	funct := call.Common().Value
+	common := call.Common()
+	funct := common.Value
 	if builtin, ok := funct.(*ssa.Builtin); ok {
-		return f.Builtin(builtin)
+		return f.Builtin(call, builtin)
 	}
 	if f.isSimdFunc(call) {
 		return f.SimdFuncCall(call)
 	}
-	panic("function calls are not supported")
+	msg := fmt.Sprintf("(%v), function calls are not supported",
+		call.Common().Description())
+	return ErrorMsg(msg)
+
 }
 
 func (f *Function) SimdFuncCall(call *ssa.Call) (string, *Error) {
@@ -540,8 +579,8 @@ func (f *Function) Convert(instr *ssa.Convert) (string, *Error) {
 
 func (f *Function) AllocFromToRegs(instr *ssa.Convert) (from register, to register) {
 
-	fromInfo := f.allocOnDemand(instr.X)
-	toInfo := f.allocOnDemand(instr)
+	fromInfo := f.IdentCreateOnDemand(instr.X)
+	toInfo := f.IdentCreateOnDemand(instr)
 	if fromInfo == nil || toInfo == nil {
 		internal("converting between types")
 	}
@@ -788,7 +827,7 @@ func (f *Function) computePhiInstr(phi *ssa.Phi) *Error {
 
 func (f *Function) Phi(phi *ssa.Phi) (string, *Error) {
 
-	if nameinfo := f.allocOnDemand(phi); nameinfo == nil {
+	if nameinfo := f.IdentCreateOnDemand(phi); nameinfo == nil {
 		return ErrorMsg("Error in ssa.Phi allocation")
 	}
 
@@ -852,7 +891,7 @@ func (f *Function) SetStackPointer() string {
 
 func (f *Function) StoreValAddr(val ssa.Value, addr *identifier) (string, *Error) {
 
-	if nameinfo := f.allocOnDemand(val); nameinfo == nil {
+	if nameinfo := f.IdentCreateOnDemand(val); nameinfo == nil {
 		internal("error in allocating local")
 	}
 	if addr.local == nil && addr.param == nil {
@@ -932,7 +971,7 @@ func (f *Function) StoreValAddr(val ssa.Value, addr *identifier) (string, *Error
 }
 
 func (f *Function) Store(instr *ssa.Store) (string, *Error) {
-	if nameinfo := f.allocOnDemand(instr.Addr); nameinfo == nil {
+	if nameinfo := f.IdentCreateOnDemand(instr.Addr); nameinfo == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
 	addr, ok := f.identifiers[instr.Addr.Name()]
@@ -947,7 +986,7 @@ func (f *Function) Store(instr *ssa.Store) (string, *Error) {
 
 func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 
-	if nameinfo := f.allocOnDemand(instr); nameinfo == nil {
+	if nameinfo := f.IdentCreateOnDemand(instr); nameinfo == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
 
@@ -1010,13 +1049,13 @@ func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 
 func (f *Function) BinOpLoadXY(instr *ssa.BinOp) (asm string, x *register, y *register, err *Error) {
 
-	if nameinfo := f.allocOnDemand(instr); nameinfo == nil {
+	if nameinfo := f.IdentCreateOnDemand(instr); nameinfo == nil {
 		return "", nil, nil, ErrorMsg2(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
-	if nameinfo := f.allocOnDemand(instr.X); nameinfo == nil {
+	if nameinfo := f.IdentCreateOnDemand(instr.X); nameinfo == nil {
 		return "", nil, nil, ErrorMsg2(fmt.Sprintf("Cannot alloc value: %v", instr.X))
 	}
-	if nameinfo := f.allocOnDemand(instr.Y); nameinfo == nil {
+	if nameinfo := f.IdentCreateOnDemand(instr.Y); nameinfo == nil {
 		return "", nil, nil, ErrorMsg2(fmt.Sprintf("Cannot alloc value: %v", instr.Y))
 	}
 
@@ -1056,6 +1095,29 @@ func (f *Function) sizeof(val ssa.Value) uint {
 
 func (f *Function) sizeofConst(cnst *ssa.Const) uint {
 	return sizeof(cnst.Type())
+}
+
+func (f *Function) SliceLen(slice ssa.Value, ident *identifier) (string, *Error) {
+	if _, ok := slice.Type().(*types.Slice); !ok {
+		panic(internal(fmt.Sprintf("getting len of slice, type should slice not (%v)", slice.Type().String())))
+	}
+
+	asm := f.Indent + fmt.Sprintf("// BEGIN SliceLen: slice (%v), ident (%v)\n", slice, *ident)
+	reg := f.allocReg(DATA_REG, sliceLenSize())
+
+	a, err := f.LoadValue(slice, sliceLenOffset(), sliceLenSize(), &reg)
+	asm += a
+	if err != nil {
+		return asm, err
+	}
+
+	a, err = f.StoreValue(ident, &reg)
+	asm += a
+	if err != nil {
+		return asm, err
+	}
+	asm += f.Indent + fmt.Sprintf("// END SliceLen: slice (%v), ident (%v)\n", slice, *ident)
+	return asm, nil
 }
 
 func (f *Function) LoadValueSimple(val ssa.Value, reg *register) (string, *Error) {
@@ -1185,7 +1247,7 @@ func (f *Function) UnOp(instr *ssa.UnOp) (string, *Error) {
 // bitwise negation
 func (f *Function) UnOpXor(instr *ssa.UnOp, xorVal int32) (string, *Error) {
 
-	if nameinfo := f.allocOnDemand(instr); nameinfo == nil {
+	if nameinfo := f.IdentCreateOnDemand(instr); nameinfo == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
 	size := f.sizeof(instr)
@@ -1227,7 +1289,7 @@ func (f *Function) UnOpXor(instr *ssa.UnOp, xorVal int32) (string, *Error) {
 // arithmetic negation
 func (f *Function) UnOpSub(instr *ssa.UnOp) (string, *Error) {
 
-	if nameinfo := f.allocOnDemand(instr); nameinfo == nil {
+	if nameinfo := f.IdentCreateOnDemand(instr); nameinfo == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
 	var regX register
@@ -1271,7 +1333,7 @@ func (f *Function) UnOpSub(instr *ssa.UnOp) (string, *Error) {
 
 //pointer indirection, in assignment such as "z = *x"
 func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
-	assignment := f.allocOnDemand(instr)
+	assignment := f.IdentCreateOnDemand(instr)
 	if assignment == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
@@ -1325,7 +1387,7 @@ func (f *Function) Index(instr *ssa.Index) (string, *Error) {
 	}
 	asm := ""
 	xInfo := f.identifiers[instr.X.Name()]
-	assignment := f.allocOnDemand(instr)
+	assignment := f.IdentCreateOnDemand(instr)
 	if assignment == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
@@ -1364,7 +1426,7 @@ func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 
 	asm := ""
 	xInfo := f.identifiers[instr.X.Name()]
-	assignment := f.allocOnDemand(instr)
+	assignment := f.IdentCreateOnDemand(instr)
 
 	xReg, xOffset, _ := xInfo.Addr()
 	aReg, aOffset, _ := assignment.Addr()
@@ -1378,11 +1440,11 @@ func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 	}
 	asm += MulImm32RegReg(f.Indent, uint32(sizeofElem(xInfo.typ)), &idxReg, &idxReg)
 
-	if xInfo.IsSlice() {
+	if isSlice(xInfo.typ) {
 		// TODO: add bounds checking
 		optypes := GetIntegerOpDataType(false, sizePtr())
 		asm += MovMemReg(f.Indent, optypes, xInfo.name, xOffset, &xReg, &addrReg)
-	} else if xInfo.IsArray() {
+	} else if isArray(xInfo.typ) {
 		asm += Lea(f.Indent, xInfo.name, xOffset, &xReg, &addrReg)
 	} else {
 		internal("indexing non-slice/array variable")
@@ -1577,7 +1639,7 @@ func (f *Function) retAlign() uint {
 	return align
 }
 
-func (f *Function) allocOnDemand(v ssa.Value) *identifier {
+func (f *Function) IdentCreateOnDemand(v ssa.Value) *identifier {
 
 	if nameinfo, ok := f.identifiers[v.Name()]; ok {
 		return &nameinfo

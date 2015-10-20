@@ -249,6 +249,24 @@ func isBasic(t types.Type) bool {
 	return ok
 }
 
+func isArray(t types.Type) bool {
+	_, ok := t.(*types.Array)
+	return ok
+}
+
+func isSlice(t types.Type) bool {
+	_, ok := t.(*types.Slice)
+	return ok
+}
+
+func sliceLenSize() uint {
+	return sizeInt()
+}
+
+func sliceLenOffset() int {
+	return int(sizePtr())
+}
+
 func reflectType(t types.Type) reflect.Type {
 	switch t := t.(type) {
 	case *types.Tuple:

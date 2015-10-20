@@ -518,7 +518,6 @@ func (f *Function) AllocFromToRegs(instr *ssa.Convert) (from register, to regist
 	toreg := f.allocReg(regType(toInfo.typ), toInfo.size())
 
 	return fromreg, toreg
-
 }
 
 func (f *Function) ConvertFromTo(instr *ssa.Convert, fromOpType, toOpType InstrOpType, fromXmm, toXmm XmmData) (string, *Error) {

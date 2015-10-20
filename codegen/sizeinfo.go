@@ -9,27 +9,24 @@ import (
 	"github.com/bjwbell/gensimd/simd"
 )
 
-var pointerSize = uint(8)
-var sliceSize = uint(24)
-
-type simdInfo struct {
+type simdtype struct {
 	name     string
 	size     uint
 	elemSize uint
 }
 
-func simdReflect(t reflect.Type) simdInfo {
+func simdReflect(t reflect.Type) simdtype {
 	elemSize := uint(0)
 	if t.Kind() == reflect.Array {
 		elemSize = uint(t.Elem().Size())
 	}
-	return simdInfo{t.Name(), uint(t.Size()), elemSize}
+	return simdtype{t.Name(), uint(t.Size()), elemSize}
 }
 
-func simdTypes() []simdInfo {
+func simdTypes() []simdtype {
 	simdInt := reflect.TypeOf(simd.Int(0))
 	simdInt4 := reflect.TypeOf(simd.Int4{})
-	return []simdInfo{simdReflect(simdInt), simdReflect(simdInt4)}
+	return []simdtype{simdReflect(simdInt), simdReflect(simdInt4)}
 }
 
 func isSimd(t types.Type) bool {
@@ -44,10 +41,10 @@ func isSimd(t types.Type) bool {
 	return false
 }
 
-func simdTypeInfo(t types.Type) (simdInfo, error) {
+func simdTypeInfo(t types.Type) (simdtype, error) {
 	if !isSimd(t) {
 		msg := fmt.Errorf("type (%v) is not simd type", t.String())
-		return simdInfo{}, msg
+		return simdtype{}, msg
 	}
 	named := t.(*types.Named)
 	tname := named.Obj()
@@ -57,12 +54,12 @@ func simdTypeInfo(t types.Type) (simdInfo, error) {
 		}
 	}
 	msg := fmt.Errorf("type (%v) couldn't find simd type info", t.String())
-	return simdInfo{}, msg
+	return simdtype{}, msg
 }
 
 func simdHasElemSize(t types.Type) bool {
-	if simdInfo, err := simdTypeInfo(t); err == nil {
-		return simdInfo.elemSize > 0
+	if simdtype, err := simdTypeInfo(t); err == nil {
+		return simdtype.elemSize > 0
 	} else {
 		msg := fmt.Sprintf("Error in simdHasElemSize, type (%v) is not simd", t.String())
 		panic(msg)
@@ -70,8 +67,8 @@ func simdHasElemSize(t types.Type) bool {
 }
 
 func simdElemSize(t types.Type) uint {
-	if simdInfo, err := simdTypeInfo(t); err == nil {
-		return simdInfo.elemSize
+	if simdtype, err := simdTypeInfo(t); err == nil {
+		return simdtype.elemSize
 	} else {
 		msg := fmt.Sprintf("Error in simdElemSize, type (%v) is not simd", t.String())
 		panic(msg)

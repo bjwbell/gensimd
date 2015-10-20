@@ -276,9 +276,11 @@ func (f *Function) outfname() string {
 }
 
 func (f *Function) ZeroSsaLocals() (string, *Error) {
-	asm := ""
+
+	asm := f.Indent + "// BEGIN ZeroSsaLocals\n"
 	offset := int(0)
 	locals := f.ssa.Locals
+
 	for _, local := range locals {
 		if local.Heap {
 			return ErrorMsg(fmt.Sprintf("Can't heap alloc local, name: %v", local.Name()))
@@ -290,9 +292,10 @@ func (f *Function) ZeroSsaLocals() (string, *Error) {
 		//Type().Underlying().(*types.Pointer).Elem().
 		typ := local.Type().Underlying().(*types.Pointer).Elem()
 		size := sizeof(typ)
-		asm += ZeroMemory(f.Indent, local.Name(), offset, size, sp)
+		localOffset := -(offset + int(size))
+		asm += ZeroMemory(f.Indent, local.Name(), localOffset, size, sp)
 		v := varInfo{name: local.Name(), info: local}
-		info := identifier{name: v.name, typ: typ, local: &v, param: nil, offset: offset}
+		info := identifier{name: v.name, typ: typ, local: &v, param: nil, offset: localOffset}
 		f.identifiers[v.name] = info
 		if info.align() > info.size() {
 			offset += int(info.align())
@@ -301,6 +304,7 @@ func (f *Function) ZeroSsaLocals() (string, *Error) {
 		}
 	}
 
+	asm += f.Indent + "// END ZeroSsaLocals\n"
 	return asm, nil
 }
 
@@ -324,7 +328,7 @@ func (f *Function) AllocLocal(name string, typ types.Type) (identifier, *Error) 
 }
 
 func (f *Function) ZeroNonSsaLocals() (string, *Error) {
-	asm := ""
+	asm := f.Indent + "// BEGIN ZeroNonSsaLocals\n"
 	for _, name := range f.identifiers {
 		if name.local == nil || name.IsSsaLocal() {
 			continue
@@ -332,6 +336,7 @@ func (f *Function) ZeroNonSsaLocals() (string, *Error) {
 		sp := getRegister(REG_SP)
 		asm += ZeroMemory(f.Indent, name.name, name.offset, name.size(), sp)
 	}
+	asm += f.Indent + "// END ZeroNonSsaLocals\n"
 	return asm, nil
 }
 
@@ -818,10 +823,10 @@ func (f *Function) SetStackPointer() string {
 func (f *Function) StoreValAddr(val ssa.Value, addr *identifier) (string, *Error) {
 
 	if nameinfo := f.allocOnDemand(val); nameinfo == nil {
-		return ErrorMsg("Error in allocating local")
+		internal("error in allocating local")
 	}
 	if addr.local == nil && addr.param == nil {
-		return ErrorMsg(fmt.Sprintf("Invalid addr \"%v\"", addr))
+		internal(fmt.Sprintf("invalid addr \"%v\"", addr))
 	}
 
 	asm := ""
@@ -903,7 +908,10 @@ func (f *Function) Store(instr *ssa.Store) (string, *Error) {
 	if !ok {
 		internal(fmt.Sprintf("couldnt store identifier \"%v\"", addr.name))
 	}
-	return f.StoreValAddr(instr.Val, &addr)
+	asm := f.Indent + fmt.Sprintf("// BEGIN Store, instr: %v\n", instr)
+	a, err := f.StoreValAddr(instr.Val, &addr)
+	asm = asm + a + f.Indent + fmt.Sprintf("// END Store, instr: %v\n", instr)
+	return asm, err
 }
 
 func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
@@ -1020,7 +1028,11 @@ func (f *Function) sizeofConst(cnst *ssa.Const) uint {
 }
 
 func (f *Function) LoadValueSimple(val ssa.Value, reg *register) (string, *Error) {
-	return f.LoadValue(val, 0, f.sizeof(val), reg)
+	asm := f.Indent + fmt.Sprintf("// BEGIN LoadValueSimple, val: %v, reg %v\n", val, reg.name)
+	a, err := f.LoadValue(val, 0, f.sizeof(val), reg)
+	asm += a
+	asm += f.Indent + fmt.Sprintf("// END LoadValueSimple, val: %v, reg %v\n", val, reg.name)
+	return asm, err
 }
 
 func (f *Function) LoadValue(val ssa.Value, offset int, size uint, reg *register) (string, *Error) {
@@ -1043,7 +1055,11 @@ func (f *Function) LoadValue(val ssa.Value, offset int, size uint, reg *register
 	}
 
 	datatype := GetIntegerOpDataType(false, size)
-	return MovMemReg(f.Indent, datatype, ident.name, roffset+offset, &r, reg), nil
+	asm := f.Indent + fmt.Sprintf("// BEGIN LoadValue, val: %v, offset %v, size %v\n", val, offset, size)
+	a := MovMemReg(f.Indent, datatype, ident.name, roffset+offset, &r, reg)
+	asm += a
+	asm += f.Indent + fmt.Sprintf("// END LoadValue, val: %v, offset %v, size %v\n", val, offset, size)
+	return asm, nil
 }
 
 func (f *Function) StoreValue(ident *identifier, reg *register) (string, *Error) {
@@ -1063,10 +1079,10 @@ func (f *Function) StoreReg(reg *register, ident *identifier, offset int, size u
 	if rsize == 0 {
 		internal(fmt.Sprintf("identifier (%v) size is 0", ident.name))
 	}
-	asm := f.Indent + fmt.Sprintf("// BEGIN StoreReg, size (%v)\n", rsize)
+	asm := f.Indent + fmt.Sprintf("// BEGIN StoreReg, size (%v)\n", size)
 	instrdata := GetIntegerOpDataType(false, size)
 	asm += MovRegMem(f.Indent, instrdata, reg, ident.name, &r, offset+roffset)
-	asm += f.Indent + fmt.Sprintf("// END StoreReg, size (%v)\n", rsize)
+	asm += f.Indent + fmt.Sprintf("// END StoreReg, size (%v)\n", size)
 	return asm, nil
 }
 
@@ -1299,8 +1315,8 @@ func (f *Function) Index(instr *ssa.Index) (string, *Error) {
 
 	f.identifiers[instr.Name()] = *assignment
 
-	asm = f.Indent + fmt.Sprintf("// BEGIN ssa.IndexAddr: %v = %v\n", instr.Name(), instr) + asm
-	asm += f.Indent + fmt.Sprintf("// END ssa.IndexAddr: %v = %v\n", instr.Name(), instr)
+	asm = f.Indent + fmt.Sprintf("// BEGIN ssa.Index: %v = %v\n", instr.Name(), instr) + asm
+	asm += f.Indent + fmt.Sprintf("// END ssa.Index: %v = %v\n", instr.Name(), instr)
 
 	return asm, nil
 }
@@ -1320,15 +1336,21 @@ func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 	addrReg := f.allocReg(DATA_REG, sizePtr())
 	idxReg := f.allocReg(DATA_REG, sizePtr())
 
-	f.LoadValueSimple(instr.Index, &idxReg)
+	if a, err := f.LoadValueSimple(instr.Index, &idxReg); err == nil {
+		asm += a
+	} else {
+		return "", err
+	}
+	asm += MulImm32RegReg(f.Indent, uint32(sizeofElem(xInfo.typ)), &idxReg, &idxReg)
 
 	asm += Lea(f.Indent, xInfo.name, xOffset, &xReg, &addrReg)
 
-	instrdata := GetIntegerOpDataType(false, idxReg.width/8)
-	asm += AddRegReg(f.Indent, instrdata, &idxReg, &addrReg)
+	optypes := GetIntegerOpDataType(false, idxReg.size())
 
-	instrdata = GetOpDataType(assignment.typ)
-	asm += MovRegMem(f.Indent, instrdata, &addrReg, assignment.name, &aReg, aOffset)
+	asm += AddRegReg(f.Indent, optypes, &idxReg, &addrReg)
+
+	optypes = GetIntegerOpDataType(false, assignment.size())
+	asm += MovRegMem(f.Indent, optypes, &addrReg, assignment.name, &aReg, aOffset)
 
 	f.freeReg(idxReg)
 	f.freeReg(addrReg)

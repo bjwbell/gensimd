@@ -57,7 +57,7 @@ func main() {
 		file = *f
 	}
 	if *flagFn == "" {
-		log.Fatalf("Error no function name(s) provided")
+		fmt.Println("Error no function name(s) provided")
 		return
 	}
 	fnnames := strings.Split(*flagFn, ",")
@@ -71,7 +71,8 @@ func main() {
 
 	}
 	if len(fnnames) != len(outFns) {
-		log.Fatalf("Error # fns (%v) doesn't match # outfns (%v)", len(fnnames), len(outFns))
+		fmt.Printf("Error # fns (%v) doesn't match # outfns (%v)\n", len(fnnames), len(outFns))
+		return
 	}
 	for i := range fnnames {
 		fnnames[i] = strings.TrimSpace(fnnames[i])
@@ -80,8 +81,9 @@ func main() {
 
 	parsed, err := simd.ParseFile(file)
 	if err != nil {
-		msg := "Error parsing file \"%v\", error msg \"%v\""
-		log.Fatalf(msg, file, err)
+		msg := "Error parsing file \"%v\", error msg \"%v\"\n"
+		fmt.Printf(msg, file, err)
+		return
 	}
 
 	filePkgName := parsed.Pkg.Name()
@@ -115,7 +117,7 @@ func main() {
 	}
 	prog := ssautil.CreateProgram(iprog, builderMode)
 	if prog == nil {
-		log.Fatalf("Couldn't create ssa representation")
+		fmt.Println("Couldn't create ssa representation")
 	}
 
 	// Build and display only the initial packages (and synthetic wrappers)

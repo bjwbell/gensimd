@@ -168,40 +168,25 @@ func align(t types.Type) uint {
 	switch t := t.(type) {
 	case *types.Tuple:
 		return alignTuple(t)
-	case *types.Basic:
-		return alignBasic(t.Kind())
-	case *types.Pointer:
-		return alignPtr(t)
-	case *types.Slice:
-		return alignSlice(t)
-	case *types.Array:
-		return alignArray(t)
+	case *types.Array, *types.Basic, *types.Pointer, *types.Slice:
+		return uint(reflectType(t).Align())
 	case *types.Named:
-		internal(fmt.Sprintf("Error unknown named type in align:\"%v\"", t))
+		if !isSimd(t) {
+			panic("Named type is unsupported")
+		}
+		if info, err := simdTypeInfo(t); err != nil {
+			panic(internal(fmt.Sprintf("unknown named type, err:\"%v\"", err)))
+		} else {
+			return info.align
+		}
 	}
-	panic(internal(fmt.Sprintf("Error unknown type (%v)", t)))
+	panic(internal(fmt.Sprintf("unknown type (%v)", t)))
 }
 
 const tupleAlignment = 8
 
 func alignTuple(tup *types.Tuple) uint {
 	return tupleAlignment
-}
-
-func alignPtr(ptr *types.Pointer) uint {
-	return uint(reflectType(ptr).Align())
-}
-
-func alignSlice(slice *types.Slice) uint {
-	return uint(reflectType(slice).Align())
-}
-
-func alignArray(arr *types.Array) uint {
-	return uint(reflectType(arr).Align())
-}
-
-func alignBasic(b types.BasicKind) uint {
-	return uint(reflectBasic(b).Align())
 }
 
 func signed(t types.Type) bool {

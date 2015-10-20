@@ -1371,7 +1371,18 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 	tmp2 := f.allocReg(regType(instr.Type()), DataRegSize)
 	optypes := GetOpDataType(instr.Type())
 
-	asm += MovMemIndirectMem(f.Indent, optypes, xInfo.name, xOffset, &xReg, assignment.name, aOffset, &aReg, size, &tmp1, &tmp2)
+	asm += MovMemIndirectMem(
+		f.Indent,
+		optypes,
+		xInfo.name,
+		xOffset,
+		&xReg,
+		assignment.name,
+		aOffset,
+		&aReg,
+		size,
+		&tmp1,
+		&tmp2)
 
 	f.identifiers[assignment.name] = *assignment
 

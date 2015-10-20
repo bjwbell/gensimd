@@ -110,3 +110,13 @@ Execute `runtests.sh` to run the reference tests.
     func SubF64x2(x, y F64x2) F64x2
     func MulF64x2(x, y F64x2) F64x2
     func DivF64x2(x, y F64x2) F64x2
+
+### Integer Overflow
+For unsigned integer values, the simd functions `Add*`, `Sub*`, `Mul*`, and `Shl*` are computed modulo 2^n, where n is the bit width of the unsigned integer's type. These unsigned integer operations discard high bits upon overflow.
+
+For signed integers, the simd functions `Add*`, `Sub*`, `Mul*`, and `Shl*`  may overflow and the resulting value exists and is defined by the signed integer representation, the operation, and its operands. The behavior is guaranteed to be identical to the go versions of the functions in `gensimd/simd/simd.go`.
+
+For both unsigned and signed integer values, the simd functions `Div*` and `Shr*` are guaranteed to have the same behavior as the go versions in `gensimd/simd/simd.go`
+
+### Floating Point
+For the floating point simd functions `Add*`, `Sub*`, `Mul*`, and `Div*` the behavior is guaranteed to be identical to the go versions of the functions in `gensimd/simd/simd.go`.

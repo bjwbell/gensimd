@@ -391,7 +391,7 @@ func (f *Function) Instr(instr ssa.Instruction) (string, *Error) {
 	case *ssa.BinOp:
 		asm, err = f.BinOp(instr)
 	case *ssa.Call:
-		asm = f.Indent + fmt.Sprintf("ssa.Call: %v, name: %v\n", instr, instr.Name())
+		asm, err = f.Call(instr)
 	case *ssa.ChangeInterface:
 		asm, err = errormsg("converting interfaces unsupported")
 	case *ssa.ChangeType:
@@ -463,6 +463,29 @@ func GetXmmVariant(t types.Type) XmmData {
 		return XMM_F64
 	}
 	return XMM_INVALID
+}
+
+func (f *Function) Builtin(builtin *ssa.Builtin) (string, *Error) {
+	panic(internal("builtins not supported yet"))
+}
+
+func (f *Function) Call(call *ssa.Call) (string, *Error) {
+	funct := call.Common().Value
+	if builtin, ok := funct.(*ssa.Builtin); ok {
+		return f.Builtin(builtin)
+	}
+	if f.isSimdFunc(call) {
+		return f.SimdFuncCall(call)
+	}
+	panic("function calls are not supported")
+}
+
+func (f *Function) SimdFuncCall(call *ssa.Call) (string, *Error) {
+	panic(internal("SimdFuncCall not supported yet"))
+}
+
+func (f *Function) isSimdFunc(call *ssa.Call) bool {
+	panic("TODO")
 }
 
 func (f *Function) Slice(instr *ssa.Slice) (string, *Error) {
@@ -833,9 +856,7 @@ func (f *Function) StoreValAddr(val ssa.Value, addr *identifier) (string, *Error
 
 	if isComplex(val.Type()) {
 		return ErrorMsg("complex32/64 unsupported")
-	}
-
-	if isFloat(val.Type()) {
+	} else if isFloat(val.Type()) {
 
 		valReg := f.allocReg(regType(val.Type()), f.sizeof(val))
 		a, err := f.LoadValue(val, 0, f.sizeof(val), &valReg)
@@ -851,6 +872,9 @@ func (f *Function) StoreValAddr(val ssa.Value, addr *identifier) (string, *Error
 		asm += a
 		f.freeReg(valReg)
 
+	} else if isSimd(val.Type()) {
+		// TODO
+		panic("TODO:simd storing back to memory")
 	} else {
 
 		size := f.sizeof(val)
@@ -1078,9 +1102,13 @@ func (f *Function) StoreReg(reg *register, ident *identifier, offset int, size u
 	if rsize == 0 {
 		internal(fmt.Sprintf("identifier (%v) size is 0", ident.name))
 	}
+	if isSimd(ident.typ) {
+		// TODO
+		panic("TODO: storing simd data type from xmm regs")
+	}
 	asm := f.Indent + fmt.Sprintf("// BEGIN StoreReg, size (%v)\n", size)
-	instrdata := GetIntegerOpDataType(false, size)
-	asm += MovRegMem(f.Indent, instrdata, reg, ident.name, &r, offset+roffset)
+	opdatatype := GetIntegerOpDataType(false, size)
+	asm += MovRegMem(f.Indent, opdatatype, reg, ident.name, &r, offset+roffset)
 	asm += f.Indent + fmt.Sprintf("// END StoreReg, size (%v)\n", size)
 	return asm, nil
 }
@@ -1233,7 +1261,7 @@ func (f *Function) UnOpSub(instr *ssa.UnOp) (string, *Error) {
 
 }
 
-//pointer indirection
+//pointer indirection, in assignment such as "z = *x"
 func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 	assignment := f.allocOnDemand(instr)
 	if assignment == nil {
@@ -1446,7 +1474,6 @@ func (f *Function) allocReg(t RegType, size uint) register {
 		if used || r.typ != t {
 			continue
 		}
-		// r.width is in bits so multiple size (which is in bytes) by 8
 		for i := range r.datasizes {
 			if r.datasizes[i] == size {
 				reg = r

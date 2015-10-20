@@ -6,9 +6,6 @@ import (
 	"go/types"
 )
 
-type Int int
-type Int4 [4]int
-
 type Error struct {
 	Err error
 	Pos token.Pos
@@ -31,15 +28,15 @@ func (f *File) ErrorLocation(err *Error) string {
 }
 
 // SIMD types
-type i8x16 [16]int8
-type i16x8 [8]int16
-type i32x4 [4]int32
-type i64x2 [2]int64
+type I8x16 [16]int8
+type I16x8 [8]int16
+type I32x4 [4]int32
+type I64x2 [2]int64
 
-type u8x16 [16]uint8
-type u16x8 [8]uint16
-type u32x4 [4]uint32
-type u64x2 [2]uint64
+type U8x16 [16]uint8
+type U16x8 [8]uint16
+type U32x4 [4]uint32
+type U64x2 [2]uint64
 
-type f32x4 [4]float32
-type f64x2 [2]float64
+type F32x4 [4]float32
+type F64x2 [2]float64

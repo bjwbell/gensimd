@@ -4,15 +4,16 @@ import (
 	"fmt"
 	"reflect"
 
-	"golang.org/x/tools/go/types"
-
 	"github.com/bjwbell/gensimd/simd"
+
+	"golang.org/x/tools/go/types"
 )
 
 type simdtype struct {
 	name     string
 	size     uint
 	elemSize uint
+	align    uint
 }
 
 func simdReflect(t reflect.Type) simdtype {
@@ -20,13 +21,29 @@ func simdReflect(t reflect.Type) simdtype {
 	if t.Kind() == reflect.Array {
 		elemSize = uint(t.Elem().Size())
 	}
-	return simdtype{t.Name(), uint(t.Size()), elemSize}
+	return simdtype{
+		name:     t.Name(),
+		size:     uint(t.Size()),
+		elemSize: elemSize,
+		align:    uint(t.Size()),
+	}
 }
 
 func simdTypes() []simdtype {
-	simdInt := reflect.TypeOf(simd.Int(0))
-	simdInt4 := reflect.TypeOf(simd.Int4{})
-	return []simdtype{simdReflect(simdInt), simdReflect(simdInt4)}
+	types := []simdtype{}
+	types = append(types, simdReflect(reflect.TypeOf(simd.I8x16{})))
+	types = append(types, simdReflect(reflect.TypeOf(simd.I16x8{})))
+	types = append(types, simdReflect(reflect.TypeOf(simd.I32x4{})))
+	types = append(types, simdReflect(reflect.TypeOf(simd.I64x2{})))
+
+	types = append(types, simdReflect(reflect.TypeOf(simd.U8x16{})))
+	types = append(types, simdReflect(reflect.TypeOf(simd.U16x8{})))
+	types = append(types, simdReflect(reflect.TypeOf(simd.U32x4{})))
+	types = append(types, simdReflect(reflect.TypeOf(simd.U64x2{})))
+
+	types = append(types, simdReflect(reflect.TypeOf(simd.F32x4{})))
+	types = append(types, simdReflect(reflect.TypeOf(simd.F64x2{})))
+	return types
 }
 
 func isSimd(t types.Type) bool {
@@ -61,8 +78,7 @@ func simdHasElemSize(t types.Type) bool {
 	if simdtype, err := simdTypeInfo(t); err == nil {
 		return simdtype.elemSize > 0
 	} else {
-		msg := fmt.Sprintf("Error in simdHasElemSize, type (%v) is not simd", t.String())
-		panic(msg)
+		panic(internal(fmt.Sprintf("type (%v) is not simd", t.String())))
 	}
 }
 
@@ -70,8 +86,8 @@ func simdElemSize(t types.Type) uint {
 	if simdtype, err := simdTypeInfo(t); err == nil {
 		return simdtype.elemSize
 	} else {
-		msg := fmt.Sprintf("Error in simdElemSize, type (%v) is not simd", t.String())
-		panic(msg)
+		panic(internal(fmt.Sprintf("type (%v) is not simd", t.String())))
+
 	}
 }
 
@@ -79,7 +95,7 @@ func sizeofElem(t types.Type) uint {
 	var e types.Type
 	switch t := t.(type) {
 	default:
-		panic(fmt.Sprintf("t (%v) not an array or slice type\n", t.String()))
+		panic(internal(fmt.Sprintf("type (%v) not an array or slice\n", t.String())))
 	case *types.Slice:
 		e = t.Elem()
 	case *types.Array:
@@ -88,7 +104,9 @@ func sizeofElem(t types.Type) uint {
 		if isSimd(t) && simdHasElemSize(t) {
 			return simdElemSize(t)
 		}
-		panic(fmt.Sprintf("t (%v), isSimd (%v)\n", t.String(), isSimd(t)))
+		panic(internal(
+			fmt.Sprintf("t (%v), isSimd (%v)\n", t.String(), isSimd(t))))
+
 	}
 	return sizeof(e)
 }
@@ -113,12 +131,12 @@ func sizeof(t types.Type) uint {
 			panic("Named type is unsupported")
 		}
 		if info, err := simdTypeInfo(t); err != nil {
-			panic(fmt.Sprintf("Error unknown type in sizeof err:\"%v\"", err))
+			panic(internal(fmt.Sprintf("Error unknown type in sizeof err:\"%v\"", err)))
 		} else {
 			return info.size
 		}
 	}
-	panic(fmt.Sprintf("Error unknown type: %v", t))
+	panic(internal(fmt.Sprintf("unknown type: %v", t)))
 }
 
 func sizeArray(t *types.Array) uint {
@@ -159,9 +177,9 @@ func align(t types.Type) uint {
 	case *types.Array:
 		return alignArray(t)
 	case *types.Named:
-		panic(fmt.Sprintf("Error unknown named type in align:\"%v\"", t))
+		internal(fmt.Sprintf("Error unknown named type in align:\"%v\"", t))
 	}
-	panic(fmt.Sprintf("Error unknown type (%v)", t))
+	panic(internal(fmt.Sprintf("Error unknown type (%v)", t)))
 }
 
 const tupleAlignment = 8
@@ -192,7 +210,7 @@ func signed(t types.Type) bool {
 	case *types.Basic:
 		return signedBasic(t.Kind())
 	}
-	panic(fmt.Sprintf("Error unknown type: %v", t))
+	panic(internal(fmt.Sprintf("unknown type: %v", t)))
 }
 
 func signedBasic(b types.BasicKind) bool {
@@ -206,7 +224,7 @@ func signedBasic(b types.BasicKind) bool {
 	case types.Float32, types.Float64:
 		return true
 	}
-	panic(fmt.Sprintf("Unknown basic type (%v)", b))
+	panic(internal(fmt.Sprintf("unknown basic type (%v)", b)))
 }
 
 func isUint(t types.Type) bool {
@@ -277,13 +295,14 @@ func reflectType(t types.Type) reflect.Type {
 	case *types.Named:
 		// TODO
 	}
-	panic(fmt.Sprintf("Error unknown type:\"%v\"", t))
+	internal(fmt.Sprintf("error unknown type:\"%v\"", t))
+	panic("")
 }
 
 func reflectBasic(b types.BasicKind) reflect.Type {
 	switch b {
 	default:
-		panic("Unknown basic type")
+		panic(internal("unknown basic type"))
 	case types.Bool:
 		return reflect.TypeOf(true)
 	case types.Int:
@@ -342,7 +361,7 @@ func GetOpDataType(t types.Type) OpDataType {
 	if isBasic(t) {
 		return GetIntegerOpDataType(signed(t), sizeof(t))
 	} else {
-		panic(fmt.Sprintf("Internal error: non basic type \"%v\"", t))
+		panic(internal(fmt.Sprintf("non basic type \"%v\"", t)))
 	}
 
 }

@@ -1565,6 +1565,6 @@ func (f *Function) allocOnDemand(v ssa.Value) *identifier {
 	return &local
 }
 
-func internal(msg string) {
+func internal(msg string) string {
 	panic(fmt.Sprintf("Internal error, \"%v\"", msg))
 }

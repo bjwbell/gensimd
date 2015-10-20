@@ -9,7 +9,6 @@ import (
 	"go/token"
 	"go/types"
 	"log"
-	"reflect"
 	"strings"
 )
 
@@ -401,7 +400,7 @@ func (f *File) validParamType(typ types.Type) *Error {
 			typ := typ.(*types.Array)
 			return f.validParamType(typ.Elem())
 		case *types.Named:
-			named, ok := typ.(*types.Named)
+			/*named, ok := typ.(*types.Named)
 			if !ok {
 				panic("ERROR can't cast to named type")
 			}
@@ -411,15 +410,16 @@ func (f *File) validParamType(typ types.Type) *Error {
 			ivar := &i
 			simdIntVar := reflect.TypeOf(ivar)
 			i4var := &i4
-			simdInt4Var := reflect.TypeOf(i4var)
-			switch tname.Name() {
+			simdInt4Var := reflect.TypeOf(i4var)*/
+			/*switch tname.Name() {
 			default:
 				return e
 			case simdIntVar.Name():
 				return nil
 			case simdInt4Var.Name():
 				return nil
-			}
+			}*/
+			return e
 		}
 	}
 	return nil
@@ -438,18 +438,18 @@ func (f *File) validVarDeclType(typ types.Type) *Error {
 				panic("ERROR can't cast to named type")
 			}
 			tname := named.Obj()
-			i := Int(0)
+			/*i := Int(0)
 			simdInt := reflect.TypeOf(i)
 			var i4 Int4
 			simdInt4 := reflect.TypeOf(i4)
 			switch tname.Name() {
-			default:
-				return &Error{errors.New(fmt.Sprintf("invalid type (%v)", tname.Name())), 0}
-			case simdInt.Name():
+			default:*/
+			return &Error{errors.New(fmt.Sprintf("invalid type (%v)", tname.Name())), 0}
+			/*case simdInt.Name():
 				return nil
 			case simdInt4.Name():
 				return nil
-			}
+			}*/
 		}
 	}
 	return nil

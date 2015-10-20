@@ -588,11 +588,34 @@ const (
 	PMINSW
 	PMINUB
 	PMOVMSKB
+
+	// Packed Multiply and Round Integers (16bit)
 	PMULHRW
+
+	// Multiply Packed Unsigned Integers (16bit) and Store High Result
+	// multiplies the packed signed word (16bit) integers in xmm1 and xmm2/m128
+	// and store the high 16 bits of the results in xmm1
+	// Intel instruction: PMULHUW
 	PMULHUW
+
+	// Multiply Packed Signed Integers (16bit) and Store High Result
+	// multiplies the packed signed word (16bit) integers in xmm1 and xmm2/m128
+	// and store the high 16 bits of the results in xmm1
+	// Intel instruction: PMULHW
 	PMULHW
+
+	// Multiply Packed Signed Integers (16bit) and Store Low Result
+	// multiplies the packed signed word (16bit) integers in xmm1 and xmm2/m128
+	// and store the low 16 bits of the results in xmm1
+	// Intel instruction: PMULLW
 	PMULLW
+
+	// Multiply Packed Unsigned Dword (32bit) Integers
+	// multiplies two 32bit ints and stores resulting two 64bit ints in result
+	// xmm register/128bits mem
+	// Intel instruction: PMULUDQ
 	PMULULQ
+
 	POR
 	PSADBW
 	PSHUFHW
@@ -681,7 +704,7 @@ const (
 	ROUNDPD
 	ROUNDSD
 	PSHUFD
-	PCLMULQDQ
+	PCLMULQDQ // packed carryless quadword multiplication (xmm)
 	JCXZW
 	FCMOVCC
 	FCMOVCS

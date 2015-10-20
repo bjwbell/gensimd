@@ -134,6 +134,13 @@ const (
 	I_MUL
 
 	I_OR
+
+	// instructions for packed integers
+	I_PADD
+	I_PSUB
+	I_PIMUL
+	I_PMUL
+
 	I_SAL
 	I_SAR
 
@@ -234,7 +241,7 @@ var Insts = []Instruction{
 }
 
 var XmmInsts = []XmmInstruction{
-
+	// floating point
 	{I_ADD, ADDSS, ADDSD, ADDPS, ADDPD},
 	{I_CMP, UCOMISS, UCOMISD, NONE, NONE},
 	{I_DIV, DIVSS, DIVSD, DIVPS, DIVPD},
@@ -242,6 +249,18 @@ var XmmInsts = []XmmInstruction{
 	{I_MUL, MULSS, MULSD, MULPS, MULPD},
 	{I_SUB, SUBSS, SUBSD, SUBPS, SUBPD},
 	{I_XOR, NONE, NONE, XORPS, XORPD},
+
+	// add packed integers
+	{I_PADD, PADDB, PADDW, PADDL, PADDQ},
+
+	// subtract packed integers
+	{I_PSUB, PSUBB, PSUBW, PSUBL, PSUBQ},
+
+	// packed signed multiplication
+	{I_PIMUL, NONE, PMULHW, NONE, NONE},
+
+	// packed unsigned multiplication
+	{I_PMUL, NONE, PMULHUW, PMULULQ, NONE},
 }
 
 func GetInstruction(tinst InstructionType) Instruction {

@@ -46,19 +46,7 @@ func simdTypes() []simdtype {
 	return types
 }
 
-func isSimd(t types.Type) bool {
-	if t, ok := t.(*types.Named); ok {
-		tname := t.Obj()
-		for _, simdType := range simdTypes() {
-			if tname.Name() == simdType.name {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func simdTypeInfo(t types.Type) (simdtype, error) {
+func simdInfo(t types.Type) (simdtype, error) {
 	if !isSimd(t) {
 		msg := fmt.Errorf("type (%v) is not simd type", t.String())
 		return simdtype{}, msg
@@ -74,21 +62,16 @@ func simdTypeInfo(t types.Type) (simdtype, error) {
 	return simdtype{}, msg
 }
 
-func simdHasElemSize(t types.Type) bool {
-	if simdtype, err := simdTypeInfo(t); err == nil {
-		return simdtype.elemSize > 0
-	} else {
-		panic(internal(fmt.Sprintf("type (%v) is not simd", t.String())))
+func isSimd(t types.Type) bool {
+	if t, ok := t.(*types.Named); ok {
+		tname := t.Obj()
+		for _, simdType := range simdTypes() {
+			if tname.Name() == simdType.name {
+				return true
+			}
+		}
 	}
-}
-
-func simdElemSize(t types.Type) uint {
-	if simdtype, err := simdTypeInfo(t); err == nil {
-		return simdtype.elemSize
-	} else {
-		panic(internal(fmt.Sprintf("type (%v) is not simd", t.String())))
-
-	}
+	return false
 }
 
 func sizeofElem(t types.Type) uint {
@@ -101,8 +84,9 @@ func sizeofElem(t types.Type) uint {
 	case *types.Array:
 		e = t.Elem()
 	case *types.Named:
-		if isSimd(t) && simdHasElemSize(t) {
-			return simdElemSize(t)
+		typeinfo, err := simdInfo(t)
+		if err == nil {
+			return typeinfo.elemSize
 		}
 		panic(internal(
 			fmt.Sprintf("t (%v), isSimd (%v)\n", t.String(), isSimd(t))))
@@ -130,7 +114,7 @@ func sizeof(t types.Type) uint {
 		if !isSimd(t) {
 			panic("Named type is unsupported")
 		}
-		if info, err := simdTypeInfo(t); err != nil {
+		if info, err := simdInfo(t); err != nil {
 			panic(internal(fmt.Sprintf("Error unknown type in sizeof err:\"%v\"", err)))
 		} else {
 			return info.size
@@ -174,7 +158,7 @@ func align(t types.Type) uint {
 		if !isSimd(t) {
 			panic("Named type is unsupported")
 		}
-		if info, err := simdTypeInfo(t); err != nil {
+		if info, err := simdInfo(t); err != nil {
 			panic(internal(fmt.Sprintf("unknown named type, err:\"%v\"", err)))
 		} else {
 			return info.align

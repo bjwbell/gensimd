@@ -1,10 +1,10 @@
 # Gensimd
 `tests/README.md` has usage examples.
 
-# Tests
+## Tests
 Execute `runtests.sh` to run the reference tests.
 
-# Unsupported
+## Unsupported
 
 - Builtins except `len`
 - Function calls except `simd.*`
@@ -12,15 +12,15 @@ Execute `runtests.sh` to run the reference tests.
 - `range`,  `map`, `select`, `chan`, `defer`
 - Slice creation e.g. `newslice := slice[1:len(slice) - 2]`
 
-# Supported
+## Supported
 - Integers and floats - `uint8/int8`, `uint16/int16`, `uint32/int32`, `uint64/int64`, `float32/float64`
 - `if` statements, `for` loops (except with `range`)
 - Arrays and slices
 
-# TODO
+## TODO
 - Bounds checking for slice accesses
 
-# SIMD
+## SIMD
 **SIMD types**
 
     type I8x16 [16]int8

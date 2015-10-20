@@ -466,7 +466,7 @@ func GetXmmVariant(t types.Type) XmmData {
 }
 
 func (f *Function) Slice(instr *ssa.Slice) (string, *Error) {
-	return "", nil
+	return ErrorMsg("slice creation unsupported")
 }
 
 func (f *Function) Convert(instr *ssa.Convert) (string, *Error) {
@@ -1343,7 +1343,15 @@ func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 	}
 	asm += MulImm32RegReg(f.Indent, uint32(sizeofElem(xInfo.typ)), &idxReg, &idxReg)
 
-	asm += Lea(f.Indent, xInfo.name, xOffset, &xReg, &addrReg)
+	if xInfo.IsSlice() {
+		// TODO: add bounds checking
+		optypes := GetIntegerOpDataType(false, sizePtr())
+		asm += MovMemReg(f.Indent, optypes, xInfo.name, xOffset, &xReg, &addrReg)
+	} else if xInfo.IsArray() {
+		asm += Lea(f.Indent, xInfo.name, xOffset, &xReg, &addrReg)
+	} else {
+		internal("indexing non-slice/array variable")
+	}
 
 	optypes := GetIntegerOpDataType(false, idxReg.size())
 

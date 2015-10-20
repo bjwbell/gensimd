@@ -26,16 +26,6 @@ func TestArray(t *testing.T) {
 
 	count := 0
 
-	arr := [1]int{11}
-	if arrayt0s(arr) != arrayt0(arr) {
-		t.Errorf("arrayt0s(%v)", arr)
-	}
-
-	arr2 := [2]int{13, 15}
-	if arrayt1s(arr2) != arrayt1(arr2) {
-		t.Errorf("arrayt1s(%v)", arr2)
-	}
-
 	for i := -63; i <= 63; i++ {
 
 		y := int(0)

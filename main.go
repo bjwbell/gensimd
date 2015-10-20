@@ -54,12 +54,12 @@ func main() {
 
 	flag.Parse()
 	file := os.ExpandEnv("$GOFILE")
+	log.SetFlags(log.Lshortfile)
 	if *f != "" {
 		file = *f
 	}
 	if *flagFn == "" {
-		fmt.Println("Error no function name(s) provided")
-		return
+		log.Fatalf("Error no function name(s) provided")
 	}
 	fnnames := strings.Split(*flagFn, ",")
 	outFns := []string{}
@@ -72,8 +72,7 @@ func main() {
 
 	}
 	if len(fnnames) != len(outFns) {
-		fmt.Printf("Error # fns (%v) doesn't match # outfns (%v)\n", len(fnnames), len(outFns))
-		return
+		log.Fatalf("Error # fns (%v) doesn't match # outfns (%v)\n", len(fnnames), len(outFns))
 	}
 	for i := range fnnames {
 		fnnames[i] = strings.TrimSpace(fnnames[i])
@@ -83,8 +82,7 @@ func main() {
 	parsed, err := simd.ParseFile(file)
 	if err != nil {
 		msg := "Error parsing file \"%v\", error msg \"%v\"\n"
-		fmt.Printf(msg, file, err)
-		return
+		log.Fatalf(msg, file, err)
 	}
 
 	filePkgName := parsed.Pkg.Name()
@@ -118,7 +116,7 @@ func main() {
 	}
 	prog := ssautil.CreateProgram(iprog, builderMode)
 	if prog == nil {
-		fmt.Println("Couldn't create ssa representation")
+		log.Fatalf("Couldn't create ssa representation")
 	}
 
 	// Build and display only the initial packages (and synthetic wrappers)

@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/bjwbell/gensimd/simd"
+
 	"golang.org/x/tools/go/types"
 
 	"golang.org/x/tools/go/ssa"
@@ -518,21 +520,128 @@ func (f *Function) Call(call *ssa.Call) (string, *Error) {
 	if builtin, ok := funct.(*ssa.Builtin); ok {
 		return f.Builtin(call, builtin)
 	}
-	if f.isSimdFunc(call) {
-		return f.SimdFuncCall(call)
+	if f.isSimdIntrinsic(call) {
+		return f.SimdIntrinsic(call)
 	}
-	msg := fmt.Sprintf("(%v), function calls are not supported",
-		call.Common().Description())
+	name := "UNKNOWN FUNC NAME"
+	if call.Common().Method != nil {
+		name = call.Common().Method.Name()
+	} else if call.Common().StaticCallee() != nil {
+		name = call.Common().StaticCallee().Name()
+	}
+	msg := fmt.Sprintf("function calls are not supported, func name (%v), description (%v), ",
+		name, call.Common().Description())
 	return ErrorMsg(msg)
 
 }
 
-func (f *Function) SimdFuncCall(call *ssa.Call) (string, *Error) {
-	panic(internal("SimdFuncCall not supported yet"))
+func (f *Function) SimdIntrinsic(call *ssa.Call) (string, *Error) {
+	var a string
+	var e *Error
+
+	args := call.Common().Args
+	x := f.Ident(args[0])
+	y := f.Ident(args[1])
+	result := f.Ident(call)
+	name := call.Common().StaticCallee().Name()
+
+	switch name {
+	default:
+		panic(internal(fmt.Sprintf("Expected simd intrinsic got (%v)", name)))
+	case "AddI8x16":
+		a, e = addI8x16(f, x, y, result)
+	case "SubI8x16":
+		a, e = subI8x16(f, x, y, result)
+	case "AddI16x8":
+		a, e = addI16x8(f, x, y, result)
+	case "SubI16x8":
+		a, e = subI16x8(f, x, y, result)
+	case "MulI16x8":
+		a, e = mulI16x8(f, x, y, result)
+	case "ShlI16x8":
+		a, e = shlI16x8(f, x, y, result)
+	case "ShrI16x8":
+		a, e = shrI16x8(f, x, y, result)
+	case "AddI32x4":
+		a, e = addI32x4(f, x, y, result)
+	case "SubI32x4":
+		a, e = subI32x4(f, x, y, result)
+	case "MulI32x4":
+		a, e = mulI32x4(f, x, y, result)
+	case "ShlI32x4":
+		a, e = shlI32x4(f, x, y, result)
+	case "ShrI32x4":
+		a, e = shrI32x4(f, x, y, result)
+	case "AddI64x2":
+		a, e = addI64x2(f, x, y, result)
+	case "SubI64x2":
+		a, e = subI64x2(f, x, y, result)
+	case "ShlI64x2":
+		a, e = shlI64x2(f, x, y, result)
+	case "AddU8x16":
+		a, e = addU8x16(f, x, y, result)
+	case "SubU8x16":
+		a, e = subU8x16(f, x, y, result)
+	case "AddU16x8":
+		a, e = addU16x8(f, x, y, result)
+	case "SubU16x8":
+		a, e = subU16x8(f, x, y, result)
+	case "MulU16x8":
+		a, e = mulU16x8(f, x, y, result)
+	case "ShlU16x8":
+		a, e = shlU16x8(f, x, y, result)
+	case "ShrU16x8":
+		a, e = shrU16x8(f, x, y, result)
+	case "AddU32x4":
+		a, e = addU32x4(f, x, y, result)
+	case "SubU32x4":
+		a, e = subU32x4(f, x, y, result)
+	case "MulU32x4":
+		a, e = mulU32x4(f, x, y, result)
+	case "ShlU32x4":
+		a, e = shlU32x4(f, x, y, result)
+	case "ShrU32x4":
+		a, e = shrU32x4(f, x, y, result)
+	case "AddU64x2":
+		a, e = addU64x2(f, x, y, result)
+	case "SubU64x2":
+		a, e = subU64x2(f, x, y, result)
+	case "ShlU64x2":
+		a, e = shlU64x2(f, x, y, result)
+	case "ShrU64x2":
+		a, e = shrU64x2(f, x, y, result)
+	case "AddF32x4":
+		a, e = addF32x4(f, x, y, result)
+	case "SubF32x4":
+		a, e = subF32x4(f, x, y, result)
+	case "MulF32x4":
+		a, e = mulF32x4(f, x, y, result)
+	case "DivF32x4":
+		a, e = divF32x4(f, x, y, result)
+	case "AddF64x2":
+		a, e = addF64x2(f, x, y, result)
+	case "SubF64x2":
+		a, e = subF64x2(f, x, y, result)
+	case "MulF64x2":
+		a, e = mulF64x2(f, x, y, result)
+	case "DivF64x2":
+		a, e = divF64x2(f, x, y, result)
+	}
+	return a, e
 }
 
-func (f *Function) isSimdFunc(call *ssa.Call) bool {
-	panic("TODO")
+func (f *Function) isSimdIntrinsic(call *ssa.Call) bool {
+	names := simd.IntrinsicNames
+	if call.Common() == nil || call.Common().StaticCallee() == nil {
+		return false
+	}
+	name := call.Common().StaticCallee().Name()
+	for _, n := range names {
+		if n == name {
+			return true
+		}
+	}
+	return false
 }
 
 func (f *Function) Slice(instr *ssa.Slice) (string, *Error) {
@@ -922,8 +1031,19 @@ func (f *Function) StoreValAddr(val ssa.Value, addr *identifier) (string, *Error
 		f.freeReg(valReg)
 
 	} else if isSimd(val.Type()) {
-		// TODO
-		panic("TODO:simd storing back to memory")
+
+		a, valReg, err := f.LoadSimdValue(val)
+		if err != nil {
+			return a, err
+		}
+		asm += a
+		a, err = f.StoreSimd(valReg, addr)
+		if err != nil {
+			return a, err
+		}
+		asm += a
+		f.freeReg(*valReg)
+
 	} else {
 
 		size := f.sizeof(val)
@@ -1158,11 +1278,24 @@ func (f *Function) LoadIdent(ident *identifier, offset int, size uint, reg *regi
 		msg := "ident (%v), size (%v) not a multiple of chunk size (%v) in loading"
 		internal(fmt.Sprintf(msg, ident.name, ident.size(), size))
 	}
-	if size > 8 {
+	if size > 8 && (!isSimd(ident.typ) || reg.typ != XMM_REG) {
 		msg := "ident (%v), loading more than 8 byte chunk"
 		internal(fmt.Sprintf(msg, ident.name))
 	}
+	if isSimd(ident.typ) {
+		optypes := OpDataType{op: XMM_OP, xmmvariant: XMM_F128}
+		asm := f.Indent + fmt.Sprintf("// BEGIN LoadIdent (SIMD), ident: %v, offset %v, size %v\n", ident.name, offset, size)
+		a := ""
+		if isIntegerSimd(ident.typ) {
+			a = MovIntegerSimdMemReg(f.Indent, optypes, ident.name, roffset+offset, &r, reg)
+		} else {
+			a = MovMemReg(f.Indent, optypes, ident.name, roffset+offset, &r, reg)
+		}
 
+		asm += a
+		asm += f.Indent + fmt.Sprintf("// END LoadIdent (SIMD), ident: %v, offset %v, size %v\n", ident.name, offset, size)
+		return asm, nil
+	}
 	optypes := GetIntegerOpDataType(false, size)
 	asm := f.Indent + fmt.Sprintf("// BEGIN LoadIdent, ident: %v, offset %v, size %v\n", ident.name, offset, size)
 	a := MovMemReg(f.Indent, optypes, ident.name, roffset+offset, &r, reg)
@@ -1220,14 +1353,23 @@ func (f *Function) StoreReg(reg *register, ident *identifier, offset int, size u
 		internal(fmt.Sprintf("identifier (%v) size is 0", ident.name))
 	}
 	if isSimd(ident.typ) {
-		// TODO
-		panic("TODO: storing simd data type from xmm regs")
+		asm := f.Indent + fmt.Sprintf("// BEGIN StoreReg (SIMD), size (%v)\n", size)
+		optypes := OpDataType{op: XMM_OP, xmmvariant: XMM_F128}
+		if isIntegerSimd(ident.typ) {
+			asm += MovIntegerSimdRegMem(f.Indent, optypes, reg, ident.name, &r, offset+roffset)
+		} else {
+			asm += MovRegMem(f.Indent, optypes, reg, ident.name, &r, offset+roffset)
+		}
+		asm += f.Indent + fmt.Sprintf("// END StoreReg (SIMD), size (%v)\n", size)
+		return asm, nil
+
+	} else {
+		asm := f.Indent + fmt.Sprintf("// BEGIN StoreReg, size (%v)\n", size)
+		optypes := GetIntegerOpDataType(false, size)
+		asm += MovRegMem(f.Indent, optypes, reg, ident.name, &r, offset+roffset)
+		asm += f.Indent + fmt.Sprintf("// END StoreReg, size (%v)\n", size)
+		return asm, nil
 	}
-	asm := f.Indent + fmt.Sprintf("// BEGIN StoreReg, size (%v)\n", size)
-	optypes := GetIntegerOpDataType(false, size)
-	asm += MovRegMem(f.Indent, optypes, reg, ident.name, &r, offset+roffset)
-	asm += f.Indent + fmt.Sprintf("// END StoreReg, size (%v)\n", size)
-	return asm, nil
 }
 
 func (f *Function) LoadConstValue(cnst *ssa.Const, r *register) (string, *Error) {
@@ -1407,8 +1549,8 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 	xReg, xOffset, xSize := xInfo.Addr()
 	aReg, aOffset, aSize := assignment.Addr()
 
-	if xSize != sizePtr() {
-		fmt.Printf("instr: %v\n", instr)
+	// ssa locals are always pointers (even though actually not)
+	if xSize != sizePtr() && !xInfo.IsSsaLocal() {
 		internal(fmt.Sprintf("xSize (%v) != ptr size (%v)", xSize, sizePtr()))
 	}
 
@@ -1418,19 +1560,66 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 	tmp2 := f.allocReg(regType(instr.Type()), DataRegSize)
 	optypes := GetOpDataType(instr.Type())
 
-	asm += MovMemIndirectMem(
-		f.Indent,
-		optypes,
-		xInfo.name,
-		xOffset,
-		&xReg,
-		assignment.name,
-		aOffset,
-		&aReg,
-		size,
-		&tmp1,
-		&tmp2)
+	if xInfo.IsSsaLocal() {
 
+		if isIntegerSimd(instr.Type()) {
+			tmp := f.allocReg(XMM_REG, 16)
+			asm += MovIntegerSimdMemMem(
+				f.Indent,
+				xInfo.name,
+				xOffset,
+				&xReg,
+				assignment.name,
+				aOffset,
+				&aReg,
+				size,
+				&tmp)
+			f.freeReg(tmp)
+		} else {
+			asm += MovMemMem(
+				f.Indent,
+				xInfo.name,
+				xOffset,
+				&xReg,
+				assignment.name,
+				aOffset,
+				&aReg,
+				size,
+				&tmp1)
+		}
+
+	} else {
+
+		if isIntegerSimd(instr.Type()) {
+			optypes = OpDataType{XMM_OP, InstrData{}, XMM_F128}
+			asm += MovIntegerSimdMemIndirectMem(
+				f.Indent,
+				optypes,
+				xInfo.name,
+				xOffset,
+				&xReg,
+				assignment.name,
+				aOffset,
+				&aReg,
+				size,
+				&tmp1,
+				&tmp2)
+		} else {
+			asm += MovMemIndirectMem(
+				f.Indent,
+				optypes,
+				xInfo.name,
+				xOffset,
+				&xReg,
+				assignment.name,
+				aOffset,
+				&aReg,
+				size,
+				&tmp1,
+				&tmp2)
+		}
+
+	}
 	f.identifiers[assignment.name] = *assignment
 
 	f.freeReg(tmp1)

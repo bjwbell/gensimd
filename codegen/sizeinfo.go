@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/bjwbell/gensimd/simd"
 
@@ -14,6 +15,7 @@ type simdtype struct {
 	size     uint
 	elemSize uint
 	align    uint
+	optype   OpDataType
 }
 
 func simdReflect(t reflect.Type) simdtype {
@@ -32,17 +34,35 @@ func simdReflect(t reflect.Type) simdtype {
 func simdTypes() []simdtype {
 	types := []simdtype{}
 	types = append(types, simdReflect(reflect.TypeOf(simd.I8x16{})))
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{}, XMM_I8X16}
+
 	types = append(types, simdReflect(reflect.TypeOf(simd.I16x8{})))
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{}, XMM_I16X8}
+
 	types = append(types, simdReflect(reflect.TypeOf(simd.I32x4{})))
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{}, XMM_I32X4}
+
 	types = append(types, simdReflect(reflect.TypeOf(simd.I64x2{})))
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{}, XMM_I64X2}
 
 	types = append(types, simdReflect(reflect.TypeOf(simd.U8x16{})))
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{}, XMM_U8X16}
+
 	types = append(types, simdReflect(reflect.TypeOf(simd.U16x8{})))
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{}, XMM_U16X8}
+
 	types = append(types, simdReflect(reflect.TypeOf(simd.U32x4{})))
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{}, XMM_U32X4}
+
 	types = append(types, simdReflect(reflect.TypeOf(simd.U64x2{})))
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{}, XMM_U64X2}
 
 	types = append(types, simdReflect(reflect.TypeOf(simd.F32x4{})))
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{}, XMM_4X_F32}
+
 	types = append(types, simdReflect(reflect.TypeOf(simd.F64x2{})))
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{}, XMM_2X_F64}
+
 	return types
 }
 
@@ -72,6 +92,17 @@ func isSimd(t types.Type) bool {
 		}
 	}
 	return false
+}
+
+func isIntegerSimd(t types.Type) bool {
+	s, err := simdInfo(t)
+	if err != nil {
+		return false
+	}
+	split := strings.Split(s.name, ".")
+	name := split[len(split)-1]
+	integerType := strings.HasPrefix(name, "I") || strings.HasPrefix(name, "U")
+	return integerType
 }
 
 func sizeofElem(t types.Type) uint {
@@ -344,7 +375,14 @@ func GetOpDataType(t types.Type) OpDataType {
 	if isComplex(t) {
 		panic("complex32/64 unsupported")
 	}
+	if isSimd(t) {
+		if simdtype, err := simdInfo(t); err == nil {
+			return simdtype.optype
+		} else {
+			panic(internal(fmt.Sprintf("cant get type info for simd type (%v)", t.String())))
+		}
 
+	}
 	if isBasic(t) {
 		return GetIntegerOpDataType(signed(t), sizeof(t))
 	} else {

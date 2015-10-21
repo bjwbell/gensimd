@@ -46,6 +46,7 @@ const (
 	XMM_F64
 	XMM_4X_F32
 	XMM_2X_F64
+	XMM_F128 = XMM_2X_F64
 
 	XMM_I8X16 = XMM_F32
 	XMM_U8X16 = XMM_I8X16
@@ -161,6 +162,7 @@ const (
 	I_PSRL //packed shift right logical
 	I_PSUB
 	I_PXOR
+	I_PMOV
 
 	I_SAL
 	I_SAR
@@ -298,6 +300,9 @@ var XmmInsts = []XmmInstruction{
 	// packed signed multiplication
 	{I_PIMUL, NONE, PMULLW, NONE, NONE},
 
+	// mov packed integers
+	{I_PMOV, NONE, NONE, NONE, MOVOU},
+
 	// bitwise logical, operates on full register width, so same version used for all
 	// op types
 	{I_POR, POR, POR, POR, POR},
@@ -361,6 +366,7 @@ func (xinstr XmmInstruction) Select(variant XmmData) Instr {
 		instr = xinstr.F64x2
 	}
 	if instr == NONE {
+		fmt.Println("variant:", variant)
 		internal(fmt.Sprintf("unrecognized variant for %v", xinstr.XmmInstr))
 	}
 	return instr
@@ -466,16 +472,31 @@ func MovRegReg(indent string, datatype OpDataType, srcReg, dstReg *register) str
 		msg := "srcReg (%v) width (%v) != (%v) dstReg (%v) width or invalid size"
 		internal(fmt.Sprintf(msg, srcReg.name, srcReg.width, dstReg.width, dstReg.name))
 	}
-	mov := GetInstr(I_MOV, datatype).String()
-	asm := indent + fmt.Sprintf("%-9v    %v, %v\n", mov, srcReg.name, dstReg.name)
-	return asm
+	if srcReg.typ == XMM_REG && dstReg.typ == XMM_REG {
+		mov := MOVO
+		asm := indent
+		asm += fmt.Sprintf("%-9v    %v, %v\n", mov.String(), srcReg.name, dstReg.name)
+		return asm
+	} else {
+		mov := GetInstr(I_MOV, datatype).String()
+		asm := indent + fmt.Sprintf("%-9v    %v, %v\n", mov, srcReg.name, dstReg.name)
+		return asm
+	}
 }
 
 func MovRegMem(indent string, datatype OpDataType, srcReg *register, dstName string, dstReg *register, dstOffset int) string {
 	mov := GetInstr(I_MOV, datatype)
-	asm := indent + fmt.Sprintf("// BEGIN asmMovRegMem, mov (%v)\n", mov)
+	asm := indent + fmt.Sprintf("// BEGIN MovRegMem, mov (%v)\n", mov)
 	asm += indent + fmt.Sprintf("%-9v    %v, %v+%v(%v)\n", mov.String(), srcReg.name, dstName, dstOffset, dstReg.name)
-	asm += indent + fmt.Sprintf("// END asmMovRegMem, mov (%v)\n", mov)
+	asm += indent + fmt.Sprintf("// END MovRegMem, mov (%v)\n", mov)
+	return strings.Replace(asm, "+-", "-", -1)
+}
+
+func MovIntegerSimdRegMem(indent string, datatype OpDataType, srcReg *register, dstName string, dstReg *register, dstOffset int) string {
+	mov := GetInstr(I_PMOV, datatype)
+	asm := indent + fmt.Sprintf("// BEGIN MovIntegerSimdRegMem, mov (%v)\n", mov)
+	asm += indent + fmt.Sprintf("%-9v    %v, %v+%v(%v)\n", mov.String(), srcReg.name, dstName, dstOffset, dstReg.name)
+	asm += indent + fmt.Sprintf("// END MovIntegerSimdRegMem, mov (%v)\n", mov)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
@@ -490,7 +511,22 @@ func MovRegMemIndirect(indent string, srcReg *register, dstName string, dstReg *
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func MovMemMem(indent string, datatype InstrOpType, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, size uint) string {
+func MovIntegerSimdMemMem(indent string, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, size uint, tmp *register) string {
+	if srcReg.width != dstReg.width {
+		internal("Invalid register width")
+	}
+	if size%16 != 0 {
+		internal("Invalid size")
+	}
+	movq := "MOVOU"
+
+	asm := indent + fmt.Sprintf("%-9v    %v+%v(%v), %v\n", movq, srcName, srcOffset, srcReg.name, tmp.name)
+	asm += indent + fmt.Sprintf("%-9v    %v, %v+%v(%v)\n", movq, tmp.name, dstName, dstOffset, dstReg.name)
+
+	return strings.Replace(asm, "+-", "-", -1)
+}
+
+func MovMemMem(indent string, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, size uint, tmp *register) string {
 	if srcReg.width != 64 || dstReg.width != 64 {
 		internal("Invalid register width")
 	}
@@ -498,13 +534,21 @@ func MovMemMem(indent string, datatype InstrOpType, srcName string, srcOffset in
 		internal("Invalid size")
 	}
 	movq := "MOVQ"
-	asm := indent + fmt.Sprintf("%-9v    %v+%v(%v), %v+%v(%v)\n", movq, srcName, srcOffset, srcReg.name, dstName, dstOffset, dstReg.name)
+
+	asm := indent + fmt.Sprintf("%-9v    %v+%v(%v), %v\n", movq, srcName, srcOffset, srcReg.name, tmp.name)
+	asm += indent + fmt.Sprintf("%-9v    %v, %v+%v(%v)\n", movq, tmp.name, dstName, dstOffset, dstReg.name)
+
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
 func MovMemReg(indent string, datatype OpDataType, srcName string, srcOffset int, srcReg *register, dstReg *register) string {
-
 	mov := GetInstr(I_MOV, datatype)
+	asm := indent + fmt.Sprintf("%-9v    %v+%v(%v), %v\n", mov.String(), srcName, srcOffset, srcReg.name, dstReg.name)
+	return strings.Replace(asm, "+-", "-", -1)
+}
+
+func MovIntegerSimdMemReg(indent string, datatype OpDataType, srcName string, srcOffset int, srcReg *register, dstReg *register) string {
+	mov := GetInstr(I_PMOV, datatype)
 	asm := indent + fmt.Sprintf("%-9v    %v+%v(%v), %v\n", mov.String(), srcName, srcOffset, srcReg.name, dstReg.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
@@ -544,6 +588,55 @@ func MovMemIndirectMem(indent string, datatype OpDataType, srcName string, srcOf
 		InstrData{signed: false, size: sizePtr()}, XMM_INVALID}
 
 	mov := GetInstr(I_MOV, datatype).String()
+	movaddr := GetInstr(I_MOV, addrdatatype).String()
+
+	asm := ""
+
+	var count uint
+	var chunk uint
+	if size <= tmp2.width/8 {
+		count = 1
+		chunk = size
+	} else {
+		chunk = (tmp2.width / 8)
+		count = size / chunk
+	}
+
+	asm += indent
+	asm += fmt.Sprintf("%-9v    %v+%v(%v), %v\n",
+		movaddr, srcName, srcOffset, srcReg.name, tmp1.name)
+
+	for i := uint(0); i < count; i++ {
+
+		asm += indent
+		asm += fmt.Sprintf("%-9v    (%v), %v\n",
+			mov, tmp1.name, tmp2.name)
+
+		asm += indent
+		asm += fmt.Sprintf("%-9v    %v, %v+%v(%v)\n",
+			mov, tmp2.name, dstName, dstOffset, dstReg.name)
+
+		dstOffset += int(chunk)
+
+		if i < count-1 {
+			asm += AddImm32Reg(indent, uint32(chunk), tmp1)
+		}
+	}
+
+	return strings.Replace(asm, "+-", "-", -1)
+}
+
+func MovIntegerSimdMemIndirectMem(indent string, datatype OpDataType, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, size uint, tmp1, tmp2 *register) string {
+	if tmp1.width/8 < sizePtr() {
+		internal("register width smaller than ptr size ")
+	}
+	if size > tmp2.width/8 && size%(tmp2.width/8) != 0 {
+		internal(fmt.Sprintf("Invalid size (%v), reg width/8 (%v)", size, tmp1.width/8))
+	}
+	addrdatatype := OpDataType{INTEGER_OP,
+		InstrData{signed: false, size: sizePtr()}, XMM_INVALID}
+
+	mov := GetInstr(I_PMOV, datatype).String()
 	movaddr := GetInstr(I_MOV, addrdatatype).String()
 
 	asm := ""

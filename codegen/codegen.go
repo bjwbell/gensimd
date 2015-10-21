@@ -656,37 +656,37 @@ func (f *Function) ConvertUint64ToFloat(tmp, regU64, regFloat *register, floatSi
 		cvt = "CVTSQ2SD"
 		add = "ADDSD"
 	}
-	str := f.Indent + "//      U64\n" +
-		f.Indent + "CMPQ	%v, $-1\n" +
-		f.Indent + "//      jmp to rounding\n" +
-		f.Indent + "JEQ	%v\n" +
-		f.Indent + "//     U64\n" +
-		f.Indent + "CMPQ	%v, $-1\n" +
-		f.Indent + "//      jmp to no rounding\n" +
-		f.Indent + "JGE	%v\n" +
+	str := f.Indent + "//           U64\n" +
+		f.Indent + "CMPQ	     %v, $-1\n" +
+		f.Indent + "// jmp to rounding\n" +
+		f.Indent + "JEQ	     %v\n" +
+		f.Indent + "//           U64\n" +
+		f.Indent + "CMPQ	     %v, $-1\n" +
+		f.Indent + "// jmp to no rounding\n" +
+		f.Indent + "JGE	     %v\n" +
 		f.Indent + "// rounding label\n" +
 		f.Indent + "%v:\n" +
-		f.Indent + "//     U64 I64\n" +
-		f.Indent + "MOVQ	%v, %v\n" +
-		f.Indent + "//         I64\n" +
-		f.Indent + "SHRQ	$1, %v\n" +
-		f.Indent + "//     U64 TMP\n" +
-		f.Indent + "MOVQ	%v, %v\n" +
-		f.Indent + "//         TMP\n" +
-		f.Indent + "ANDL	$1, %v\n" +
-		f.Indent + "//     TMP I64\n" +
-		f.Indent + "ORQ	%v, %v\n" +
-		f.Indent + "//CVT  I64 XMM\n" +
-		f.Indent + "%v    %v, %v\n" +
-		f.Indent + "//ADD XMM, XMM\n" +
-		f.Indent + "%v    %v, %v\n" +
-		f.Indent + "//    jmp to end\n" +
-		f.Indent + "JMP   %v\n" +
-		f.Indent + "//    jmp label for no rounding\n" +
+		f.Indent + "//           U64 I64\n" +
+		f.Indent + "MOVQ	     %v, %v\n" +
+		f.Indent + "//           I64\n" +
+		f.Indent + "SHRQ	      $1, %v\n" +
+		f.Indent + "//           U64 TMP\n" +
+		f.Indent + "MOVQ	     %v, %v\n" +
+		f.Indent + "//               TMP\n" +
+		f.Indent + "ANDL	     $1, %v\n" +
+		f.Indent + "//           TMP I64\n" +
+		f.Indent + "ORQ	     %v, %v\n" +
+		f.Indent + "//CVT        I64 XMM\n" +
+		f.Indent + "%-9v    %v, %v\n" +
+		f.Indent + "//ADD        XMM, XMM\n" +
+		f.Indent + "%-9v    %v, %v\n" +
+		f.Indent + "// jmp to end\n" +
+		f.Indent + "JMP          %v\n" +
+		f.Indent + "// no rounding label\n" +
 		f.Indent + "%v:\n" +
-		f.Indent + "//CVT U64 XMM\n" +
-		f.Indent + "%v     %v, %v\n" +
-		f.Indent + "//    jmp label for end\n" +
+		f.Indent + "//CVT        U64 XMM\n" +
+		f.Indent + "%-9v    %v, %v\n" +
+		f.Indent + "// end label\n" +
 		f.Indent + "%v:\n"
 
 	asm += fmt.Sprintf(str,
@@ -734,13 +734,15 @@ func (f *Function) If(instr *ssa.If) (string, *Error) {
 		asm += a
 		r, offset, size := info.Addr()
 		asm += CmpMemImm32(f.Indent, info.name, int32(offset), &r, uint32(0), size)
-		asm += f.Indent + "JEQ    " + "block" + strconv.Itoa(fblock) + "\n"
+		jeq := "JEQ"
+		asm += f.Indent + fmt.Sprintf("%-9v    ", jeq) + "block" + strconv.Itoa(fblock) + "\n"
 		a, err = f.JumpPreamble(instr.Block().Index, tblock)
 		if err != nil {
 			return "", err
 		}
 		asm += a
-		asm += f.Indent + "JMP    " + "block" + strconv.Itoa(tblock) + "\n"
+		jmp := "JMP"
+		asm += f.Indent + fmt.Sprintf("%-9v    ", jmp) + "block" + strconv.Itoa(tblock) + "\n"
 
 	}
 

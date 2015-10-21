@@ -46,6 +46,18 @@ const (
 	XMM_F64
 	XMM_4X_F32
 	XMM_2X_F64
+
+	XMM_I8X16 = XMM_F32
+	XMM_U8X16 = XMM_I8X16
+
+	XMM_I16X8 = XMM_F64
+	XMM_U16X8 = XMM_I16X8
+
+	XMM_I32X8 = XMM_4X_F32
+	XMM_U32X8 = XMM_I32X8
+
+	XMM_I64X4 = XMM_2X_F64
+	XMM_U63X4 = XMM_I64X4
 )
 
 type Instr int
@@ -250,10 +262,32 @@ var XmmInsts = []XmmInstruction{
 	{I_SUB, SUBSS, SUBSD, SUBPS, SUBPD},
 	{I_XOR, NONE, NONE, XORPS, XORPD},
 
-	// add packed integers
+	// Add packed integer
+	//
+	// From 64-IA-32-Architectures-Software-Developer-Instruction-Set-Reference-Manual:
+	//
+	// Adds the packed byte, word, doubleword, or quadword integers in the
+	// first source operand to the second source operand and stores the result
+	// in the destination operand. When a result is too large to be represented
+	// in the 8/16/32 integer (overflow), the result is wrapped around and the
+	// low bits are written to the destination element (that is, the carry is ignored).
+	// Note that these instructions can operate on either unsigned or signed
+	// (two’s complement notation) integers; however, it does not set bits in
+	// the EFLAGS register to indicate overflow and/or a carry. To prevent
+	// undetected overflow conditions, software must control the ranges of
+	// the values operated on .
 	{I_PADD, PADDB, PADDW, PADDL, PADDQ},
 
-	// subtract packed integers
+	// Subtract packed integers
+	//
+	// From 64-IA-32-Architectures-Software-Developer-Instruction-Set-Reference-Manual:
+	// Performs a SIMD subtract of the packed integers of the source operand
+	// (second operand) from the packed integers of the destination operand
+	// (first operand), and stores the packed integer results in the
+	// destination operand.
+	// When an individual result is too large or too small to be represented,
+	// the result is wrapped around and the low bits are written to the
+	// destination element.
 	{I_PSUB, PSUBB, PSUBW, PSUBL, PSUBQ},
 
 	// packed signed multiplication

@@ -470,7 +470,7 @@ func (f *Function) Len(call *ssa.Call) (string, *Error) {
 		panic(internal(fmt.Sprintf("too many args (%v) for len", len(callcommon.Args))))
 	}
 
-	ident := f.IdentCreateOnDemand(call.Value())
+	ident := f.Ident(call.Value())
 	if reflectType(ident.typ).Name() != "int" {
 		panic(internal(fmt.Sprintf("len returns int not (%v)", reflectType(ident.typ).Name())))
 	}
@@ -579,8 +579,8 @@ func (f *Function) Convert(instr *ssa.Convert) (string, *Error) {
 
 func (f *Function) AllocFromToRegs(instr *ssa.Convert) (from register, to register) {
 
-	fromInfo := f.IdentCreateOnDemand(instr.X)
-	toInfo := f.IdentCreateOnDemand(instr)
+	fromInfo := f.Ident(instr.X)
+	toInfo := f.Ident(instr)
 	if fromInfo == nil || toInfo == nil {
 		internal("converting between types")
 	}
@@ -829,7 +829,7 @@ func (f *Function) computePhiInstr(phi *ssa.Phi) *Error {
 
 func (f *Function) Phi(phi *ssa.Phi) (string, *Error) {
 
-	if nameinfo := f.IdentCreateOnDemand(phi); nameinfo == nil {
+	if nameinfo := f.Ident(phi); nameinfo == nil {
 		return ErrorMsg("Error in ssa.Phi allocation")
 	}
 
@@ -893,7 +893,7 @@ func (f *Function) SetStackPointer() string {
 
 func (f *Function) StoreValAddr(val ssa.Value, addr *identifier) (string, *Error) {
 
-	if nameinfo := f.IdentCreateOnDemand(val); nameinfo == nil {
+	if nameinfo := f.Ident(val); nameinfo == nil {
 		internal("error in allocating local")
 	}
 	if addr.local == nil && addr.param == nil {
@@ -973,7 +973,7 @@ func (f *Function) StoreValAddr(val ssa.Value, addr *identifier) (string, *Error
 }
 
 func (f *Function) Store(instr *ssa.Store) (string, *Error) {
-	if nameinfo := f.IdentCreateOnDemand(instr.Addr); nameinfo == nil {
+	if nameinfo := f.Ident(instr.Addr); nameinfo == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
 	addr, ok := f.identifiers[instr.Addr.Name()]
@@ -988,7 +988,7 @@ func (f *Function) Store(instr *ssa.Store) (string, *Error) {
 
 func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 
-	if nameinfo := f.IdentCreateOnDemand(instr); nameinfo == nil {
+	if nameinfo := f.Ident(instr); nameinfo == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
 
@@ -1051,13 +1051,13 @@ func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 
 func (f *Function) BinOpLoadXY(instr *ssa.BinOp) (asm string, x *register, y *register, err *Error) {
 
-	if nameinfo := f.IdentCreateOnDemand(instr); nameinfo == nil {
+	if nameinfo := f.Ident(instr); nameinfo == nil {
 		return "", nil, nil, ErrorMsg2(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
-	if nameinfo := f.IdentCreateOnDemand(instr.X); nameinfo == nil {
+	if nameinfo := f.Ident(instr.X); nameinfo == nil {
 		return "", nil, nil, ErrorMsg2(fmt.Sprintf("Cannot alloc value: %v", instr.X))
 	}
-	if nameinfo := f.IdentCreateOnDemand(instr.Y); nameinfo == nil {
+	if nameinfo := f.Ident(instr.Y); nameinfo == nil {
 		return "", nil, nil, ErrorMsg2(fmt.Sprintf("Cannot alloc value: %v", instr.Y))
 	}
 
@@ -1249,7 +1249,7 @@ func (f *Function) UnOp(instr *ssa.UnOp) (string, *Error) {
 // bitwise negation
 func (f *Function) UnOpXor(instr *ssa.UnOp, xorVal int32) (string, *Error) {
 
-	if nameinfo := f.IdentCreateOnDemand(instr); nameinfo == nil {
+	if nameinfo := f.Ident(instr); nameinfo == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
 	size := f.sizeof(instr)
@@ -1291,7 +1291,7 @@ func (f *Function) UnOpXor(instr *ssa.UnOp, xorVal int32) (string, *Error) {
 // arithmetic negation
 func (f *Function) UnOpSub(instr *ssa.UnOp) (string, *Error) {
 
-	if nameinfo := f.IdentCreateOnDemand(instr); nameinfo == nil {
+	if nameinfo := f.Ident(instr); nameinfo == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
 	var regX register
@@ -1335,7 +1335,7 @@ func (f *Function) UnOpSub(instr *ssa.UnOp) (string, *Error) {
 
 //pointer indirection, in assignment such as "z = *x"
 func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
-	assignment := f.IdentCreateOnDemand(instr)
+	assignment := f.Ident(instr)
 	if assignment == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
@@ -1400,7 +1400,7 @@ func (f *Function) Index(instr *ssa.Index) (string, *Error) {
 	}
 	asm := ""
 	xInfo := f.identifiers[instr.X.Name()]
-	assignment := f.IdentCreateOnDemand(instr)
+	assignment := f.Ident(instr)
 	if assignment == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
@@ -1439,7 +1439,7 @@ func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 
 	asm := ""
 	xInfo := f.identifiers[instr.X.Name()]
-	assignment := f.IdentCreateOnDemand(instr)
+	assignment := f.Ident(instr)
 
 	xReg, xOffset, _ := xInfo.Addr()
 	aReg, aOffset, _ := assignment.Addr()
@@ -1652,7 +1652,7 @@ func (f *Function) retAlign() uint {
 	return align
 }
 
-func (f *Function) IdentCreateOnDemand(v ssa.Value) *identifier {
+func (f *Function) Ident(v ssa.Value) *identifier {
 
 	if nameinfo, ok := f.identifiers[v.Name()]; ok {
 		return &nameinfo

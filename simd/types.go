@@ -32,11 +32,15 @@ type I8x16 [16]int8
 type I16x8 [8]int16
 type I32x4 [4]int32
 type I64x2 [2]int64
+type I128 [16]byte
 
 type U8x16 [16]uint8
 type U16x8 [8]uint16
 type U32x4 [4]uint32
 type U64x2 [2]uint64
+type U128 [16]byte
 
 type F32x4 [4]float32
 type F64x2 [2]float64
+
+//type F128 [2]float64

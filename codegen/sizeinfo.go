@@ -354,6 +354,9 @@ func GetOpDataType(t types.Type) OpDataType {
 }
 
 func regType(t types.Type) RegType {
+	if isSimd(t) {
+		return XMM_REG
+	}
 	if isFloat(t) {
 		return XMM_REG
 	}

@@ -562,6 +562,8 @@ const (
 	PCMPGTL
 	PCMPGTW
 	PEXTRW
+
+	// 3DNow! instructions
 	PFACC
 	PFADD
 	PFCMPEQ
@@ -579,6 +581,7 @@ const (
 	PFRSQRT
 	PFSUB
 	PFSUBR
+
 	PINSRW
 	PINSRD
 	PINSRQ
@@ -589,11 +592,11 @@ const (
 	PMINUB
 	PMOVMSKB
 
-	// Packed Multiply and Round Integers (16bit)
+	// 3DNow! instruction
 	PMULHRW
 
 	// Multiply Packed Unsigned Integers (16bit) and Store High Result
-	// multiplies the packed signed word (16bit) integers in xmm1 and xmm2/m128
+	// multiplies the packed unsigned word (16bit) integers in xmm1 and xmm2/m128
 	// and store the high 16 bits of the results in xmm1
 	// Intel instruction: PMULHUW
 	PMULHUW

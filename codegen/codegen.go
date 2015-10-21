@@ -1122,6 +1122,55 @@ func (f *Function) SliceLen(slice ssa.Value, ident *identifier) (string, *Error)
 	return asm, nil
 }
 
+func (f *Function) LoadSimdValue(simdvalue ssa.Value) (string, *register, *Error) {
+	asm := f.Indent + fmt.Sprintf("// BEGIN LoadSimdValue, simdvalue: %v\n", simdvalue)
+	reg := f.allocReg(regType(simdvalue.Type()), f.sizeof(simdvalue))
+	a, err := f.LoadValue(simdvalue, 0, f.sizeof(simdvalue), &reg)
+	asm += a
+	asm += f.Indent + fmt.Sprintf("// END LoadSimdValue, simdvalue: %v, reg %v\n", simdvalue, reg.name)
+	return asm, &reg, err
+}
+
+func (f *Function) LoadSimd(ident *identifier) (string, *register, *Error) {
+	asm := f.Indent + fmt.Sprintf("// BEGIN LoadSimdIdent, ident: %v\n", ident)
+	reg := f.allocReg(regType(ident.typ), sizeof(ident.typ))
+	a, err := f.LoadIdentSimple(ident, &reg)
+	asm += a
+	asm += f.Indent + fmt.Sprintf("// END LoadSimdIdent, ident: %v, reg %v\n", ident, reg.name)
+	return asm, &reg, err
+}
+
+func (f *Function) LoadIdentSimple(ident *identifier, reg *register) (string, *Error) {
+	asm := f.Indent + fmt.Sprintf("// BEGIN LoadIdentSimple, ident: %v, reg %v\n", ident, reg.name)
+	if sizeof(ident.typ) > reg.size() {
+		msg := "Value too large (size=%v) to load into register (size=%v)"
+		panic(internal(fmt.Sprintf(msg, sizeof(ident.typ), reg.size())))
+	}
+	a, err := f.LoadIdent(ident, 0, sizeof(ident.typ), reg)
+	asm += a
+	asm += f.Indent + fmt.Sprintf("// END LoadIdentSimple, ident: %v, reg %v\n", ident, reg.name)
+	return asm, err
+}
+
+func (f *Function) LoadIdent(ident *identifier, offset int, size uint, reg *register) (string, *Error) {
+	r, roffset, rsize := ident.Addr()
+	if rsize%size != 0 {
+		msg := "ident (%v), size (%v) not a multiple of chunk size (%v) in loading"
+		internal(fmt.Sprintf(msg, ident.name, ident.size(), size))
+	}
+	if size > 8 {
+		msg := "ident (%v), loading more than 8 byte chunk"
+		internal(fmt.Sprintf(msg, ident.name))
+	}
+
+	optypes := GetIntegerOpDataType(false, size)
+	asm := f.Indent + fmt.Sprintf("// BEGIN LoadIdent, ident: %v, offset %v, size %v\n", ident.name, offset, size)
+	a := MovMemReg(f.Indent, optypes, ident.name, roffset+offset, &r, reg)
+	asm += a
+	asm += f.Indent + fmt.Sprintf("// END LoadIdent, ident: %v, offset %v, size %v\n", ident.name, offset, size)
+	return asm, nil
+}
+
 func (f *Function) LoadValueSimple(val ssa.Value, reg *register) (string, *Error) {
 	asm := f.Indent + fmt.Sprintf("// BEGIN LoadValueSimple, val: %v, reg %v\n", val, reg.name)
 	a, err := f.LoadValue(val, 0, f.sizeof(val), reg)
@@ -1139,22 +1188,18 @@ func (f *Function) LoadValue(val ssa.Value, offset int, size uint, reg *register
 		internal(fmt.Sprintf("unknown name (%v), value (%v)\n", val.Name(), val))
 	}
 
-	r, roffset, rsize := ident.Addr()
-	if rsize%size != 0 {
-		msg := "ident (%v), size (%v) not a multiple of chunk size (%v) in loading"
-		internal(fmt.Sprintf(msg, ident.name, ident.size(), size))
-	}
-	if size > 8 {
-		msg := "ident (%v), loading more than 8 byte chunk"
-		internal(fmt.Sprintf(msg, ident.name))
-	}
-
-	optypes := GetIntegerOpDataType(false, size)
 	asm := f.Indent + fmt.Sprintf("// BEGIN LoadValue, val: %v, offset %v, size %v\n", val, offset, size)
-	a := MovMemReg(f.Indent, optypes, ident.name, roffset+offset, &r, reg)
+	a, err := f.LoadIdent(&ident, offset, size, reg)
+	if err != nil {
+		return "", err
+	}
 	asm += a
 	asm += f.Indent + fmt.Sprintf("// END LoadValue, val: %v, offset %v, size %v\n", val, offset, size)
 	return asm, nil
+}
+
+func (f *Function) StoreSimd(reg *register, ident *identifier) (string, *Error) {
+	return f.StoreValue(ident, reg)
 }
 
 func (f *Function) StoreValue(ident *identifier, reg *register) (string, *Error) {

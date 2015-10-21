@@ -53,11 +53,11 @@ const (
 	XMM_I16X8 = XMM_F64
 	XMM_U16X8 = XMM_I16X8
 
-	XMM_I32X8 = XMM_4X_F32
-	XMM_U32X8 = XMM_I32X8
+	XMM_I32X4 = XMM_4X_F32
+	XMM_U32X4 = XMM_I32X4
 
-	XMM_I64X4 = XMM_2X_F64
-	XMM_U63X4 = XMM_I64X4
+	XMM_I64X2 = XMM_2X_F64
+	XMM_U64X2 = XMM_I64X2
 )
 
 type Instr int
@@ -149,9 +149,18 @@ const (
 
 	// instructions for packed integers
 	I_PADD
-	I_PSUB
+	I_PAND
+	I_PANDN
+	I_PCMPEQ
+	I_PCMPGT
 	I_PIMUL
 	I_PMUL
+	I_POR
+	I_PSLL //packed shift left logical
+	I_PSRA // packed shift right arithmetic
+	I_PSRL //packed shift right logical
+	I_PSUB
+	I_PXOR
 
 	I_SAL
 	I_SAR
@@ -268,7 +277,9 @@ var XmmInsts = []XmmInstruction{
 	//
 	// Adds the packed byte, word, doubleword, or quadword integers in the
 	// first source operand to the second source operand and stores the result
-	// in the destination operand. When a result is too large to be represented
+	// in the destination operand (which is usually the second source operand).
+	//
+	// When a result is too large to be represented
 	// in the 8/16/32 integer (overflow), the result is wrapped around and the
 	// low bits are written to the destination element (that is, the carry is ignored).
 	// Note that these instructions can operate on either unsigned or signed
@@ -278,23 +289,44 @@ var XmmInsts = []XmmInstruction{
 	// the values operated on .
 	{I_PADD, PADDB, PADDW, PADDL, PADDQ},
 
+	{I_PAND, PANDB, PANDW, PANDL, PAND},
+	// bitwise logical and not (&^)
+	{I_PANDN, NONE, NONE, NONE, PANDN},
+	{I_PCMPEQ, PCMPEQB, PCMPEQW, PCMPEQL, NONE},
+	{I_PCMPGT, PCMPGTB, PCMPGTW, PCMPGTL, NONE},
+
+	// packed signed multiplication
+	{I_PIMUL, NONE, PMULLW, NONE, NONE},
+
+	// bitwise logical, operates on full register width, so same version used for all
+	// op types
+	{I_POR, POR, POR, POR, POR},
+
+	// packed shift left logical
+	{I_PSLL, NONE, PSLLW, PSLLL, PSLLQ},
+
+	// packed shift right arithmetic
+	{I_PSRA, NONE, PSRAW, PSRAL, NONE},
+
+	// packed shift right logical
+	{I_PSRL, NONE, PSRLW, PSRLL, PSRLQ},
+
+	// packed unsigned multiplication
+	{I_PMUL, NONE, NONE, PMULULQ, NONE},
+
 	// Subtract packed integers
 	//
 	// From 64-IA-32-Architectures-Software-Developer-Instruction-Set-Reference-Manual:
 	// Performs a SIMD subtract of the packed integers of the source operand
 	// (second operand) from the packed integers of the destination operand
 	// (first operand), and stores the packed integer results in the
-	// destination operand.
+	// destination operand (which is usually the second source operand).
 	// When an individual result is too large or too small to be represented,
 	// the result is wrapped around and the low bits are written to the
 	// destination element.
 	{I_PSUB, PSUBB, PSUBW, PSUBL, PSUBQ},
 
-	// packed signed multiplication
-	{I_PIMUL, NONE, PMULHW, NONE, NONE},
-
-	// packed unsigned multiplication
-	{I_PMUL, NONE, PMULHUW, PMULULQ, NONE},
+	{I_PXOR, NONE, NONE, NONE, PXOR},
 }
 
 func GetInstruction(tinst InstructionType) Instruction {

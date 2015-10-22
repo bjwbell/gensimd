@@ -50,17 +50,17 @@ func MulI16x8(x, y I16x8) I16x8 {
 	}
 	return val
 }
-func ShlI16x8(x, shift uint8) I16x8 {
+func ShlI16x8(x I16x8, shift uint8) I16x8 {
 	val := I16x8{}
 	for i := 0; i < 8; i++ {
-		val[i] = val[i] << shift
+		val[i] = x[i] << shift
 	}
 	return val
 }
-func ShrI16x8(x, shift uint8) I16x8 {
+func ShrI16x8(x I16x8, shift uint8) I16x8 {
 	val := I16x8{}
 	for i := 0; i < 8; i++ {
-		val[i] = val[i] >> shift
+		val[i] = x[i] >> shift
 	}
 	return val
 }
@@ -159,17 +159,17 @@ func MulU16x8(x, y U16x8) U16x8 {
 	}
 	return val
 }
-func ShlU16x8(x, shift uint8) U16x8 {
+func ShlU16x8(x U16x8, shift uint8) U16x8 {
 	val := U16x8{}
 	for i := 0; i < 8; i++ {
-		val[i] = val[i] << shift
+		val[i] = x[i] << shift
 	}
 	return val
 }
-func ShrU16x8(x, shift uint8) U16x8 {
+func ShrU16x8(x U16x8, shift uint8) U16x8 {
 	val := U16x8{}
 	for i := 0; i < 8; i++ {
-		val[i] = val[i] >> shift
+		val[i] = x[i] >> shift
 	}
 	return val
 }

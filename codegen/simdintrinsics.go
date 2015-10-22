@@ -15,7 +15,7 @@ func packedOp(f *Function, instrtype InstructionType, optypes XmmData, x, y, res
 		return "", err
 	}
 	asm += b
-	asm += intrinsicRegReg(f, instr, regx, regy)
+	asm += instrRegReg(f, instr, regx, regy)
 	c, err := f.StoreSimd(regy, result)
 	if err != nil {
 		return "", err
@@ -28,18 +28,18 @@ func packedOp(f *Function, instrtype InstructionType, optypes XmmData, x, y, res
 	return asm, err
 }
 
-func intrinsicRegReg(f *Function, instr Instr, src, dst *register) string {
+func instrRegReg(f *Function, instr Instr, src, dst *register) string {
 	asm := f.Indent
 	asm += fmt.Sprintf("%-9v    %v, %v\n", instr.String(), src.name, dst.name)
 	return asm
 }
 
-func intrinsicImm8Reg(f *Function, instr Instr, imm8 uint8, dst *register) string {
+func instrImm8Reg(f *Function, instr Instr, imm8 uint8, dst *register) string {
 	asm := f.Indent + fmt.Sprintf("%-9v    $%v, %v\n", instr.String(), imm8, dst.name)
 	return asm
 }
 
-func intrinsicImm8RegReg(f *Function, instr Instr, imm8 uint8, src, dst *register) string {
+func instrImm8RegReg(f *Function, instr Instr, imm8 uint8, src, dst *register) string {
 	asm := f.Indent + fmt.Sprintf("%-9v    $%v, %v, %v\n", instr.String(), imm8, src.name, dst.name)
 	return asm
 }
@@ -62,10 +62,10 @@ func subI16x8(f *Function, x, y, result *identifier) (string, *Error) {
 func mulI16x8(f *Function, x, y, result *identifier) (string, *Error) {
 	return packedOp(f, I_PIMUL, XMM_I16X8, x, y, result)
 }
-func shlI16x8(f *Function, shift, x, result *identifier) (string, *Error) {
+func shlI16x8(f *Function, x, shift, result *identifier) (string, *Error) {
 	return packedOp(f, I_PSLL, XMM_I16X8, shift, x, result)
 }
-func shrI16x8(f *Function, shift, x, result *identifier) (string, *Error) {
+func shrI16x8(f *Function, x, shift, result *identifier) (string, *Error) {
 	return packedOp(f, I_PSRA, XMM_I16X8, shift, x, result)
 }
 
@@ -94,27 +94,27 @@ func mulI32x4(f *Function, x, y, result *identifier) (string, *Error) {
 	asm += b
 
 	asm += MovRegReg(f.Indent, OpDataType{op: XMM_OP, xmmvariant: XMM_F128}, regy, &tmp1)
-	asm += intrinsicRegReg(f, PMULULQ, regx, &tmp1) // mul dwords 2, 0
+	asm += instrRegReg(f, PMULULQ, regx, &tmp1) // mul dwords 2, 0
 
-	asm += intrinsicImm8Reg(f, PSRLO, 4, regx) // shift DQ (128bit) logical right by 4
-	asm += intrinsicImm8Reg(f, PSRLO, 4, regx) // shift DQ (128bit) logical right by 4
+	asm += instrImm8Reg(f, PSRLO, 4, regx) // shift DQ (128bit) logical right by 4
+	asm += instrImm8Reg(f, PSRLO, 4, regx) // shift DQ (128bit) logical right by 4
 
 	tmp2 := f.allocReg(XMM_REG, 16)
 	asm += MovRegReg(f.Indent, OpDataType{op: XMM_OP, xmmvariant: XMM_F128}, regy, &tmp2)
-	asm += intrinsicRegReg(f, PMULULQ, regx, &tmp2) // mul dwords 3, 1
+	asm += instrRegReg(f, PMULULQ, regx, &tmp2) // mul dwords 3, 1
 
 	// shuffle into first 64 bits of shufflet1
 	shufflet1 := f.allocReg(XMM_REG, 16)
-	asm += intrinsicImm8RegReg(f, PSHUFL, 0x20, &tmp1, &shufflet1)
+	asm += instrImm8RegReg(f, PSHUFL, 0x20, &tmp1, &shufflet1)
 
 	// shuffle into first 64 bits of shufflet2
 	shufflet2 := f.allocReg(XMM_REG, 16)
-	asm += intrinsicImm8RegReg(f, PSHUFL, 0x20, &tmp2, &shufflet2)
+	asm += instrImm8RegReg(f, PSHUFL, 0x20, &tmp2, &shufflet2)
 
 	punpckllq := PUNPCKLLQ
 
 	// Unpack and interleave 32-bit integers from the low half of shuffletmp1 and shuffletmp2, and store the results in shufflet2.
-	asm += intrinsicRegReg(f, punpckllq, &shufflet1, &shufflet2)
+	asm += instrRegReg(f, punpckllq, &shufflet1, &shufflet2)
 
 	if a, err := f.StoreSimd(&shufflet2, result); err != nil {
 		return "", err
@@ -132,10 +132,10 @@ func mulI32x4(f *Function, x, y, result *identifier) (string, *Error) {
 	return asm, nil
 
 }
-func shlI32x4(f *Function, shift, x, result *identifier) (string, *Error) {
+func shlI32x4(f *Function, x, shift, result *identifier) (string, *Error) {
 	return packedOp(f, I_PSLL, XMM_I32X4, shift, x, result)
 }
-func shrI32x4(f *Function, shift, x, result *identifier) (string, *Error) {
+func shrI32x4(f *Function, x, shift, result *identifier) (string, *Error) {
 	return packedOp(f, I_PSRA, XMM_I32X4, shift, x, result)
 }
 
@@ -145,7 +145,7 @@ func addI64x2(f *Function, x, y, result *identifier) (string, *Error) {
 func subI64x2(f *Function, x, y, result *identifier) (string, *Error) {
 	return packedOp(f, I_PSUB, XMM_I64X2, y, x, result)
 }
-func shlI64x2(f *Function, shift, x, result *identifier) (string, *Error) {
+func shlI64x2(f *Function, x, shift, result *identifier) (string, *Error) {
 	return packedOp(f, I_PSLL, XMM_I64X2, shift, x, result)
 }
 
@@ -170,11 +170,61 @@ func mulU16x8(f *Function, x, y, result *identifier) (string, *Error) {
 	// TODO: calculate properly
 	return mulI16x8(f, x, y, result)
 }
-func shlU16x8(f *Function, shift, x, result *identifier) (string, *Error) {
-	return shlI16x8(f, shift, x, result)
+func shlU16x8(f *Function, x, count, result *identifier) (string, *Error) {
+	return shlI16x8(f, x, count, result)
 }
-func shrU16x8(f *Function, shift, x, result *identifier) (string, *Error) {
-	return packedOp(f, I_PSRL, XMM_U16X8, shift, x, result)
+func shrU16x8(f *Function, x, count, result *identifier) (string, *Error) {
+
+	// PSRL isn't used before go1.5.2 (https://github.com/golang/go/issues/13010)
+	v152 := goversion{1, 5, 2}
+	if v, e := goVersion(); e == nil && cmpGoVersion(v, v152) > 0 {
+		return packedOp(f, I_PSRL, XMM_U16X8, count, x, result)
+	} else {
+
+		asm, reg, err := f.LoadSimd(x)
+		if err != nil {
+			panic(internal("couldn't load SIMD value"))
+		}
+
+		countReg := f.allocReg(regType(count.typ), sizeof(count.typ))
+		if countReg.typ != DATA_REG {
+			panic(internal("couldn't alloc register for SIMD shift right"))
+		}
+
+		a, e := f.LoadIdentSimple(count, &countReg)
+		if e != nil {
+			panic(internal("couldn't load shift count for SIMD shift right "))
+		}
+		asm += a
+
+		wordReg := f.allocReg(DATA_REG, 8)
+		tmp := f.allocReg(DATA_REG, 8)
+
+		for i := uint8(0); i < 8; i++ {
+
+			asm += instrImm8RegReg(f, PEXTRW, i, reg, &wordReg)
+
+			asm += ShiftRegReg(
+				f.Indent,
+				false,
+				SHIFT_RIGHT,
+				&wordReg,
+				&countReg,
+				&tmp,
+				wordReg.size())
+
+			asm += instrImm8RegReg(f, PINSRW, i, &wordReg, reg)
+
+		}
+
+		a, e = f.StoreSimd(reg, result)
+		if e != nil {
+			panic(internal("couldn't store SIMD register"))
+		}
+		asm += a
+
+		return asm, nil
+	}
 }
 
 func addU32x4(f *Function, x, y, result *identifier) (string, *Error) {
@@ -188,10 +238,10 @@ func subU32x4(f *Function, x, y, result *identifier) (string, *Error) {
 func mulU32x4(f *Function, x, y, result *identifier) (string, *Error) {
 	return mulI32x4(f, x, y, result)
 }
-func shlU32x4(f *Function, shift, x, result *identifier) (string, *Error) {
-	return shlI32x4(f, shift, x, result)
+func shlU32x4(f *Function, x, shift, result *identifier) (string, *Error) {
+	return shlI32x4(f, x, shift, result)
 }
-func shrU32x4(f *Function, shift, x, result *identifier) (string, *Error) {
+func shrU32x4(f *Function, x, shift, result *identifier) (string, *Error) {
 	return packedOp(f, I_PSRL, XMM_U32X4, shift, x, result)
 }
 
@@ -203,10 +253,10 @@ func subU64x2(f *Function, x, y, result *identifier) (string, *Error) {
 	// the PSUB instructions work for both signed and unsigned values
 	return subI64x2(f, x, y, result)
 }
-func shlU64x2(f *Function, shift, x, result *identifier) (string, *Error) {
-	return shlI64x2(f, shift, x, result)
+func shlU64x2(f *Function, x, shift, result *identifier) (string, *Error) {
+	return shlI64x2(f, x, shift, result)
 }
-func shrU64x2(f *Function, shift, x, result *identifier) (string, *Error) {
+func shrU64x2(f *Function, x, shift, result *identifier) (string, *Error) {
 	return packedOp(f, I_PSRL, XMM_U64X2, shift, x, result)
 }
 

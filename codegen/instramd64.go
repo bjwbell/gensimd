@@ -468,12 +468,17 @@ func ZeroReg(indent string, reg *register) string {
 }
 
 func MovRegReg(indent string, datatype OpDataType, srcReg, dstReg *register) string {
-	if srcReg.width != dstReg.width {
+	if srcReg.width != dstReg.width && srcReg.typ == dstReg.typ {
 		msg := "srcReg (%v) width (%v) != (%v) dstReg (%v) width or invalid size"
 		internal(fmt.Sprintf(msg, srcReg.name, srcReg.width, dstReg.width, dstReg.name))
 	}
 	if srcReg.typ == XMM_REG && dstReg.typ == XMM_REG {
 		mov := MOVO
+		asm := indent
+		asm += fmt.Sprintf("%-9v    %v, %v\n", mov.String(), srcReg.name, dstReg.name)
+		return asm
+	} else if srcReg.typ == XMM_REG || dstReg.typ == XMM_REG {
+		mov := MOVQ
 		asm := indent
 		asm += fmt.Sprintf("%-9v    %v, %v\n", mov.String(), srcReg.name, dstReg.name)
 		return asm
@@ -1070,6 +1075,9 @@ func MovSignExtend(indent string, src, dst *register, srcSize, dstSize uint) str
 	return asm
 }
 
+// ShiftRegReg shifts src by shiftReg amount and stores the result in src.
+// The tmp reg is used for intermediates (if shifting right 64 times then SHR
+// isn't used directly)
 func ShiftRegReg(indent string, signed bool, direction int, src, shiftReg, tmp *register, size uint) string {
 
 	cl := getRegister(REG_CL)
@@ -1125,6 +1133,28 @@ func ShiftRegReg(indent string, signed bool, direction int, src, shiftReg, tmp *
 		asm += indent + fmt.Sprintf("%-9v    %v, %v\n", shift.String(), regCl.name, src.name)
 	}
 
+	return asm
+}
+
+func ShiftImm8Reg(indent string, signed bool, direction int, count uint8, reg *register) string {
+	var opcode InstructionType
+	if direction == SHIFT_LEFT {
+		opcode = I_SHL
+	} else if !signed && direction == SHIFT_RIGHT {
+		opcode = I_SHR
+	} else if signed && direction == SHIFT_RIGHT {
+		opcode = I_SAR
+	}
+	data := OpDataType{INTEGER_OP, InstrData{signed: false, size: reg.size()}, XMM_INVALID}
+	shift := GetInstr(opcode, data).String()
+	asm := ""
+	// the shl/shr instructions mast the shift count to either
+	// 5 or 6 bits (5 if not operating on a 64bit value)
+	if (reg.width == 32 && count >= 32) || (reg.width == 64 && count >= 64) {
+		asm += ZeroReg(indent, reg)
+	} else {
+		asm += indent + fmt.Sprintf("%-9v    %v, %v\n", shift, count, reg.name)
+	}
 	return asm
 }
 

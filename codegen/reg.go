@@ -99,7 +99,7 @@ const (
 var LongSizes = []uint{1, 2, 4}
 var QuadSizes = []uint{1, 2, 4, 8}
 var QuadSize = []uint{8}
-var XmmDataSizes = []uint{4, 8, 16}
+var XmmDataSizes = []uint{1, 2, 4, 8, 16}
 
 var registers = []register{
 	{"AL", REG_AL, DATA_REG, 32, LongSizes},

@@ -226,7 +226,7 @@ func (f *Function) Func() (string, *Error) {
 
 	frameSize := f.localsSize()
 	frameSize = f.align(frameSize)
-	argsSize := f.retOffset() + int(f.retAlign())
+	argsSize := f.retOffset() + int(f.retSize())
 	asm := params
 	asm += f.SetStackPointer()
 	asm += zeroRetValue
@@ -1252,23 +1252,30 @@ func (f *Function) LoadSimdValue(simdvalue ssa.Value) (string, *register, *Error
 }
 
 func (f *Function) LoadSimd(ident *identifier) (string, *register, *Error) {
-	asm := f.Indent + fmt.Sprintf("// BEGIN LoadSimdIdent, ident: %v\n", ident)
+	asm := f.Indent + fmt.Sprintf("// BEGIN LoadSimdIdent, ident: %v\n", ident.name)
 	reg := f.allocReg(regType(ident.typ), sizeof(ident.typ))
 	a, err := f.LoadIdentSimple(ident, &reg)
 	asm += a
-	asm += f.Indent + fmt.Sprintf("// END LoadSimdIdent, ident: %v, reg %v\n", ident, reg.name)
+	if reg.typ != XMM_REG {
+		xmmReg := f.allocReg(XMM_REG, 16)
+		asm += MovRegReg(f.Indent, OpDataType{XMM_OP, InstrData{}, XMM_F128}, &reg, &xmmReg)
+		f.freeReg(reg)
+		reg = xmmReg
+	}
+
+	asm += f.Indent + fmt.Sprintf("// END LoadSimdIdent, ident: %v, reg %v\n", ident.name, reg.name)
 	return asm, &reg, err
 }
 
 func (f *Function) LoadIdentSimple(ident *identifier, reg *register) (string, *Error) {
-	asm := f.Indent + fmt.Sprintf("// BEGIN LoadIdentSimple, ident: %v, reg %v\n", ident, reg.name)
+	asm := f.Indent + fmt.Sprintf("// BEGIN LoadIdentSimple, ident: %v, reg %v\n", ident.name, reg.name)
 	if sizeof(ident.typ) > reg.size() {
 		msg := "Value too large (size=%v) to load into register (size=%v)"
 		panic(internal(fmt.Sprintf(msg, sizeof(ident.typ), reg.size())))
 	}
 	a, err := f.LoadIdent(ident, 0, sizeof(ident.typ), reg)
 	asm += a
-	asm += f.Indent + fmt.Sprintf("// END LoadIdentSimple, ident: %v, reg %v\n", ident, reg.name)
+	asm += f.Indent + fmt.Sprintf("// END LoadIdentSimple, ident: %v, reg %v\n", ident.name, reg.name)
 	return asm, err
 }
 
@@ -1869,6 +1876,11 @@ func (f *Function) retSize() uint {
 // retOffset returns the offset of the return value in bytes
 func (f *Function) retOffset() int {
 	align := f.retAlign()
+	// TODO: FIX
+	// HACK!!!
+	if isSimd(f.retType()) {
+		align = 8
+	}
 	padding := align - f.paramsSize()%align
 	if padding == align {
 		padding = 0

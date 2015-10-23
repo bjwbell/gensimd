@@ -13,7 +13,7 @@ Execute `runtests.sh` to run the reference tests.
 - Builtins except `len`
 - Function calls except `simd.*`
 - Method calls
-- `range`,  `map`, `select`, `chan`, `defer`
+- Keywords `range`,  `map`, `select`, `chan`, `defer`
 - Slice creation e.g. `newslice := slice[1:len(slice) - 2]`
 
 ## Supported

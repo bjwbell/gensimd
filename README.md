@@ -90,7 +90,6 @@ The below functions will be implemented at a future date. They are more difficul
 
 There are no SIMD functions for 64 bit integer multiplication since there's no equivalent SSE instruction.
 
-
 ### Integer Overflow
 For unsigned integer values, the simd functions `Add*`, `Sub*`, `Mul*`, and `Shl*` are computed modulo 2^n, where n is the bit width of the unsigned integer's type. These unsigned integer operations discard high bits upon overflow.
 
@@ -100,3 +99,32 @@ For both unsigned and signed integer values, the simd function `Shr*` is guarant
 
 ### Floating Point
 For the floating point simd functions `Add*`, `Sub*`, `Mul*`, and `Div*` the behavior is guaranteed to be identical to the go versions of the functions in `gensimd/simd/simd.go`.
+
+
+## SSE2 Intrinsics
+
+**SSE2 types**
+
+    type M128i [16]byte
+    type M128 [4]float32
+    type M128d [2]float64
+
+**Available SSE2 intrinsics**
+
+    func MOVDQA(x, y simd.M128i) simd.M128i
+    func MOVDQU(x, y simd.M128i) simd.M128i
+    func PADDQ(x, y simd.M128i) simd.M128i
+    func PSUBQ(x, y simd.M128i) simd.M128i
+    func PMULUDQ(x, y simd.M128i) simd.M128i
+    func PSHUFHW(x, y simd.M128i) simd.M128i
+    func PSHUFLW(x, y simd.M128i) simd.M128i
+    func PSHUFD(x, y simd.M128i) simd.M128i
+    func PSLLDQ(x, y simd.M128i) simd.M128i
+    func PSRLDQ(x, y simd.M128i) simd.M128i
+    func PUNPCKHQDQ(x, y simd.M128i) simd.M128i
+    func PUNPCKLQDQ(x, y simd.M128i) simd.M128i
+    func ADDPD(x, y simd.M128d) simd.M128d
+    func ADDSD(x, y simd.M128d) simd.M128d
+    func ANDNPD(x, y simd.M128d) simd.M128d
+    func CMPPD(x, y simd.M128d) simd.M128d
+    func CMPSD(x, y simd.M128d) simd.M128d

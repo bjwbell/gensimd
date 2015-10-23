@@ -5,8 +5,10 @@
 - [Cross platform SIMD example](examples/simd_example/README.md)
 - [SSE2 example](examples/sse2_example/README.md)
 
+To build and run both examples execute `./run_examples.sh`.
+
 ## Tests
-Execute `runtests.sh` to run the reference tests.
+To build and run the reference tests execute `./run_tests.sh`.
 
 ## Unsupported
 

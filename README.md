@@ -38,42 +38,35 @@ Execute `runtests.sh` to run the reference tests.
 
     func AddI8x16(x, y I8x16) I8x16
     func SubI8x16(x, y I8x16) I8x16
+    func AddU8x16(x, y U8x16) U8x16
+    func SubU8x16(x, y U8x16) U8x16
 
     func AddI16x8(x, y I16x8) I16x8
     func SubI16x8(x, y I16x8) I16x8
     func MulI16x8(x, y I16x8) I16x8
     func ShlI16x8(x, shift uint8) I16x8
     func ShrI16x8(x, shift uint8) I16x8
-
-    func AddI32x4(x, y I32x4) I32x4
-    func SubI32x4(x, y I32x4) I32x4
-    func MulI32x4(x, y I32x4) I32x4
-    func ShlI32x4(x, shift uint8) I32x4
-    func ShrI32x4(x, shift uint8) I32x4
-
-    func AddI64x2(x, y I64x2) I64x2
-    func SubI64x2(x, y I64x2) I64x2
-    func ShlI64x2(x, shift uint8) I64x2
-
-    func AddU8x16(x, y U8x16) U8x16
-    func SubU8x16(x, y U8x16) U8x16
-
     func AddU16x8(x, y U16x8) U16x8
     func SubU16x8(x, y U16x8) U16x8
     func MulU16x8(x, y U16x8) U16x8
     func ShlU16x8(x, shift uint8) U16x8
     func ShrU16x8(x, shift uint8) U16x8
 
+    func AddI32x4(x, y I32x4) I32x4
+    func SubI32x4(x, y I32x4) I32x4
+    func MulI32x4(x, y I32x4) I32x4
+    func ShlI32x4(x, shift uint8) I32x4
+    func ShrI32x4(x, shift uint8) I32x4
     func AddU32x4(x, y U32x4) U32x4
     func SubU32x4(x, y U32x4) U32x4
     func MulU32x4(x, y U32x4) U32x4
     func ShlU32x4(x, shift uint8) U32x4
     func ShrU32x4(x, shift uint8) U32x4
 
+    func AddI64x2(x, y I64x2) I64x2
+    func SubI64x2(x, y I64x2) I64x2
     func AddU64x2(x, y U64x2) U64x2
     func SubU64x2(x, y U64x2) U64x2
-    func ShlU64x2(x, shift uint8) U64x2
-    func ShrU64x2(x, shift uint8) U64x2
 
     func AddF32x4(x, y F32x4) F32x4
     func SubF32x4(x, y F32x4) F32x4
@@ -84,6 +77,17 @@ Execute `runtests.sh` to run the reference tests.
     func SubF64x2(x, y F64x2) F64x2
     func MulF64x2(x, y F64x2) F64x2
     func DivF64x2(x, y F64x2) F64x2
+
+**TODO - SIMD Functions**
+
+    func ShlI64x2(x, shift uint8) I64x2
+    func ShrI64x2(x, shift uint8) I64x2
+    func ShlU64x2(x, shift uint8) U64x2
+    func ShrU64x2(x, shift uint8) U64x2
+
+
+There are no SIMD functions for 64 bit integer multiplication since there's SSE instruction for it.
+
 
 ### Integer Overflow
 For unsigned integer values, the simd functions `Add*`, `Sub*`, `Mul*`, and `Shl*` are computed modulo 2^n, where n is the bit width of the unsigned integer's type. These unsigned integer operations discard high bits upon overflow.

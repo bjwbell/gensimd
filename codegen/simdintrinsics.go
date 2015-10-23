@@ -145,9 +145,17 @@ func addI64x2(f *Function, x, y, result *identifier) (string, *Error) {
 func subI64x2(f *Function, x, y, result *identifier) (string, *Error) {
 	return packedOp(f, I_PSUB, XMM_I64X2, y, x, result)
 }
-func shlI64x2(f *Function, x, shift, result *identifier) (string, *Error) {
-	return packedOp(f, I_PSLL, XMM_I64X2, shift, x, result)
-}
+
+// TODO
+// the shift count for PSLLO (intel instruction PSLLDQ)
+// must be an imm8 NOT a register or memory location
+// func shlI64x2(f *Function, x, shift, result *identifier) (string, *Error) {
+// }
+
+// TODO
+// there is no SSE instruction for packed shift arithmetic right with 64bit ints
+// func shrI64x2(f *Function, x, shift, result *identifier) (string, *Error) {
+// }
 
 func addU8x16(f *Function, x, y, result *identifier) (string, *Error) {
 	// the PADD instructions work for both signed and unsigned values
@@ -253,12 +261,19 @@ func subU64x2(f *Function, x, y, result *identifier) (string, *Error) {
 	// the PSUB instructions work for both signed and unsigned values
 	return subI64x2(f, x, y, result)
 }
-func shlU64x2(f *Function, x, shift, result *identifier) (string, *Error) {
-	return shlI64x2(f, x, shift, result)
-}
-func shrU64x2(f *Function, x, shift, result *identifier) (string, *Error) {
-	return packedOp(f, I_PSRL, XMM_U64X2, shift, x, result)
-}
+
+// TODO
+// the shift count for PSLLO (intel instruction PSLLDQ)
+// must be an imm8 NOT a register or memory location
+// func shlU64x2(f *Function, x, shift, result *identifier) (string, *Error) {
+//	return shlI64x2(f, x, shift, result)
+// }
+
+// TODO
+// the shift count for PSRLO (intel instruction PSRLDQ)
+// must be an imm8 NOT a register or memory location
+// func shrU64x2(f *Function, x, shift, result *identifier) (string, *Error) {
+// }
 
 func addF32x4(f *Function, x, y, result *identifier) (string, *Error) {
 	return packedOp(f, I_ADD, XMM_4X_F32, x, y, result)

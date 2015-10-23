@@ -576,8 +576,6 @@ func (f *Function) SimdIntrinsic(call *ssa.Call) (string, *Error) {
 		a, e = addI64x2(f, x, y, result)
 	case "SubI64x2":
 		a, e = subI64x2(f, x, y, result)
-	case "ShlI64x2":
-		a, e = shlI64x2(f, x, y, result)
 	case "AddU8x16":
 		a, e = addU8x16(f, x, y, result)
 	case "SubU8x16":
@@ -606,10 +604,6 @@ func (f *Function) SimdIntrinsic(call *ssa.Call) (string, *Error) {
 		a, e = addU64x2(f, x, y, result)
 	case "SubU64x2":
 		a, e = subU64x2(f, x, y, result)
-	case "ShlU64x2":
-		a, e = shlU64x2(f, x, y, result)
-	case "ShrU64x2":
-		a, e = shrU64x2(f, x, y, result)
 	case "AddF32x4":
 		a, e = addF32x4(f, x, y, result)
 	case "SubF32x4":

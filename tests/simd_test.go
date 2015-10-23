@@ -10,7 +10,7 @@ import (
 	"github.com/bjwbell/gensimd/simd"
 )
 
-//go:generate gensimd -fn "addi8x16, subi8x16, addu8x16, subu8x16, addi16x8, subi16x8, muli16x8, shli16x8, shri16x8, addu16x8, subu16x8, mulu16x8, shlu16x8, shru16x8, addi32x4, subi32x4, muli32x4, shli32x4, shri32x4, addu32x4, subu32x4, mulu32x4, shlu32x4, shru32x4" -outfn "addi8x16s, subi8x16s, addu8x16s, subu8x16s, addi16x8s, subi16x8s, muli16x8s, shli16x8s, shri16x8s, addu16x8s, subu16x8s, mulu16x8s, shlu16x8s, shru16x8s, addi32x4s, subi32x4s, muli32x4s, shli32x4s, shri32x4s, addu32x4s, subu32x4s, mulu32x4s, shlu32x4s, shru32x4s" -f "$GOFILE" -o "simd_test_amd64.s"
+//go:generate gensimd -fn "addi8x16, subi8x16, addu8x16, subu8x16, addi16x8, subi16x8, muli16x8, shli16x8, shri16x8, addu16x8, subu16x8, mulu16x8, shlu16x8, shru16x8, addi32x4, subi32x4, muli32x4, shli32x4, shri32x4, addu32x4, subu32x4, mulu32x4, shlu32x4, shru32x4, addi64x2, subi64x2, addu64x2, subu64x2" -outfn "addi8x16s, subi8x16s, addu8x16s, subu8x16s, addi16x8s, subi16x8s, muli16x8s, shli16x8s, shri16x8s, addu16x8s, subu16x8s, mulu16x8s, shlu16x8s, shru16x8s, addi32x4s, subi32x4s, muli32x4s, shli32x4s, shri32x4s, addu32x4s, subu32x4s, mulu32x4s, shlu32x4s, shru32x4s, addi64x2s, subi64x2s, addu64x2s, subu64x2s" -f "$GOFILE" -o "simd_test_amd64.s"
 
 func addi8x16s(x, y simd.I8x16) simd.I8x16
 func subi8x16s(x, y simd.I8x16) simd.I8x16
@@ -39,6 +39,11 @@ func mulu32x4s(x, y simd.U32x4) simd.U32x4
 func shlu32x4s(x simd.U32x4, shift uint8) simd.U32x4
 func shru32x4s(x simd.U32x4, shift uint8) simd.U32x4
 
+func addi64x2s(x, y simd.I64x2) simd.I64x2
+func subi64x2s(x, y simd.I64x2) simd.I64x2
+func addu64x2s(x, y simd.U64x2) simd.U64x2
+func subu64x2s(x, y simd.U64x2) simd.U64x2
+
 func addi8x16(x, y simd.I8x16) simd.I8x16 { return simd.AddI8x16(x, y) }
 func subi8x16(x, y simd.I8x16) simd.I8x16 { return simd.SubI8x16(x, y) }
 func addu8x16(x, y simd.U8x16) simd.U8x16 { return simd.AddU8x16(x, y) }
@@ -65,6 +70,11 @@ func subu32x4(x, y simd.U32x4) simd.U32x4           { return simd.SubU32x4(x, y)
 func mulu32x4(x, y simd.U32x4) simd.U32x4           { return simd.MulU32x4(x, y) }
 func shlu32x4(x simd.U32x4, shift uint8) simd.U32x4 { return simd.ShlU32x4(x, shift) }
 func shru32x4(x simd.U32x4, shift uint8) simd.U32x4 { return simd.ShrU32x4(x, shift) }
+
+func addi64x2(x, y simd.I64x2) simd.I64x2 { return simd.AddI64x2(x, y) }
+func subi64x2(x, y simd.I64x2) simd.I64x2 { return simd.SubI64x2(x, y) }
+func addu64x2(x, y simd.U64x2) simd.U64x2 { return simd.AddU64x2(x, y) }
+func subu64x2(x, y simd.U64x2) simd.U64x2 { return simd.SubU64x2(x, y) }
 
 func TestSimd(t *testing.T) {
 
@@ -108,6 +118,11 @@ func TestSimd(t *testing.T) {
 			var xU32x4 simd.U32x4
 			var yU32x4 simd.U32x4
 
+			var xI64x2 simd.I64x2
+			var yI64x2 simd.I64x2
+			var xU64x2 simd.U64x2
+			var yU64x2 simd.U64x2
+
 			for idx := 0; idx < 16; idx++ {
 				abs_a := a
 
@@ -142,6 +157,16 @@ func TestSimd(t *testing.T) {
 					yI32x4[idx] = int32(rand.Intn(abs_b))
 					xU32x4[idx] = uint32(rand.Intn(abs_a))
 					yU32x4[idx] = uint32(rand.Intn(abs_b))
+				}
+
+				if idx < 2 {
+
+					xI64x2[idx] = int64(rand.Intn(abs_a))
+					yI64x2[idx] = int64(rand.Intn(abs_b))
+					xU64x2[idx] = uint64(rand.Intn(abs_a) +
+						math.MaxInt64)
+					yU64x2[idx] = uint64(rand.Intn(abs_b) +
+						math.MaxInt64)
 				}
 
 			}
@@ -307,6 +332,20 @@ func TestSimd(t *testing.T) {
 				t.Error("shift:", shift)
 				t.Error("s:", shru32x4s(xU32x4, shift))
 				t.Error(" :", shru32x4(xU32x4, shift))
+			}
+
+			if addi64x2s(xI64x2, yI64x2) != addi64x2(xI64x2, yI64x2) {
+				t.Errorf("addi64x2(%v, %v)", xI64x2, yI64x2)
+			}
+			if subi64x2s(xI64x2, yI64x2) != subi64x2(xI64x2, yI64x2) {
+				t.Errorf("subi64x2(%v, %v)", xI64x2, yI64x2)
+			}
+
+			if addu64x2s(xU64x2, yU64x2) != addu64x2(xU64x2, yU64x2) {
+				t.Errorf("addu64x2(%v, %v)", xU64x2, yU64x2)
+			}
+			if subu64x2s(xU64x2, yU64x2) != subu64x2(xU64x2, yU64x2) {
+				t.Errorf("subu64x2(%v, %v)", xU64x2, yU64x2)
 			}
 
 		}

@@ -1,4 +1,5 @@
 #!/bin/sh
+go generate
 go install
 cd tests
 rm -f *.s

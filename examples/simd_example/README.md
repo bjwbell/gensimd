@@ -12,4 +12,4 @@ go build
 ./simd_example
 ```
 
-**This example only uses SIMD instructions on the amd64/x86_64 platform, on any other platforms it uses go versions of the SIMD functions.**
+**This example only uses SIMD instructions on amd64/x86_64, on any other platforms it uses go versions of the SIMD functions.**

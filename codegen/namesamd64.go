@@ -614,7 +614,8 @@ const (
 	PMULLW
 
 	// Multiply Packed Unsigned Dword (32bit) Integers
-	// multiplies two 32bit ints and stores resulting two 64bit ints in result
+	// multiplies two 32bit ints (in dwords 0 and 2 of the xmms registers)
+	// and stores resulting two 64bit ints in result
 	// xmm register/128bits mem
 	// Intel instruction: PMULUDQ
 	PMULULQ

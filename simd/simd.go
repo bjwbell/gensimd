@@ -86,17 +86,17 @@ func MulI32x4(x, y I32x4) I32x4 {
 	}
 	return val
 }
-func ShlI32x4(x, shift uint8) I32x4 {
+func ShlI32x4(x I32x4, shift uint8) I32x4 {
 	val := I32x4{}
 	for i := 0; i < 4; i++ {
-		val[i] = val[i] << shift
+		val[i] = x[i] << shift
 	}
 	return val
 }
-func ShrI32x4(x, shift uint8) I32x4 {
+func ShrI32x4(x I32x4, shift uint8) I32x4 {
 	val := I32x4{}
 	for i := 0; i < 4; i++ {
-		val[i] = val[i] >> shift
+		val[i] = x[i] >> shift
 	}
 	return val
 }
@@ -195,17 +195,17 @@ func MulU32x4(x, y U32x4) U32x4 {
 	}
 	return val
 }
-func ShlU32x4(x, shift uint8) U32x4 {
+func ShlU32x4(x U32x4, shift uint8) U32x4 {
 	val := U32x4{}
 	for i := 0; i < 4; i++ {
-		val[i] = val[i] << shift
+		val[i] = x[i] << shift
 	}
 	return val
 }
-func ShrU32x4(x, shift uint8) U32x4 {
+func ShrU32x4(x U32x4, shift uint8) U32x4 {
 	val := U32x4{}
 	for i := 0; i < 4; i++ {
-		val[i] = val[i] >> shift
+		val[i] = x[i] >> shift
 	}
 	return val
 }

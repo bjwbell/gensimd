@@ -10,7 +10,7 @@ import (
 	"github.com/bjwbell/gensimd/simd"
 )
 
-//go:generate gensimd -fn "addi8x16, subi8x16, addu8x16, subu8x16, addi16x8, subi16x8, muli16x8, shli16x8, shri16x8, addu16x8, subu16x8, mulu16x8, shlu16x8, shru16x8" -outfn "addi8x16s, subi8x16s, addu8x16s, subu8x16s, addi16x8s, subi16x8s, muli16x8s, shli16x8s, shri16x8s, addu16x8s, subu16x8s, mulu16x8s, shlu16x8s, shru16x8s" -f "$GOFILE" -o "simd_test_amd64.s"
+//go:generate gensimd -fn "addi8x16, subi8x16, addu8x16, subu8x16, addi16x8, subi16x8, muli16x8, shli16x8, shri16x8, addu16x8, subu16x8, mulu16x8, shlu16x8, shru16x8, addi32x4, subi32x4, muli32x4, shli32x4, shri32x4, addu32x4, subu32x4, mulu32x4, shlu32x4, shru32x4" -outfn "addi8x16s, subi8x16s, addu8x16s, subu8x16s, addi16x8s, subi16x8s, muli16x8s, shli16x8s, shri16x8s, addu16x8s, subu16x8s, mulu16x8s, shlu16x8s, shru16x8s, addi32x4s, subi32x4s, muli32x4s, shli32x4s, shri32x4s, addu32x4s, subu32x4s, mulu32x4s, shlu32x4s, shru32x4s" -f "$GOFILE" -o "simd_test_amd64.s"
 
 func addi8x16s(x, y simd.I8x16) simd.I8x16
 func subi8x16s(x, y simd.I8x16) simd.I8x16
@@ -28,6 +28,17 @@ func mulu16x8s(x, y simd.U16x8) simd.U16x8
 func shlu16x8s(x simd.U16x8, shift uint8) simd.U16x8
 func shru16x8s(x simd.U16x8, shift uint8) simd.U16x8
 
+func addi32x4s(x, y simd.I32x4) simd.I32x4
+func subi32x4s(x, y simd.I32x4) simd.I32x4
+func muli32x4s(x, y simd.I32x4) simd.I32x4
+func shli32x4s(x simd.I32x4, shift uint8) simd.I32x4
+func shri32x4s(x simd.I32x4, shift uint8) simd.I32x4
+func addu32x4s(x, y simd.U32x4) simd.U32x4
+func subu32x4s(x, y simd.U32x4) simd.U32x4
+func mulu32x4s(x, y simd.U32x4) simd.U32x4
+func shlu32x4s(x simd.U32x4, shift uint8) simd.U32x4
+func shru32x4s(x simd.U32x4, shift uint8) simd.U32x4
+
 func addi8x16(x, y simd.I8x16) simd.I8x16 { return simd.AddI8x16(x, y) }
 func subi8x16(x, y simd.I8x16) simd.I8x16 { return simd.SubI8x16(x, y) }
 func addu8x16(x, y simd.U8x16) simd.U8x16 { return simd.AddU8x16(x, y) }
@@ -43,6 +54,17 @@ func subu16x8(x, y simd.U16x8) simd.U16x8           { return simd.SubU16x8(x, y)
 func mulu16x8(x, y simd.U16x8) simd.U16x8           { return simd.MulU16x8(x, y) }
 func shlu16x8(x simd.U16x8, shift uint8) simd.U16x8 { return simd.ShlU16x8(x, shift) }
 func shru16x8(x simd.U16x8, shift uint8) simd.U16x8 { return simd.ShrU16x8(x, shift) }
+
+func addi32x4(x, y simd.I32x4) simd.I32x4           { return simd.AddI32x4(x, y) }
+func subi32x4(x, y simd.I32x4) simd.I32x4           { return simd.SubI32x4(x, y) }
+func muli32x4(x, y simd.I32x4) simd.I32x4           { return simd.MulI32x4(x, y) }
+func shli32x4(x simd.I32x4, shift uint8) simd.I32x4 { return simd.ShlI32x4(x, shift) }
+func shri32x4(x simd.I32x4, shift uint8) simd.I32x4 { return simd.ShrI32x4(x, shift) }
+func addu32x4(x, y simd.U32x4) simd.U32x4           { return simd.AddU32x4(x, y) }
+func subu32x4(x, y simd.U32x4) simd.U32x4           { return simd.SubU32x4(x, y) }
+func mulu32x4(x, y simd.U32x4) simd.U32x4           { return simd.MulU32x4(x, y) }
+func shlu32x4(x simd.U32x4, shift uint8) simd.U32x4 { return simd.ShlU32x4(x, shift) }
+func shru32x4(x simd.U32x4, shift uint8) simd.U32x4 { return simd.ShrU32x4(x, shift) }
 
 func TestSimd(t *testing.T) {
 
@@ -81,6 +103,11 @@ func TestSimd(t *testing.T) {
 			var xU16x8 simd.U16x8
 			var yU16x8 simd.U16x8
 
+			var xI32x4 simd.I32x4
+			var yI32x4 simd.I32x4
+			var xU32x4 simd.U32x4
+			var yU32x4 simd.U32x4
+
 			for idx := 0; idx < 16; idx++ {
 				abs_a := a
 
@@ -109,6 +136,14 @@ func TestSimd(t *testing.T) {
 					xU16x8[idx] = uint16(rand.Intn(abs_a))
 					yU16x8[idx] = uint16(rand.Intn(abs_b))
 				}
+
+				if idx < 4 {
+					xI32x4[idx] = int32(rand.Intn(abs_a))
+					yI32x4[idx] = int32(rand.Intn(abs_b))
+					xU32x4[idx] = uint32(rand.Intn(abs_a))
+					yU32x4[idx] = uint32(rand.Intn(abs_b))
+				}
+
 			}
 
 			if addi8x16s(x, y) != addi8x16(x, y) {
@@ -203,6 +238,75 @@ func TestSimd(t *testing.T) {
 				t.Error("s:", shru16x8s(xU16x8, shift))
 				t.Error(" :", shru16x8(xU16x8, shift))
 
+			}
+
+			if addi32x4s(xI32x4, yI32x4) != addi32x4(xI32x4, yI32x4) {
+				t.Errorf("addi32x4(%v, %v)", xI32x4, yI32x4)
+				t.Error("x:", xI32x4)
+				t.Error("y:", yI32x4)
+				t.Error("s(xI32x4, yI32x4):", addi32x4s(xI32x4, yI32x4))
+				t.Error(" (xI32x4, yI32x4):", addi32x4(xI32x4, yI32x4))
+			}
+			if subi32x4s(xI32x4, yI32x4) != subi32x4(xI32x4, yI32x4) {
+				t.Errorf("subi32x4(%v, %v)", xI32x4, yI32x4)
+				t.Error("x:", xI32x4)
+				t.Error("y:", yI32x4)
+				t.Error("s:", subi32x4s(xI32x4, yI32x4))
+				t.Error(" :", subi32x4(xI32x4, yI32x4))
+			}
+			if muli32x4s(xI32x4, yI32x4) != muli32x4(xI32x4, yI32x4) {
+				t.Errorf("muli32x4(%v, %v)", xI32x4, yI32x4)
+				t.Error("x:", xI32x4)
+				t.Error("y:", yI32x4)
+				t.Error("s:", muli32x4s(xI32x4, yI32x4))
+				t.Error(" :", muli32x4(xI32x4, yI32x4))
+				t.FailNow()
+			}
+			if shli32x4s(xI32x4, shift) != shli32x4(xI32x4, shift) {
+				t.Errorf("shli32x4(%v, %v)", xI32x4, shift)
+				t.Error("x:", xI32x4)
+				t.Error("shift:", shift)
+				t.Error("s:", shli32x4s(xI32x4, shift))
+				t.Error(" :", shli32x4(xI32x4, shift))
+			}
+			if shri32x4s(xI32x4, shift) != shri32x4(xI32x4, shift) {
+				t.Errorf("shri32x4(%v, %v)", xI32x4, shift)
+				t.Error("x:", xI32x4)
+				t.Error("shift:", shift)
+				t.Error("s:", shri32x4s(xI32x4, shift))
+				t.Error(" :", shri32x4(xI32x4, shift))
+			}
+
+			if addu32x4s(xU32x4, yU32x4) != addu32x4(xU32x4, yU32x4) {
+				t.Errorf("addu32x4(%v, %v)", xU32x4, yU32x4)
+			}
+			if subu32x4s(xU32x4, yU32x4) != subu32x4(xU32x4, yU32x4) {
+				t.Errorf("subu32x4(%v, %v)", xU32x4, yU32x4)
+				t.Error("x:", xU32x4)
+				t.Error("y:", yU32x4)
+				t.Error("s:", subu32x4s(xU32x4, yU32x4))
+				t.Error(" :", subu32x4(xU32x4, yU32x4))
+			}
+			if mulu32x4s(xU32x4, yU32x4) != mulu32x4(xU32x4, yU32x4) {
+				t.Errorf("mulu32x4(%v, %v)", xU32x4, yU32x4)
+				t.Error("x:", xU32x4)
+				t.Error("y:", yU32x4)
+				t.Error("s:", mulu32x4s(xU32x4, yU32x4))
+				t.Error(" :", mulu32x4(xU32x4, yU32x4))
+			}
+			if shlu32x4s(xU32x4, shift) != shlu32x4(xU32x4, shift) {
+				t.Errorf("shlu32x4(%v, %v)", xU32x4, shift)
+				t.Error("x:", xU32x4)
+				t.Error("shift:", shift)
+				t.Error("s:", shlu32x4s(xU32x4, shift))
+				t.Error(" :", shlu32x4(xU32x4, shift))
+			}
+			if shru32x4s(xU32x4, shift) != shru32x4(xU32x4, shift) {
+				t.Errorf("shru32x4(%v, %v)", xU32x4, shift)
+				t.Error("x:", xU32x4)
+				t.Error("shift:", shift)
+				t.Error("s:", shru32x4s(xU32x4, shift))
+				t.Error(" :", shru32x4(xU32x4, shift))
 			}
 
 		}

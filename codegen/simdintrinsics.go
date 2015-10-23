@@ -96,8 +96,8 @@ func mulI32x4(f *Function, x, y, result *identifier) (string, *Error) {
 	asm += MovRegReg(f.Indent, OpDataType{op: XMM_OP, xmmvariant: XMM_F128}, regy, &tmp1)
 	asm += instrRegReg(f, PMULULQ, regx, &tmp1) // mul dwords 2, 0
 
-	asm += instrImm8Reg(f, PSRLO, 4, regx) // shift DQ (128bit) logical right by 4
-	asm += instrImm8Reg(f, PSRLO, 4, regx) // shift DQ (128bit) logical right by 4
+	asm += instrImm8Reg(f, PSRLO, 4, regx) // shift logical right by 4 bytes
+	asm += instrImm8Reg(f, PSRLO, 4, regy) // shift logical right by 4 bytes
 
 	tmp2 := f.allocReg(XMM_REG, 16)
 	asm += MovRegReg(f.Indent, OpDataType{op: XMM_OP, xmmvariant: XMM_F128}, regy, &tmp2)
@@ -105,18 +105,18 @@ func mulI32x4(f *Function, x, y, result *identifier) (string, *Error) {
 
 	// shuffle into first 64 bits of shufflet1
 	shufflet1 := f.allocReg(XMM_REG, 16)
-	asm += instrImm8RegReg(f, PSHUFL, 0x20, &tmp1, &shufflet1)
+	asm += instrImm8RegReg(f, PSHUFD, 0x8, &tmp1, &shufflet1)
 
 	// shuffle into first 64 bits of shufflet2
 	shufflet2 := f.allocReg(XMM_REG, 16)
-	asm += instrImm8RegReg(f, PSHUFL, 0x20, &tmp2, &shufflet2)
+	asm += instrImm8RegReg(f, PSHUFD, 0x8, &tmp2, &shufflet2)
 
 	punpckllq := PUNPCKLLQ
 
 	// Unpack and interleave 32-bit integers from the low half of shuffletmp1 and shuffletmp2, and store the results in shufflet2.
-	asm += instrRegReg(f, punpckllq, &shufflet1, &shufflet2)
+	asm += instrRegReg(f, punpckllq, &shufflet2, &shufflet1)
 
-	if a, err := f.StoreSimd(&shufflet2, result); err != nil {
+	if a, err := f.StoreSimd(&shufflet1, result); err != nil {
 		return "", err
 	} else {
 		asm += a

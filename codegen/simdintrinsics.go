@@ -30,17 +30,17 @@ func packedOp(f *Function, instrtype InstructionType, optypes XmmData, x, y, res
 
 func instrRegReg(f *Function, instr Instr, src, dst *register) string {
 	asm := f.Indent
-	asm += fmt.Sprintf("%-9v    %v, %v\n", instr.String(), src.name, dst.name)
+	asm += fmt.Sprintf("%-9v    %v, %v\n", instr, src.name, dst.name)
 	return asm
 }
 
 func instrImm8Reg(f *Function, instr Instr, imm8 uint8, dst *register) string {
-	asm := f.Indent + fmt.Sprintf("%-9v    $%v, %v\n", instr.String(), imm8, dst.name)
+	asm := f.Indent + fmt.Sprintf("%-9v    $%v, %v\n", instr, imm8, dst.name)
 	return asm
 }
 
 func instrImm8RegReg(f *Function, instr Instr, imm8 uint8, src, dst *register) string {
-	asm := f.Indent + fmt.Sprintf("%-9v    $%v, %v, %v\n", instr.String(), imm8, src.name, dst.name)
+	asm := f.Indent + fmt.Sprintf("%-9v    $%v, %v, %v\n", instr, imm8, src.name, dst.name)
 	return asm
 }
 

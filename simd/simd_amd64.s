@@ -8,7 +8,7 @@ TEXT ·SSSE3(SB),NOSPLIT,$0
         RET
 
 
-TEXT ·cpuid(SB),$0-12
+TEXT ·CpuId(SB),$0-12
         MOVL ax+8(FP), AX
         CPUID
         MOVQ info+0(FP), DI

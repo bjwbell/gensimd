@@ -8,25 +8,26 @@ import (
 
 var sse2ToGoAsm = map[sse2.SSE2Instr]Instr{
 	// integer
-	sse2.MOVDQA:     MOVO,
-	sse2.MOVDQU:     MOVOU,
-	sse2.PADDQ:      PADDQ,
-	sse2.PSUBQ:      PSUBQ,
-	sse2.PMULUDQ:    PMULULQ,
-	sse2.PSHUFHW:    PSHUFHW,
-	sse2.PSHUFLW:    PSHUFLW,
-	sse2.PSHUFD:     PSHUFD,
-	sse2.PSLLDQ:     PSLLO, // not useable shift count must be an imm8 not register or mem location
-	sse2.PSRLDQ:     PSRLO, // not useable shift count must be an imm8 not register or mem location
-	sse2.PUNPCKHQDQ: PUNPCKHLQ,
-	sse2.PUNPCKLQDQ: PUNPCKLLQ,
+	sse2.LoadSi128:      MOVO,
+	sse2.LoaduSi128:     MOVOU,
+	sse2.StoreuSi128:    MOVOU,
+	sse2.AddEpi64:       PADDQ,
+	sse2.SubEpi64:       PSUBQ,
+	sse2.MulEpu32:       PMULULQ,
+	sse2.ShufflehiEpi16: PSHUFHW,
+	sse2.ShuffleloEpi16: PSHUFLW,
+	sse2.ShuffleEpi32:   PSHUFD,
+	sse2.SlliSi128:      PSLLO, // not useable shift count must be an imm8 not register or mem location
+	sse2.SrliSi128:      PSRLO, // not useable shift count must be an imm8 not register or mem location
+	sse2.UnpackhiEpi64:  PUNPCKHLQ,
+	sse2.UnpackloEpi64:  PUNPCKLLQ,
 
 	// float
-	sse2.ADDPD:  ADDPD,
-	sse2.ADDSD:  ADDSD,
-	sse2.ANDNPD: ANDNPD,
-	sse2.CMPPD:  CMPPD,
-	sse2.CMPSD:  CMPPS,
+	sse2.AddPd:    ADDPD,
+	sse2.AddSd:    ADDSD,
+	sse2.AndnotPd: ANDNPD,
+	sse2.CmpeqPd:  CMPPD,
+	sse2.CmpeqSd:  CMPPS,
 }
 
 func getSSE2(name string) (sse2.SSE2Instr, bool) {

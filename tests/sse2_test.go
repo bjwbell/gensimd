@@ -11,10 +11,10 @@ import (
 	"github.com/bjwbell/gensimd/simd/sse2"
 )
 
-//go:generate gensimd -debug -fn "addm128d_go" -outfn "addm128d" -f "$GOFILE" -o "sse2_test_amd64.s"
+//go:generate gensimd -debug -fn "addpd_go" -outfn "addpd" -f "$GOFILE" -o "sse2_test_amd64.s"
 
-func addm128d(x, y simd.M128d) simd.M128d
-func addm128d_go(x, y simd.M128d) simd.M128d { return sse2.ADDPD(x, y) }
+func addpd(x, y simd.M128d) simd.M128d
+func addpd_go(x, y simd.M128d) simd.M128d { return sse2.AddPd(x, y) }
 
 func TestSSE2(t *testing.T) {
 
@@ -72,11 +72,11 @@ func TestSSE2(t *testing.T) {
 
 			}
 
-			if addm128d(xM128d, yM128d) != simd.M128d(simd.AddF64x2(xF64x2, yF64x2)) {
+			if addpd(xM128d, yM128d) != simd.M128d(simd.AddF64x2(xF64x2, yF64x2)) {
 				t.Errorf("addm128d(%v, %v)", xF64x2, yF64x2)
 				t.Error("x:", xF64x2)
 				t.Error("y:", yF64x2)
-				t.Error("s:", addm128d(xM128d, yM128d))
+				t.Error("s:", addpd(xM128d, yM128d))
 				t.Error(" :", simd.AddF64x2(xF64x2, yF64x2))
 			}
 		}

@@ -4,9 +4,9 @@ package sse2
 
 import "fmt"
 
-const _SSE2Instr_name = "INVALIDMOVDQAMOVDQUPADDQPSUBQPMULUDQPSHUFHWPSHUFLWPSHUFDPSLLDQPSRLDQPUNPCKHQDQPUNPCKLQDQADDPDADDSDANDNPDCMPPDCMPSD"
+const _SSE2Instr_name = "INVALIDLoadSi128LoaduSi128StoreuSi128AddEpi64SubEpi64MulEpu32ShufflehiEpi16ShuffleloEpi16ShuffleEpi32SlliSi128SrliSi128UnpackhiEpi64UnpackloEpi64AddPdAddSdAndnotPdCmpeqPdCmpeqSd"
 
-var _SSE2Instr_index = [...]uint8{0, 7, 13, 19, 24, 29, 36, 43, 50, 56, 62, 68, 78, 88, 93, 98, 104, 109, 114}
+var _SSE2Instr_index = [...]uint8{0, 7, 16, 26, 37, 45, 53, 61, 75, 89, 101, 110, 119, 132, 145, 150, 155, 163, 170, 177}
 
 func (i SSE2Instr) String() string {
 	if i < 0 || i >= SSE2Instr(len(_SSE2Instr_index)-1) {

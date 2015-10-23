@@ -1,5 +1,29 @@
 # Gensimd
-`tests/README.md` has usage examples.
+Packages and a command, `gensimd`, for SIMD in Go.
+
+Write functions in a subset of Go, using the `gensimd/simd`, `gensimd/simd/sse2`
+packages and convert them to Go assembly with the `gensimd` command.
+
+## Gensimd Command
+
+```
+[bjwbell]$ gensimd --help
+Usage of gensimd:
+  -debug
+    	add debug comments to assembly
+  -f string
+    	input file
+  -fn string
+    	comma separated list of function names
+  -goprotofile string
+    	output file for function prototype
+  -o string
+    	write Go Assembly to file
+  -outfn string
+    	comma separated list of output function names
+  -ssa
+    	dump ssa representation
+```
 
 ## Examples
 - [Cross platform SIMD example](examples/simd_example/README.md)

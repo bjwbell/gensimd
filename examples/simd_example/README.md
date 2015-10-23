@@ -1,7 +1,5 @@
 # SIMD Example
-Before building, the command `gensimd` and the package `https://github.com/bjwbell/gensimd/simd` need to be installed.
-
-To do so, execute:
+Before building, the command `gensimd` and the package `https://github.com/bjwbell/gensimd/simd` need to be installed. To do so, execute:
 ```
 go install https://github.com/bjwbell/gensimd
 go install https://github.com/bjwbell/gensimd/simd

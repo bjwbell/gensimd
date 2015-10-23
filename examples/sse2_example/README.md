@@ -1,5 +1,5 @@
 # SSE2 Example
-Before building the sse2 example the command `gensimd` and the packages
+Before building, the command `gensimd` and the packages
 - https://github.com/bjwbell/gensimd/simd
 - https://github.com/bjwbell/gensimd/simd/sse2
 
@@ -17,4 +17,4 @@ go build
 ./sse2_example
 ```
 
-**This example is only available on the amd64/x86_64 platform, building and running it on any other platforms is unsupported and will give errors.**
+**This example is only available on amd64/x86_64, other platforms are unsupported.**

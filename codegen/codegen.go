@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bjwbell/gensimd/simd"
+	"github.com/bjwbell/gensimd/codegen/sse2"
 
 	"golang.org/x/tools/go/types"
 
@@ -520,8 +520,11 @@ func (f *Function) Call(call *ssa.Call) (string, *Error) {
 	if builtin, ok := funct.(*ssa.Builtin); ok {
 		return f.Builtin(call, builtin)
 	}
-	if f.isSimdIntrinsic(call) {
+	if isSimdIntrinsic(call) {
 		return f.SimdIntrinsic(call)
+	}
+	if sse2instr, ok := isSSE2Intrinsic(call); ok {
+		return f.SSE2Intrinsic(call, sse2instr)
 	}
 	name := "UNKNOWN FUNC NAME"
 	if call.Common().Method != nil {
@@ -545,97 +548,41 @@ func (f *Function) SimdIntrinsic(call *ssa.Call) (string, *Error) {
 	result := f.Ident(call)
 	name := call.Common().StaticCallee().Name()
 
-	switch name {
-	default:
+	intrinsic, ok := intrinsics[name]
+	if !ok {
 		panic(internal(fmt.Sprintf("Expected simd intrinsic got (%v)", name)))
-	case "AddI8x16":
-		a, e = addI8x16(f, x, y, result)
-	case "SubI8x16":
-		a, e = subI8x16(f, x, y, result)
-	case "AddI16x8":
-		a, e = addI16x8(f, x, y, result)
-	case "SubI16x8":
-		a, e = subI16x8(f, x, y, result)
-	case "MulI16x8":
-		a, e = mulI16x8(f, x, y, result)
-	case "ShlI16x8":
-		a, e = shlI16x8(f, x, y, result)
-	case "ShrI16x8":
-		a, e = shrI16x8(f, x, y, result)
-	case "AddI32x4":
-		a, e = addI32x4(f, x, y, result)
-	case "SubI32x4":
-		a, e = subI32x4(f, x, y, result)
-	case "MulI32x4":
-		a, e = mulI32x4(f, x, y, result)
-	case "ShlI32x4":
-		a, e = shlI32x4(f, x, y, result)
-	case "ShrI32x4":
-		a, e = shrI32x4(f, x, y, result)
-	case "AddI64x2":
-		a, e = addI64x2(f, x, y, result)
-	case "SubI64x2":
-		a, e = subI64x2(f, x, y, result)
-	case "AddU8x16":
-		a, e = addU8x16(f, x, y, result)
-	case "SubU8x16":
-		a, e = subU8x16(f, x, y, result)
-	case "AddU16x8":
-		a, e = addU16x8(f, x, y, result)
-	case "SubU16x8":
-		a, e = subU16x8(f, x, y, result)
-	case "MulU16x8":
-		a, e = mulU16x8(f, x, y, result)
-	case "ShlU16x8":
-		a, e = shlU16x8(f, x, y, result)
-	case "ShrU16x8":
-		a, e = shrU16x8(f, x, y, result)
-	case "AddU32x4":
-		a, e = addU32x4(f, x, y, result)
-	case "SubU32x4":
-		a, e = subU32x4(f, x, y, result)
-	case "MulU32x4":
-		a, e = mulU32x4(f, x, y, result)
-	case "ShlU32x4":
-		a, e = shlU32x4(f, x, y, result)
-	case "ShrU32x4":
-		a, e = shrU32x4(f, x, y, result)
-	case "AddU64x2":
-		a, e = addU64x2(f, x, y, result)
-	case "SubU64x2":
-		a, e = subU64x2(f, x, y, result)
-	case "AddF32x4":
-		a, e = addF32x4(f, x, y, result)
-	case "SubF32x4":
-		a, e = subF32x4(f, x, y, result)
-	case "MulF32x4":
-		a, e = mulF32x4(f, x, y, result)
-	case "DivF32x4":
-		a, e = divF32x4(f, x, y, result)
-	case "AddF64x2":
-		a, e = addF64x2(f, x, y, result)
-	case "SubF64x2":
-		a, e = subF64x2(f, x, y, result)
-	case "MulF64x2":
-		a, e = mulF64x2(f, x, y, result)
-	case "DivF64x2":
-		a, e = divF64x2(f, x, y, result)
 	}
+	a, e = intrinsic(f, x, y, result)
 	return a, e
 }
 
-func (f *Function) isSimdIntrinsic(call *ssa.Call) bool {
-	names := simd.IntrinsicNames
+func isSimdIntrinsic(call *ssa.Call) bool {
 	if call.Common() == nil || call.Common().StaticCallee() == nil {
 		return false
 	}
 	name := call.Common().StaticCallee().Name()
-	for _, n := range names {
-		if n == name {
-			return true
-		}
+	_, ok := intrinsics[name]
+	return ok
+}
+
+func isSSE2Intrinsic(call *ssa.Call) (sse2.SSE2Instr, bool) {
+	if call.Common() == nil || call.Common().StaticCallee() == nil {
+		return sse2.INVALID, false
 	}
-	return false
+	name := call.Common().StaticCallee().Name()
+	return getSSE2(name)
+}
+
+func (f *Function) SSE2Intrinsic(call *ssa.Call, sse2Instr sse2.SSE2Instr) (string, *Error) {
+	var a string
+	var e *Error
+
+	args := call.Common().Args
+	x := f.Ident(args[0])
+	y := f.Ident(args[1])
+	result := f.Ident(call)
+	a, e = sse2Op(f, sse2Instr, x, y, result)
+	return a, e
 }
 
 func (f *Function) Slice(instr *ssa.Slice) (string, *Error) {
@@ -1024,7 +971,7 @@ func (f *Function) StoreValAddr(val ssa.Value, addr *identifier) (string, *Error
 		asm += a
 		f.freeReg(valReg)
 
-	} else if isSimd(val.Type()) {
+	} else if isSimd(val.Type()) || isSSE2(val.Type()) {
 
 		a, valReg, err := f.LoadSimdValue(val)
 		if err != nil {
@@ -1246,7 +1193,7 @@ func (f *Function) LoadSimdValue(simdvalue ssa.Value) (string, *register, *Error
 }
 
 func (f *Function) LoadSimd(ident *identifier) (string, *register, *Error) {
-	asm := f.Indent + fmt.Sprintf("// BEGIN LoadSimdIdent, ident: %v\n", ident.name)
+	asm := f.Indent + fmt.Sprintf("// BEGIN LoadSimd, ident: %v\n", ident.name)
 	reg := f.allocReg(regType(ident.typ), sizeof(ident.typ))
 	a, err := f.LoadIdentSimple(ident, &reg)
 	asm += a
@@ -1257,8 +1204,12 @@ func (f *Function) LoadSimd(ident *identifier) (string, *register, *Error) {
 		reg = xmmReg
 	}
 
-	asm += f.Indent + fmt.Sprintf("// END LoadSimdIdent, ident: %v, reg %v\n", ident.name, reg.name)
+	asm += f.Indent + fmt.Sprintf("// END LoadSimd, ident: %v, reg %v\n", ident.name, reg.name)
 	return asm, &reg, err
+}
+
+func (f *Function) LoadSSE2(ident *identifier) (string, *register, *Error) {
+	return f.LoadSimd(ident)
 }
 
 func (f *Function) LoadIdentSimple(ident *identifier, reg *register) (string, *Error) {
@@ -1279,15 +1230,15 @@ func (f *Function) LoadIdent(ident *identifier, offset int, size uint, reg *regi
 		msg := "ident (%v), size (%v) not a multiple of chunk size (%v) in loading"
 		internal(fmt.Sprintf(msg, ident.name, ident.size(), size))
 	}
-	if size > 8 && (!isSimd(ident.typ) || reg.typ != XMM_REG) {
+	if size > 8 && ((!isSimd(ident.typ) && !isSSE2(ident.typ)) || reg.typ != XMM_REG) {
 		msg := "ident (%v), loading more than 8 byte chunk"
 		internal(fmt.Sprintf(msg, ident.name))
 	}
-	if isSimd(ident.typ) {
+	if isSimd(ident.typ) || isSSE2(ident.typ) || isIntegerSSE2(ident.typ) {
 		optypes := GetOpDataType(ident.typ)
 		asm := f.Indent + fmt.Sprintf("// BEGIN LoadIdent (SIMD), ident: %v, offset %v, size %v\n", ident.name, offset, size)
 		a := ""
-		if isIntegerSimd(ident.typ) {
+		if isIntegerSimd(ident.typ) || isIntegerSSE2(ident.typ) {
 			a = MovIntegerSimdMemReg(f.Indent, optypes, ident.name, roffset+offset, &r, reg)
 		} else {
 			a = MovMemReg(f.Indent, optypes, ident.name, roffset+offset, &r, reg)
@@ -1297,6 +1248,7 @@ func (f *Function) LoadIdent(ident *identifier, offset int, size uint, reg *regi
 		asm += f.Indent + fmt.Sprintf("// END LoadIdent (SIMD), ident: %v, offset %v, size %v\n", ident.name, offset, size)
 		return asm, nil
 	}
+
 	optypes := GetIntegerOpDataType(false, size)
 	asm := f.Indent + fmt.Sprintf("// BEGIN LoadIdent, ident: %v, offset %v, size %v\n", ident.name, offset, size)
 	a := MovMemReg(f.Indent, optypes, ident.name, roffset+offset, &r, reg)
@@ -1336,6 +1288,10 @@ func (f *Function) StoreSimd(reg *register, ident *identifier) (string, *Error) 
 	return f.StoreValue(ident, reg)
 }
 
+func (f *Function) StoreSSE2(reg *register, ident *identifier) (string, *Error) {
+	return f.StoreValue(ident, reg)
+}
+
 func (f *Function) StoreValue(ident *identifier, reg *register) (string, *Error) {
 	if ident.size() > reg.size() {
 		msgstr := "identifier, %v, size (%v) is greater than register size (%v)"
@@ -1353,10 +1309,10 @@ func (f *Function) StoreReg(reg *register, ident *identifier, offset int, size u
 	if rsize == 0 {
 		internal(fmt.Sprintf("identifier (%v) size is 0", ident.name))
 	}
-	if isSimd(ident.typ) {
+	if isSimd(ident.typ) || isSSE2(ident.typ) {
 		asm := f.Indent + fmt.Sprintf("// BEGIN StoreReg (SIMD), size (%v)\n", size)
 		optypes := GetOpDataType(ident.typ)
-		if isIntegerSimd(ident.typ) {
+		if isIntegerSimd(ident.typ) || isIntegerSSE2(ident.typ) {
 			asm += MovIntegerSimdRegMem(f.Indent, optypes, reg, ident.name, &r, offset+roffset)
 		} else {
 			asm += MovRegMem(f.Indent, optypes, reg, ident.name, &r, offset+roffset)
@@ -1561,7 +1517,7 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 
 	if xInfo.IsSsaLocal() {
 		var tmp register
-		if isSimd(instr.Type()) {
+		if isSimd(instr.Type()) || isSSE2(instr.Type()) {
 			tmp = f.allocReg(XMM_REG, XmmRegSize)
 		} else {
 			tmp = f.allocReg(DATA_REG, DataRegSize)
@@ -1579,7 +1535,7 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 		f.freeReg(tmp)
 	} else {
 		var tmp1 register
-		if isSimd(instr.Type()) {
+		if isSimd(instr.Type()) || isSSE2(instr.Type()) {
 			tmp1 = f.allocReg(XMM_REG, XmmRegSize)
 		} else {
 			tmp1 = f.allocReg(DATA_REG, DataRegSize)
@@ -1852,7 +1808,7 @@ func (f *Function) retOffset() int {
 	align := f.retAlign()
 	// TODO: FIX
 	// HACK!!!
-	if isSimd(f.retType()) {
+	if isSimd(f.retType()) || isSSE2(f.retType()) {
 		align = 8
 	}
 	padding := align - f.paramsSize()%align

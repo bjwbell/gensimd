@@ -66,43 +66,96 @@ func simdTypes() []simdtype {
 	return types
 }
 
-func simdInfo(t types.Type) (simdtype, error) {
-	if !isSimd(t) {
-		msg := fmt.Errorf("type (%v) is not simd type", t.String())
-		return simdtype{}, msg
+type sse2type struct {
+	name     string
+	size     uint
+	elemSize uint
+	align    uint
+	optype   OpDataType
+}
+
+func sse2Reflect(t reflect.Type) sse2type {
+	elemSize := uint(0)
+	if t.Kind() == reflect.Array {
+		elemSize = uint(t.Elem().Size())
 	}
-	named := t.(*types.Named)
+	return sse2type{
+		name:     t.Name(),
+		size:     uint(t.Size()),
+		elemSize: elemSize,
+		align:    uint(t.Size()),
+	}
+}
+
+func sse2Types() []sse2type {
+	types := []sse2type{}
+	types = append(types, sse2Reflect(reflect.TypeOf(simd.M128{})))
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{16, false}, XMM_M128}
+
+	types = append(types, sse2Reflect(reflect.TypeOf(simd.M128i{})))
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{16, false}, XMM_M128i}
+
+	types = append(types, sse2Reflect(reflect.TypeOf(simd.M128d{})))
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{16, false}, XMM_M128d}
+
+	return types
+}
+
+func simdInfo(t types.Type) (simdtype, bool) {
+	named, ok := t.(*types.Named)
+	if !ok {
+		return simdtype{}, false
+	}
 	tname := named.Obj()
 	for _, simdType := range simdTypes() {
 		if tname.Name() == simdType.name {
-			return simdType, nil
+			return simdType, true
 		}
 	}
-	msg := fmt.Errorf("type (%v) couldn't find simd type info", t.String())
-	return simdtype{}, msg
+	return simdtype{}, false
 }
 
 func isSimd(t types.Type) bool {
-	if t, ok := t.(*types.Named); ok {
-		tname := t.Obj()
-		for _, simdType := range simdTypes() {
-			if tname.Name() == simdType.name {
-				return true
-			}
-		}
-	}
-	return false
+	_, ok := simdInfo(t)
+	return ok
 }
 
 func isIntegerSimd(t types.Type) bool {
-	s, err := simdInfo(t)
-	if err != nil {
+	s, ok := simdInfo(t)
+	if !ok {
 		return false
 	}
 	split := strings.Split(s.name, ".")
 	name := split[len(split)-1]
 	integerType := strings.HasPrefix(name, "I") || strings.HasPrefix(name, "U")
 	return integerType
+}
+
+func sse2Info(t types.Type) (sse2type, bool) {
+	named, ok := t.(*types.Named)
+	if !ok {
+		return sse2type{}, false
+	}
+	tname := named.Obj()
+	for _, simdType := range sse2Types() {
+		if tname.Name() == simdType.name {
+			return simdType, true
+		}
+	}
+	return sse2type{}, false
+}
+
+func isSSE2(t types.Type) bool {
+	_, ok := sse2Info(t)
+	return ok
+}
+
+func isIntegerSSE2(t types.Type) bool {
+	s, ok := sse2Info(t)
+	if !ok {
+		return false
+	}
+	return s.optype.xmmvariant == XMM_M128i
 }
 
 func sizeofElem(t types.Type) uint {
@@ -115,8 +168,8 @@ func sizeofElem(t types.Type) uint {
 	case *types.Array:
 		e = t.Elem()
 	case *types.Named:
-		typeinfo, err := simdInfo(t)
-		if err == nil {
+		typeinfo, ok := simdInfo(t)
+		if ok {
 			return typeinfo.elemSize
 		}
 		panic(internal(
@@ -142,13 +195,12 @@ func sizeof(t types.Type) uint {
 	case *types.Array:
 		return sizeArray(t)
 	case *types.Named:
-		if !isSimd(t) {
-			panic("Named type is unsupported")
-		}
-		if info, err := simdInfo(t); err != nil {
-			panic(internal(fmt.Sprintf("Error unknown type in sizeof err:\"%v\"", err)))
-		} else {
+		if sse2, ok := sse2Info(t); ok {
+			return sse2.size
+		} else if info, ok := simdInfo(t); ok {
 			return info.size
+		} else {
+			panic(internal(fmt.Sprintf("unknown named type \"%v\"", t.String())))
 		}
 	}
 	panic(internal(fmt.Sprintf("unknown type: %v", t)))
@@ -186,13 +238,12 @@ func align(t types.Type) uint {
 	case *types.Array, *types.Basic, *types.Pointer, *types.Slice:
 		return uint(reflectType(t).Align())
 	case *types.Named:
-		if !isSimd(t) {
-			panic("Named type is unsupported")
-		}
-		if info, err := simdInfo(t); err != nil {
-			panic(internal(fmt.Sprintf("unknown named type, err:\"%v\"", err)))
-		} else {
+		if sse2, ok := sse2Info(t); ok {
+			return sse2.align
+		} else if info, ok := simdInfo(t); ok {
 			return info.align
+		} else {
+			panic(internal(fmt.Sprintf("unknown named type \"%v\"", t.String())))
 		}
 	}
 	panic(internal(fmt.Sprintf("unknown type (%v)", t)))
@@ -375,13 +426,11 @@ func GetOpDataType(t types.Type) OpDataType {
 	if isComplex(t) {
 		panic("complex32/64 unsupported")
 	}
-	if isSimd(t) {
-		if simdtype, err := simdInfo(t); err == nil {
-			return simdtype.optype
-		} else {
-			panic(internal(fmt.Sprintf("cant get type info for simd type (%v)", t.String())))
-		}
-
+	if simdtype, ok := simdInfo(t); ok {
+		return simdtype.optype
+	}
+	if sse2type, ok := sse2Info(t); ok {
+		return sse2type.optype
 	}
 	if isBasic(t) {
 		return GetIntegerOpDataType(signed(t), sizeof(t))
@@ -392,7 +441,7 @@ func GetOpDataType(t types.Type) OpDataType {
 }
 
 func regType(t types.Type) RegType {
-	if isSimd(t) {
+	if isSimd(t) || isSSE2(t) {
 		return XMM_REG
 	}
 	if isFloat(t) {

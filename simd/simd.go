@@ -3,17 +3,6 @@ package simd
 // go implementations of SIMD functions:
 // add, sub, mul, div, <<, >> for each type
 
-var IntrinsicNames = []string{"AddI8x16", "SubI8x16",
-	"AddI16x8", "SubI16x8", "MulI16x8", "ShlI16x8", "ShrI16x8",
-	"AddI32x4", "SubI32x4", "MulI32x4", "ShlI32x4", "ShrI32x4",
-	"AddI64x2", "SubI64x2", "ShlI64x2",
-	"AddU8x16", "SubU8x16",
-	"AddU16x8", "SubU16x8", "MulU16x8", "ShlU16x8", "ShrU16x8",
-	"AddU32x4", "SubU32x4", "MulU32x4", "ShlU32x4", "ShrU32x4",
-	"AddU64x2", "SubU64x2", "ShlU64x2", "ShrU64x2",
-	"AddF32x4", "SubF32x4", "MulF32x4", "DivF32x4",
-	"AddF64x2", "SubF64x2", "MulF64x2", "DivF64x2"}
-
 func AddI8x16(x, y I8x16) I8x16 {
 	val := I8x16{}
 	for i := 0; i < 16; i++ {

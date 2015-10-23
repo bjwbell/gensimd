@@ -2,6 +2,47 @@ package codegen
 
 import "fmt"
 
+type intrinsic func(f *Function, x, y, result *identifier) (string, *Error)
+
+var intrinsics = map[string]intrinsic{
+	"AddI8x16": addI8x16,
+	"SubI8x16": subI8x16,
+	"AddI16x8": addI16x8,
+	"SubI16x8": subI16x8,
+	"MulI16x8": mulI16x8,
+	"ShlI16x8": shlI16x8,
+	"ShrI16x8": shrI16x8,
+	"AddI32x4": addI32x4,
+	"SubI32x4": subI32x4,
+	"MulI32x4": mulI32x4,
+	"ShlI32x4": shlI32x4,
+	"ShrI32x4": shrI32x4,
+	"AddI64x2": addI64x2,
+	"SubI64x2": subI64x2,
+	"AddU8x16": addU8x16,
+	"SubU8x16": subU8x16,
+	"AddU16x8": addU16x8,
+	"SubU16x8": subU16x8,
+	"MulU16x8": mulU16x8,
+	"ShlU16x8": shlU16x8,
+	"ShrU16x8": shrU16x8,
+	"AddU32x4": addU32x4,
+	"SubU32x4": subU32x4,
+	"MulU32x4": mulU32x4,
+	"ShlU32x4": shlU32x4,
+	"ShrU32x4": shrU32x4,
+	"AddU64x2": addU64x2,
+	"SubU64x2": subU64x2,
+	"AddF32x4": addF32x4,
+	"SubF32x4": subF32x4,
+	"MulF32x4": mulF32x4,
+	"DivF32x4": divF32x4,
+	"AddF64x2": addF64x2,
+	"SubF64x2": subF64x2,
+	"MulF64x2": mulF64x2,
+	"DivF64x2": divF64x2,
+}
+
 func packedOp(f *Function, instrtype InstructionType, optypes XmmData, x, y, result *identifier) (string, *Error) {
 	asm := ""
 	instr := GetXmmInstruction(instrtype).Select(optypes)

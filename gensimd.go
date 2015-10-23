@@ -48,9 +48,9 @@ func fileName(pathName string) string {
 
 func main() {
 	var ssaDump = flag.Bool("ssa", false, "dump ssa representation")
-	var debug = flag.Bool("debug", false, "add debug comments to assembly")
-	var output = flag.String("o", "", "write Go Assembly to file")
-	var f = flag.String("f", "", "input file")
+	var debug = flag.Bool("debug", false, "include debug comments in assembly")
+	var output = flag.String("o", "", "Go assembly output file")
+	var f = flag.String("f", "", "input file with function definitions")
 	var flagFn = flag.String("fn", "", "comma separated list of function names")
 	var flagOutFn = flag.String("outfn", "", "comma separated list of output function names")
 	var goprotofile = flag.String("goprotofile", "", "output file for function prototype")

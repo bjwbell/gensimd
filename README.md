@@ -1,5 +1,5 @@
 # Gensimd
-Packages and a command, `gensimd`, for SIMD in Go.
+Gensimd is a collection of packages and a command, `gensimd`, for using SIMD in Go.
 
 Write functions in a subset of Go, using the `gensimd/simd`, `gensimd/simd/sse2`
 packages and convert them to Go assembly with the `gensimd` command.
@@ -10,15 +10,13 @@ packages and convert them to Go assembly with the `gensimd` command.
 [bjwbell]$ gensimd --help
 Usage of gensimd:
   -debug
-    	add debug comments to assembly
+    	include debug comments in assembly
   -f string
-    	input file
+    	input file with function definitions
   -fn string
     	comma separated list of function names
-  -goprotofile string
-    	output file for function prototype
   -o string
-    	write Go Assembly to file
+    	Go assembly output file
   -outfn string
     	comma separated list of output function names
   -ssa
@@ -34,24 +32,38 @@ To build and run both examples execute `./run_examples.sh`.
 ## Tests
 To build and run the reference tests execute `./run_tests.sh`.
 
-## Unsupported
+## Go Language Subset
+The `gensimd` command supports only a small subset of Go, for functions it translates from Go to assembly. 
 
-- Builtins except `len`
-- Function calls except `simd.*`
-- Method calls
-- Keywords `range`,  `map`, `select`, `chan`, `defer`
-- Slice creation e.g. `newslice := slice[1:len(slice) - 2]`
-
-## Supported
+### Go Features - Supported
 - Integers and floats - `uint8/int8`, `uint16/int16`, `uint32/int32`, `uint64/int64`, `float32/float64`
 - `if` statements, `for` loops (except with `range`)
 - Arrays and slices
 
-## TODO
+### Go Features - Unsupported
+- Builtins except `len`
+- Function calls except to `simd.*`
+- Method calls
+- Keywords `range`,  `map`, `select`, `chan`, `defer`
+- Slice creation e.g. `newslice := slice[1:len(slice) - 2]`
+
+### TODO
 - Slice access bounds checking
 
 ## SIMD
-**Available SIMD types**
+The common vs platform specific functionality is inspired from Huon Wilson's SIMD [work](http://huonw.github.io/blog/2015/08/simd-in-rust/#common-vs-platform-specific).
+
+### Integer Overflow
+For unsigned integer values, the SIMD functions `Add*`, `Sub*`, `Mul*`, and `Shl*` are computed modulo 2^n, where n is the bit width of the unsigned integer's type. These unsigned integer operations discard high bits upon overflow.
+
+For signed integers, the SIMD functions `Add*`, `Sub*`, `Mul*`, and `Shl*`  may overflow and the resulting value is defined by the signed integer representation, the operation, and its operands. The behavior is guaranteed to be identical to the Go versions in `gensimd/simd/simd.go`.
+
+For both unsigned and signed integer values, the SIMD function `Shr*` is guaranteed to have the same behavior as the Go version in `gensimd/simd/simd.go`
+
+### Floating Point
+The behavior of the floating point SIMD functions `Add*`, `Sub*`, `Mul*`, and `Div*` is guaranteed to be identical to the Go versions in `gensimd/simd/simd.go`.
+
+### SIMD types
 
     type I8x16 [16]int8
     type I16x8 [8]int16
@@ -64,7 +76,7 @@ To build and run the reference tests execute `./run_tests.sh`.
     type F32x4 [4]float32
     type F64x2 [2]float64
 
-**Available SIMD functions**
+### SIMD functions
 
     func AddI8x16(x, y I8x16) I8x16
     func SubI8x16(x, y I8x16) I8x16
@@ -108,38 +120,28 @@ To build and run the reference tests execute `./run_tests.sh`.
     func MulF64x2(x, y F64x2) F64x2
     func DivF64x2(x, y F64x2) F64x2
 
-**TODO - SIMD Functions**
+### Gotchas
+Until Go 1.5.2, `ShrU16x8` is slow because of [golang/go#13010](https://github.com/golang/go/issues/13010) "cmd/asm: x86, incorrect Optab entry - PSRLW".
 
-The below functions will be implemented at a future date. They are more difficult because they have no directly equivalent SSE instructions.
+There are no SIMD functions for 64 bit integer multiplication since there's no equivalent SSE instruction.
+
+### TODO
+
+The below functions aren't implemented because they have no directly equivalent SSE instructions.
 
     func ShlI64x2(x, shift uint8) I64x2
     func ShrI64x2(x, shift uint8) I64x2
     func ShlU64x2(x, shift uint8) U64x2
     func ShrU64x2(x, shift uint8) U64x2
 
-
-There are no SIMD functions for 64 bit integer multiplication since there's no equivalent SSE instruction.
-
-### Integer Overflow
-For unsigned integer values, the simd functions `Add*`, `Sub*`, `Mul*`, and `Shl*` are computed modulo 2^n, where n is the bit width of the unsigned integer's type. These unsigned integer operations discard high bits upon overflow.
-
-For signed integers, the simd functions `Add*`, `Sub*`, `Mul*`, and `Shl*`  may overflow and the resulting value exists and is defined by the signed integer representation, the operation, and its operands. The behavior is guaranteed to be identical to the go versions of the functions in `gensimd/simd/simd.go`.
-
-For both unsigned and signed integer values, the simd function `Shr*` is guaranteed to have the same behavior as the go versions in `gensimd/simd/simd.go`
-
-### Floating Point
-For the floating point simd functions `Add*`, `Sub*`, `Mul*`, and `Div*` the behavior is guaranteed to be identical to the go versions of the functions in `gensimd/simd/simd.go`.
-
-
-## SSE2 Intrinsics
-
-**SSE2 types**
+## Platform Specific - SSE2
+### SSE2 types
 
     type M128i [16]byte
     type M128 [4]float32
     type M128d [2]float64
 
-**Available SSE2 intrinsics**
+### SSE2 intrinsics
 
     func AddEpi64(x, y simd.M128i) simd.M128i
     func SubEpi64(x, y simd.M128i) simd.M128i
@@ -157,9 +159,9 @@ For the floating point simd functions `Add*`, `Sub*`, `Mul*`, and `Div*` the beh
     func CmpeqPd(x, y simd.M128d) simd.M128d
     func CmpeqSd(x, y simd.M128d) simd.M128d
 
-**TODO SSE2 intrinsics**
+### TODO
 
-Are these needed? They seem to be handled automatically by the compiler
+Are these needed?
 
     func LoadSi128(memaddr *simd.M128i) simd.M128i
     func LoaduSi128(memaddr *simd.M128i) simd.M128i

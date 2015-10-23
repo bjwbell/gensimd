@@ -17,6 +17,11 @@ func addpd(x, y simd.M128d) simd.M128d
 func addpd_go(x, y simd.M128d) simd.M128d { return sse2.AddPd(x, y) }
 
 func TestSSE2(t *testing.T) {
+	// bail if sse2 is not supported
+	if !simd.SSE2() {
+		t.Log("Skipped - SSE2 not available")
+		return
+	}
 
 	count := 0
 	rand.Seed(42)

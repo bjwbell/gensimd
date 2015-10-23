@@ -1,6 +1,10 @@
 # Gensimd
 `tests/README.md` has usage examples.
 
+## Examples
+- [Cross platform SIMD example](examples/simd_example/README.md)
+- [SSE2 example](examples/sse2_example/README.md)
+
 ## Tests
 Execute `runtests.sh` to run the reference tests.
 

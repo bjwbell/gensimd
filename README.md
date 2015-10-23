@@ -35,12 +35,12 @@ To build and run the reference tests execute `./run_tests.sh`.
 ## Go Language Subset
 The `gensimd` command supports only a small subset of Go, for functions it translates from Go to assembly. 
 
-### Go Features - Supported
+### Go - Supported
 - Integers and floats - `uint8/int8`, `uint16/int16`, `uint32/int32`, `uint64/int64`, `float32/float64`
 - `if` statements, `for` loops (except with `range`)
 - Arrays and slices
 
-### Go Features - Unsupported
+### Go - Unsupported
 - Builtins except `len`
 - Function calls except to `simd.*`
 - Method calls

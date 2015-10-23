@@ -5,8 +5,8 @@ Write functions in a subset of Go, using the `gensimd/simd`, `gensimd/simd/sse2`
 packages and convert them to Go assembly with the `gensimd` command.
 
 ## Examples
-- [Cross platform SIMD example](examples/simd_example/README.md)
-- [SSE2 example](examples/sse2_example/README.md)
+- [Cross platform - SIMD example](examples/simd_example/README.md)
+- [Platform specific - SSE2 example](examples/sse2_example/README.md)
 
 To build and run both examples execute `./run_examples.sh`.
 

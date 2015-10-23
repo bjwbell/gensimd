@@ -15,22 +15,14 @@ const (
 	XMM_OP                 // f32/f64, packed f32, packed f64
 )
 
-func (optype InstrOpType) String() string {
-	switch optype {
-	case INVALID_OP:
-		return "INVALID_OP"
-	case INTEGER_OP:
-		return "INTEGER_OP"
-	case XMM_OP:
-		return "XMM_OP"
-	}
-	return fmt.Sprintf("UNKNOWN OP TYPE: %v", int(optype))
-}
-
 type OpDataType struct {
 	op InstrOpType
 	InstrData
 	xmmvariant XmmData
+}
+
+func (optype OpDataType) String() string {
+	return fmt.Sprintf("OpDataType{Op:%v, InstrData: %v, Xmm: %v}", optype.op, optype.InstrData, optype.xmmvariant)
 }
 
 type InstrData struct {
@@ -66,11 +58,11 @@ type Instruction struct {
 	TInstr InstructionType
 
 	// integer forms
-	ByteSized  Instr
-	WordSized  Instr
-	LongSized  Instr
-	QuadSized  Instr
-	DQuadSized Instr
+	ByteSized Instr
+	WordSized Instr
+	LongSized Instr
+	QuadSized Instr
+	OctSized  Instr
 
 	// xmm forms
 	/*SingleF32 Instr
@@ -99,11 +91,13 @@ func (inst Instruction) GetSized(size uint) Instr {
 		instr = inst.LongSized
 	case 8:
 		instr = inst.QuadSized
+	case 16:
+		instr = inst.OctSized
 	}
 
 	if instr == NONE {
 		msgstr := "invalid size(%v), for instr (%v)"
-		internal(fmt.Sprintf(msgstr, size, inst.TInstr.String()))
+		internal(fmt.Sprintf(msgstr, size, inst.TInstr))
 	}
 
 	return instr
@@ -173,56 +167,10 @@ const (
 	I_XOR
 )
 
-func (tinst InstructionType) String() string {
-	switch tinst {
-	default:
-		internal("unknown instruction")
-		return ""
-	case I_CVT_FLOAT2INT:
-		return "I_CVT_FLOAT2INT"
-	case I_CVT_INT2FLOAT:
-		return "I_CVT_INT2FLOAT"
-	case I_CVT_FLOAT2FLOAT:
-		return "I_CVT_FLOAT2FLOAT"
-	case I_ADD:
-		return "ADD"
-	case I_SUB:
-		return "SUB"
-	case I_MOV:
-		return "MOV"
-	case I_XOR:
-		return "XOR"
-	case I_LEA:
-		return "LEA"
-	case I_MUL:
-		return "MUL"
-	case I_IMUL:
-		return "IMUL"
-	case I_DIV:
-		return "DIV"
-	case I_IDIV:
-		return "IDIV"
-	case I_AND:
-		return "AND"
-	case I_OR:
-		return "OR"
-	case I_SHL:
-		return "SHL"
-	case I_SHR:
-		return "SHR"
-	case I_SAL:
-		return "SAL"
-	case I_SAR:
-		return "SAR"
-	case I_CMP:
-		return "CMP"
-	}
-}
-
 var Insts = []Instruction{
 	{I_ADD, ADDB, ADDW, ADDL, ADDQ, NONE},
 	{I_SUB, SUBB, SUBW, SUBL, SUBQ, NONE},
-	{I_MOV, MOVB, MOVW, MOVL, MOVQ, NONE},
+	{I_MOV, MOVB, MOVW, MOVL, MOVQ, MOVOU},
 
 	// byte register sign extend to xxx register
 	{I_MOVBSX, NONE, MOVBWSX, MOVBLSX, MOVBQSX, NONE},
@@ -301,7 +249,7 @@ var XmmInsts = []XmmInstruction{
 	{I_PIMUL, NONE, PMULLW, NONE, NONE},
 
 	// mov packed integers
-	{I_PMOV, NONE, NONE, NONE, MOVOU},
+	{I_PMOV, MOVOU, MOVOU, MOVOU, MOVOU},
 
 	// bitwise logical, operates on full register width, so same version used for all
 	// op types
@@ -349,7 +297,7 @@ func GetXmmInstruction(tinst InstructionType) XmmInstruction {
 			return inst
 		}
 	}
-	internal(fmt.Sprintf("Couldn't get xmm instruction (%v)", tinst.String()))
+	internal(fmt.Sprintf("Couldn't get xmm instruction (%v)", tinst))
 	return XmmInstruction{}
 }
 
@@ -366,8 +314,8 @@ func (xinstr XmmInstruction) Select(variant XmmData) Instr {
 		instr = xinstr.F64x2
 	}
 	if instr == NONE {
-		fmt.Println("variant:", variant)
-		internal(fmt.Sprintf("unrecognized variant for %v", xinstr.XmmInstr))
+		s := fmt.Sprintf("unrecognized variant \"%v\" for \"%v\"", variant, xinstr.XmmInstr)
+		panic(internal(s))
 	}
 	return instr
 }
@@ -538,10 +486,10 @@ func MovMemMem(indent string, srcName string, srcOffset int, srcReg *register, d
 	if size%8 != 0 {
 		internal("Invalid size")
 	}
-	movq := "MOVQ"
+	mov := GetInstr(I_MOV, GetIntegerOpDataType(false, size)).String()
 
-	asm := indent + fmt.Sprintf("%-9v    %v+%v(%v), %v\n", movq, srcName, srcOffset, srcReg.name, tmp.name)
-	asm += indent + fmt.Sprintf("%-9v    %v, %v+%v(%v)\n", movq, tmp.name, dstName, dstOffset, dstReg.name)
+	asm := indent + fmt.Sprintf("%-9v    %v+%v(%v), %v\n", mov, srcName, srcOffset, srcReg.name, tmp.name)
+	asm += indent + fmt.Sprintf("%-9v    %v, %v+%v(%v)\n", mov, tmp.name, dstName, dstOffset, dstReg.name)
 
 	return strings.Replace(asm, "+-", "-", -1)
 }

@@ -1,5 +1,7 @@
 package main
 
+//go:generate stringer -type=InstrOpType,InstructionType,XmmData codegen
+
 import (
 	"flag"
 	"fmt"

@@ -285,7 +285,7 @@ func mulF32x4(f *Function, x, y, result *identifier) (string, *Error) {
 	return packedOp(f, I_MUL, XMM_4X_F32, x, y, result)
 }
 func divF32x4(f *Function, x, y, result *identifier) (string, *Error) {
-	return packedOp(f, I_DIV, XMM_4X_F32, x, y, result)
+	return packedOp(f, I_DIV, XMM_4X_F32, y, x, result)
 }
 
 func addF64x2(f *Function, x, y, result *identifier) (string, *Error) {
@@ -298,5 +298,5 @@ func mulF64x2(f *Function, x, y, result *identifier) (string, *Error) {
 	return packedOp(f, I_MUL, XMM_2X_F64, x, y, result)
 }
 func divF64x2(f *Function, x, y, result *identifier) (string, *Error) {
-	return packedOp(f, I_DIV, XMM_2X_F64, x, y, result)
+	return packedOp(f, I_DIV, XMM_2X_F64, y, x, result)
 }

@@ -1284,7 +1284,7 @@ func (f *Function) LoadIdent(ident *identifier, offset int, size uint, reg *regi
 		internal(fmt.Sprintf(msg, ident.name))
 	}
 	if isSimd(ident.typ) {
-		optypes := OpDataType{op: XMM_OP, xmmvariant: XMM_F128}
+		optypes := GetOpDataType(ident.typ)
 		asm := f.Indent + fmt.Sprintf("// BEGIN LoadIdent (SIMD), ident: %v, offset %v, size %v\n", ident.name, offset, size)
 		a := ""
 		if isIntegerSimd(ident.typ) {
@@ -1355,7 +1355,7 @@ func (f *Function) StoreReg(reg *register, ident *identifier, offset int, size u
 	}
 	if isSimd(ident.typ) {
 		asm := f.Indent + fmt.Sprintf("// BEGIN StoreReg (SIMD), size (%v)\n", size)
-		optypes := OpDataType{op: XMM_OP, xmmvariant: XMM_F128}
+		optypes := GetOpDataType(ident.typ)
 		if isIntegerSimd(ident.typ) {
 			asm += MovIntegerSimdRegMem(f.Indent, optypes, reg, ident.name, &r, offset+roffset)
 		} else {
@@ -1557,75 +1557,55 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 
 	size := aSize
 
-	tmp1 := f.allocReg(DATA_REG, DataRegSize)
-	tmp2 := f.allocReg(regType(instr.Type()), DataRegSize)
 	optypes := GetOpDataType(instr.Type())
 
 	if xInfo.IsSsaLocal() {
-
-		if isIntegerSimd(instr.Type()) {
-			tmp := f.allocReg(XMM_REG, 16)
-			asm += MovIntegerSimdMemMem(
-				f.Indent,
-				xInfo.name,
-				xOffset,
-				&xReg,
-				assignment.name,
-				aOffset,
-				&aReg,
-				size,
-				&tmp)
-			f.freeReg(tmp)
+		var tmp register
+		if isSimd(instr.Type()) {
+			tmp = f.allocReg(XMM_REG, XmmRegSize)
 		} else {
-			asm += MovMemMem(
-				f.Indent,
-				xInfo.name,
-				xOffset,
-				&xReg,
-				assignment.name,
-				aOffset,
-				&aReg,
-				size,
-				&tmp1)
+			tmp = f.allocReg(DATA_REG, DataRegSize)
 		}
-
+		asm += MovMemMem(
+			f.Indent,
+			xInfo.name,
+			xOffset,
+			&xReg,
+			assignment.name,
+			aOffset,
+			&aReg,
+			size,
+			&tmp)
+		f.freeReg(tmp)
 	} else {
-
-		if isIntegerSimd(instr.Type()) {
-			optypes = OpDataType{XMM_OP, InstrData{}, XMM_F128}
-			asm += MovIntegerSimdMemIndirectMem(
-				f.Indent,
-				optypes,
-				xInfo.name,
-				xOffset,
-				&xReg,
-				assignment.name,
-				aOffset,
-				&aReg,
-				size,
-				&tmp1,
-				&tmp2)
+		var tmp1 register
+		if isSimd(instr.Type()) {
+			tmp1 = f.allocReg(XMM_REG, XmmRegSize)
 		} else {
-			asm += MovMemIndirectMem(
-				f.Indent,
-				optypes,
-				xInfo.name,
-				xOffset,
-				&xReg,
-				assignment.name,
-				aOffset,
-				&aReg,
-				size,
-				&tmp1,
-				&tmp2)
+			tmp1 = f.allocReg(DATA_REG, DataRegSize)
 		}
+		tmp2 := f.allocReg(regType(instr.Type()), DataRegSize)
+
+		asm += MovMemIndirectMem(
+			f.Indent,
+			optypes,
+			xInfo.name,
+			xOffset,
+			&xReg,
+			assignment.name,
+			aOffset,
+			&aReg,
+			size,
+			&tmp1,
+			&tmp2)
+		f.freeReg(tmp1)
+		f.freeReg(tmp2)
 
 	}
 	f.identifiers[assignment.name] = *assignment
 
-	f.freeReg(tmp1)
-	f.freeReg(tmp2)
-
+	asm = fmt.Sprintf(f.Indent+"// BEGIN ssa.UnOpPointer, %v = %v\n", instr.Name(), instr) + asm
+	asm += fmt.Sprintf(f.Indent+"// END ssa.UnOpPointer, %v = %v\n", instr.Name(), instr)
 	return asm, nil
 }
 

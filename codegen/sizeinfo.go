@@ -34,34 +34,34 @@ func simdReflect(t reflect.Type) simdtype {
 func simdTypes() []simdtype {
 	types := []simdtype{}
 	types = append(types, simdReflect(reflect.TypeOf(simd.I8x16{})))
-	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{}, XMM_I8X16}
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{16, false}, XMM_I8X16}
 
 	types = append(types, simdReflect(reflect.TypeOf(simd.I16x8{})))
-	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{}, XMM_I16X8}
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{16, false}, XMM_I16X8}
 
 	types = append(types, simdReflect(reflect.TypeOf(simd.I32x4{})))
-	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{}, XMM_I32X4}
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{16, false}, XMM_I32X4}
 
 	types = append(types, simdReflect(reflect.TypeOf(simd.I64x2{})))
-	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{}, XMM_I64X2}
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{16, false}, XMM_I64X2}
 
 	types = append(types, simdReflect(reflect.TypeOf(simd.U8x16{})))
-	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{}, XMM_U8X16}
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{16, false}, XMM_U8X16}
 
 	types = append(types, simdReflect(reflect.TypeOf(simd.U16x8{})))
-	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{}, XMM_U16X8}
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{16, false}, XMM_U16X8}
 
 	types = append(types, simdReflect(reflect.TypeOf(simd.U32x4{})))
-	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{}, XMM_U32X4}
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{16, false}, XMM_U32X4}
 
 	types = append(types, simdReflect(reflect.TypeOf(simd.U64x2{})))
-	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{}, XMM_U64X2}
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{16, false}, XMM_U64X2}
 
 	types = append(types, simdReflect(reflect.TypeOf(simd.F32x4{})))
-	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{}, XMM_4X_F32}
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{16, false}, XMM_4X_F32}
 
 	types = append(types, simdReflect(reflect.TypeOf(simd.F64x2{})))
-	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{}, XMM_2X_F64}
+	types[len(types)-1].optype = OpDataType{XMM_OP, InstrData{16, false}, XMM_2X_F64}
 
 	return types
 }
@@ -351,8 +351,8 @@ func reflectBasic(b types.BasicKind) reflect.Type {
 }
 
 var bInstrData = OpDataType{INTEGER_OP, InstrData{signed: false, size: 1}, XMM_INVALID}
-var f32InstrData = OpDataType{XMM_OP, InstrData{}, XMM_F32}
-var f64InstrData = OpDataType{XMM_OP, InstrData{}, XMM_F64}
+var f32InstrData = OpDataType{XMM_OP, InstrData{16, false}, XMM_F32}
+var f64InstrData = OpDataType{XMM_OP, InstrData{16, false}, XMM_F64}
 
 func GetIntegerOpDataType(signed bool, size uint) OpDataType {
 	instrdata := OpDataType{

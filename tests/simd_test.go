@@ -10,7 +10,7 @@ import (
 	"github.com/bjwbell/gensimd/simd"
 )
 
-//go:generate gensimd -fn "addi8x16, subi8x16, addu8x16, subu8x16, addi16x8, subi16x8, muli16x8, shli16x8, shri16x8, addu16x8, subu16x8, mulu16x8, shlu16x8, shru16x8, addi32x4, subi32x4, muli32x4, shli32x4, shri32x4, addu32x4, subu32x4, mulu32x4, shlu32x4, shru32x4, addi64x2, subi64x2, addu64x2, subu64x2" -outfn "addi8x16s, subi8x16s, addu8x16s, subu8x16s, addi16x8s, subi16x8s, muli16x8s, shli16x8s, shri16x8s, addu16x8s, subu16x8s, mulu16x8s, shlu16x8s, shru16x8s, addi32x4s, subi32x4s, muli32x4s, shli32x4s, shri32x4s, addu32x4s, subu32x4s, mulu32x4s, shlu32x4s, shru32x4s, addi64x2s, subi64x2s, addu64x2s, subu64x2s" -f "$GOFILE" -o "simd_test_amd64.s"
+//go:generate gensimd -fn "addi8x16, subi8x16, addu8x16, subu8x16, addi16x8, subi16x8, muli16x8, shli16x8, shri16x8, addu16x8, subu16x8, mulu16x8, shlu16x8, shru16x8, addi32x4, subi32x4, muli32x4, shli32x4, shri32x4, addu32x4, subu32x4, mulu32x4, shlu32x4, shru32x4, addi64x2, subi64x2, addu64x2, subu64x2, addf32x4, subf32x4, mulf32x4, divf32x4, addf64x2, subf64x2, mulf64x2, divf64x2" -outfn "addi8x16s, subi8x16s, addu8x16s, subu8x16s, addi16x8s, subi16x8s, muli16x8s, shli16x8s, shri16x8s, addu16x8s, subu16x8s, mulu16x8s, shlu16x8s, shru16x8s, addi32x4s, subi32x4s, muli32x4s, shli32x4s, shri32x4s, addu32x4s, subu32x4s, mulu32x4s, shlu32x4s, shru32x4s, addi64x2s, subi64x2s, addu64x2s, subu64x2s, addf32x4s, subf32x4s, mulf32x4s, divf32x4s, addf64x2s, subf64x2s, mulf64x2s, divf64x2s" -f "$GOFILE" -o "simd_test_amd64.s"
 
 func addi8x16s(x, y simd.I8x16) simd.I8x16
 func subi8x16s(x, y simd.I8x16) simd.I8x16
@@ -44,6 +44,15 @@ func subi64x2s(x, y simd.I64x2) simd.I64x2
 func addu64x2s(x, y simd.U64x2) simd.U64x2
 func subu64x2s(x, y simd.U64x2) simd.U64x2
 
+func addf32x4s(x, y simd.F32x4) simd.F32x4
+func subf32x4s(x, y simd.F32x4) simd.F32x4
+func mulf32x4s(x, y simd.F32x4) simd.F32x4
+func divf32x4s(x, y simd.F32x4) simd.F32x4
+func addf64x2s(x, y simd.F64x2) simd.F64x2
+func subf64x2s(x, y simd.F64x2) simd.F64x2
+func mulf64x2s(x, y simd.F64x2) simd.F64x2
+func divf64x2s(x, y simd.F64x2) simd.F64x2
+
 func addi8x16(x, y simd.I8x16) simd.I8x16 { return simd.AddI8x16(x, y) }
 func subi8x16(x, y simd.I8x16) simd.I8x16 { return simd.SubI8x16(x, y) }
 func addu8x16(x, y simd.U8x16) simd.U8x16 { return simd.AddU8x16(x, y) }
@@ -75,6 +84,16 @@ func addi64x2(x, y simd.I64x2) simd.I64x2 { return simd.AddI64x2(x, y) }
 func subi64x2(x, y simd.I64x2) simd.I64x2 { return simd.SubI64x2(x, y) }
 func addu64x2(x, y simd.U64x2) simd.U64x2 { return simd.AddU64x2(x, y) }
 func subu64x2(x, y simd.U64x2) simd.U64x2 { return simd.SubU64x2(x, y) }
+
+func addf32x4(x, y simd.F32x4) simd.F32x4 { return simd.AddF32x4(x, y) }
+func subf32x4(x, y simd.F32x4) simd.F32x4 { return simd.SubF32x4(x, y) }
+func mulf32x4(x, y simd.F32x4) simd.F32x4 { return simd.MulF32x4(x, y) }
+func divf32x4(x, y simd.F32x4) simd.F32x4 { return simd.DivF32x4(x, y) }
+
+func addf64x2(x, y simd.F64x2) simd.F64x2 { return simd.AddF64x2(x, y) }
+func subf64x2(x, y simd.F64x2) simd.F64x2 { return simd.SubF64x2(x, y) }
+func mulf64x2(x, y simd.F64x2) simd.F64x2 { return simd.MulF64x2(x, y) }
+func divf64x2(x, y simd.F64x2) simd.F64x2 { return simd.DivF64x2(x, y) }
 
 func TestSimd(t *testing.T) {
 
@@ -123,6 +142,12 @@ func TestSimd(t *testing.T) {
 			var xU64x2 simd.U64x2
 			var yU64x2 simd.U64x2
 
+			var xF32x4 simd.F32x4
+			var yF32x4 simd.F32x4
+
+			var xF64x2 simd.F64x2
+			var yF64x2 simd.F64x2
+
 			for idx := 0; idx < 16; idx++ {
 				abs_a := a
 
@@ -157,16 +182,19 @@ func TestSimd(t *testing.T) {
 					yI32x4[idx] = int32(rand.Intn(abs_b))
 					xU32x4[idx] = uint32(rand.Intn(abs_a))
 					yU32x4[idx] = uint32(rand.Intn(abs_b))
+					xF32x4[idx] = rand.Float32()
+					yF32x4[idx] = rand.Float32()
 				}
 
 				if idx < 2 {
-
 					xI64x2[idx] = int64(rand.Intn(abs_a))
 					yI64x2[idx] = int64(rand.Intn(abs_b))
 					xU64x2[idx] = uint64(rand.Intn(abs_a) +
 						math.MaxInt64)
 					yU64x2[idx] = uint64(rand.Intn(abs_b) +
 						math.MaxInt64)
+					xF64x2[idx] = rand.ExpFloat64()
+					yF64x2[idx] = rand.ExpFloat64()
 				}
 
 			}
@@ -346,6 +374,62 @@ func TestSimd(t *testing.T) {
 			}
 			if subu64x2s(xU64x2, yU64x2) != subu64x2(xU64x2, yU64x2) {
 				t.Errorf("subu64x2(%v, %v)", xU64x2, yU64x2)
+			}
+
+			if addf32x4s(xF32x4, yF32x4) != addf32x4(xF32x4, yF32x4) {
+				t.Errorf("addf32x4(%v, %v)", xF32x4, yF32x4)
+				t.Error("x:", xF32x4)
+				t.Error("y:", yF32x4)
+				t.Error("s:", addf32x4s(xF32x4, yF32x4))
+				t.Error(" :", addf32x4(xF32x4, yF32x4))
+				t.FailNow()
+
+			}
+			if subf32x4s(xF32x4, yF32x4) != subf32x4(xF32x4, yF32x4) {
+				t.Errorf("subf32x4(%v, %v)", xF32x4, yF32x4)
+				t.Error("x:", xF32x4)
+				t.Error("y:", yF32x4)
+				t.Error("s:", subf32x4s(xF32x4, yF32x4))
+				t.Error(" :", subf32x4(xF32x4, yF32x4))
+			}
+			if mulf32x4s(xF32x4, yF32x4) != mulf32x4(xF32x4, yF32x4) {
+				t.Errorf("mulf32x4(%v, %v)", xF32x4, yF32x4)
+				t.Error("x:", xF32x4)
+				t.Error("y:", yF32x4)
+				t.Error("s:", mulf32x4s(xF32x4, yF32x4))
+				t.Error(" :", mulf32x4(xF32x4, yF32x4))
+			}
+			if divf32x4s(xF32x4, yF32x4) != divf32x4(xF32x4, yF32x4) {
+				t.Errorf("divf32x4(%v, %v)", xF32x4, yF32x4)
+				t.Error("x:", xF32x4)
+				t.Error("y:", yF32x4)
+				t.Error("s:", divf32x4s(xF32x4, yF32x4))
+				t.Error(" :", divf32x4(xF32x4, yF32x4))
+			}
+
+			if addf64x2s(xF64x2, yF64x2) != addf64x2(xF64x2, yF64x2) {
+				t.Errorf("addf64x2(%v, %v)", xF64x2, yF64x2)
+			}
+			if subf64x2s(xF64x2, yF64x2) != subf64x2(xF64x2, yF64x2) {
+				t.Errorf("subf64x2(%v, %v)", xF64x2, yF64x2)
+				t.Error("x:", xF64x2)
+				t.Error("y:", yF64x2)
+				t.Error("s:", subf64x2s(xF64x2, yF64x2))
+				t.Error(" :", subf64x2(xF64x2, yF64x2))
+			}
+			if mulf64x2s(xF64x2, yF64x2) != mulf64x2(xF64x2, yF64x2) {
+				t.Errorf("mulf64x2(%v, %v)", xF64x2, yF64x2)
+				t.Error("x:", xF64x2)
+				t.Error("y:", yF64x2)
+				t.Error("s:", mulf64x2s(xF64x2, yF64x2))
+				t.Error(" :", mulf64x2(xF64x2, yF64x2))
+			}
+			if divf64x2s(xF64x2, yF64x2) != divf64x2(xF64x2, yF64x2) {
+				t.Errorf("divf64x2(%v, %v)", xF64x2, yF64x2)
+				t.Error("x:", xF64x2)
+				t.Error("y:", yF64x2)
+				t.Error("s:", divf64x2s(xF64x2, yF64x2))
+				t.Error(" :", divf64x2(xF64x2, yF64x2))
 			}
 
 		}

@@ -49,7 +49,7 @@ func (r RegType) String() string {
 
 // size in bytes
 const DataRegSize = 8
-const XMM_REGSize = 16
+const XmmRegSize = 16
 
 const NumDataRegs = 14
 const NumXMM_REGs = 16

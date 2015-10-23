@@ -21,7 +21,7 @@ Execute `runtests.sh` to run the reference tests.
 - Bounds checking for slice accesses
 
 ## SIMD
-**SIMD types**
+**Available SIMD types**
 
     type I8x16 [16]int8
     type I16x8 [8]int16
@@ -34,7 +34,7 @@ Execute `runtests.sh` to run the reference tests.
     type F32x4 [4]float32
     type F64x2 [2]float64
 
-**SIMD functions**
+**Available SIMD functions**
 
     func AddI8x16(x, y I8x16) I8x16
     func SubI8x16(x, y I8x16) I8x16

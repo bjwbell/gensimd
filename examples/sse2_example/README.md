@@ -1,6 +1,14 @@
 # SSE2 Example
-Before building the sse2 example the command `gensimd` and the packages `https://github.com/bjwbell/gensimd/simd`, `https://github.com/bjwbell/gensimd/simd/sse2` need to be installed.
-To do so, execute `go install https://github.com/bjwbell/gensimd`, `go install https://github.com/bjwbell/gensimd/simd`, and `go install https://github.com/bjwbell/gensimd/simd/sse2`.
+Before building the sse2 example the command `gensimd` and the packages
+- https://github.com/bjwbell/gensimd/simd
+- https://github.com/bjwbell/gensimd/simd/sse2
+
+need to be installed. To do so, execute:
+```
+go install https://github.com/bjwbell/gensimd
+go install https://github.com/bjwbell/gensimd/simd
+go install https://github.com/bjwbell/gensimd/simd/sse2
+```
 
 After that, to build and run the example, execute:
 ```

@@ -22,7 +22,7 @@ Execute `runtests.sh` to run the reference tests.
 - Arrays and slices
 
 ## TODO
-- Bounds checking for slice accesses
+- Slice access bounds checking
 
 ## SIMD
 **Available SIMD types**

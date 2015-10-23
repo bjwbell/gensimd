@@ -79,6 +79,7 @@ Execute `runtests.sh` to run the reference tests.
     func DivF64x2(x, y F64x2) F64x2
 
 **TODO - SIMD Functions**
+
 The below functions will be implemented at a future date. They are more difficult because they have no directly equivalent SSE instructions.
 
     func ShlI64x2(x, shift uint8) I64x2

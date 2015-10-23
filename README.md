@@ -33,7 +33,7 @@ To build and run both examples execute `./run_examples.sh`.
 To build and run the reference tests execute `./run_tests.sh`.
 
 ## Go Language Subset
-The `gensimd` command supports only a small subset of Go, for functions it translates from Go to assembly. 
+For functions `gensimd` translates from Go to assembly it supports only a small subset of Go.
 
 ### Go - Supported
 - Integers and floats - `uint8/int8`, `uint16/int16`, `uint32/int32`, `uint64/int64`, `float32/float64`

@@ -1,16 +1,10 @@
 #!/bin/sh
-
-cd simd/sse2
-go install
-cd ../..
-
-cd simd
-go install
-cd ..
-
+echo "Installing gensimd, gensimd/simd, gensimd/simd/sse2"
+go install ./simd/sse2 ./simd
 go generate
 go install
 
+echo "Running simd_example"
 cd examples/simd_example
 rm -f *.s
 go generate
@@ -20,6 +14,7 @@ rm *.s
 go clean
 cd ../..
 
+echo "Running sse2_example"
 cd examples/sse2_example
 rm -f *.s
 go generate

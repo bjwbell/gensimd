@@ -110,7 +110,8 @@ func (inst Instruction) GetSized(size uint) Instr {
 type InstructionType int
 
 const (
-	I_ADD InstructionType = iota
+	I_INVALID InstructionType = iota
+	I_ADD
 	I_AND
 	I_CMP
 
@@ -533,12 +534,12 @@ func MovMemIndirectReg(indent string, datatype InstrOpType, srcName string, srcO
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func MovMemIndirectMem(indent string, datatype OpDataType, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, size uint, tmp1, tmp2 *register) string {
-	if tmp1.width/8 < sizePtr() {
+func MovMemIndirectMem(indent string, datatype OpDataType, srcName string, srcOffset int, srcReg *register, dstName string, dstOffset int, dstReg *register, size uint, tmpAddr, tmpData *register) string {
+	if tmpAddr.width/8 < sizePtr() {
 		internal("register width smaller than ptr size ")
 	}
-	if size > tmp2.width/8 && size%(tmp2.width/8) != 0 {
-		internal(fmt.Sprintf("Invalid size (%v), reg width/8 (%v)", size, tmp1.width/8))
+	if size > tmpData.width/8 && size%(tmpData.width/8) != 0 {
+		internal(fmt.Sprintf("Invalid size (%v), reg width/8 (%v)", size, tmpAddr.width/8))
 	}
 	addrdatatype := OpDataType{INTEGER_OP,
 		InstrData{signed: false, size: sizePtr()}, XMM_INVALID}
@@ -550,32 +551,32 @@ func MovMemIndirectMem(indent string, datatype OpDataType, srcName string, srcOf
 
 	var count uint
 	var chunk uint
-	if size <= tmp2.width/8 {
+	if size <= tmpData.width/8 {
 		count = 1
 		chunk = size
 	} else {
-		chunk = (tmp2.width / 8)
+		chunk = (tmpData.width / 8)
 		count = size / chunk
 	}
 
 	asm += indent
 	asm += fmt.Sprintf("%-9v    %v+%v(%v), %v\n",
-		movaddr, srcName, srcOffset, srcReg.name, tmp1.name)
+		movaddr, srcName, srcOffset, srcReg.name, tmpAddr.name)
 
 	for i := uint(0); i < count; i++ {
 
 		asm += indent
 		asm += fmt.Sprintf("%-9v    (%v), %v\n",
-			mov, tmp1.name, tmp2.name)
+			mov, tmpAddr.name, tmpData.name)
 
 		asm += indent
 		asm += fmt.Sprintf("%-9v    %v, %v+%v(%v)\n",
-			mov, tmp2.name, dstName, dstOffset, dstReg.name)
+			mov, tmpData.name, dstName, dstOffset, dstReg.name)
 
 		dstOffset += int(chunk)
 
 		if i < count-1 {
-			asm += AddImm32Reg(indent, uint32(chunk), tmp1)
+			asm += AddImm32Reg(indent, uint32(chunk), tmpAddr)
 		}
 	}
 
@@ -1196,11 +1197,9 @@ func CmpOp(indent string, data OpDataType, op token.Token, x *register, y *regis
 	default:
 		internal(fmt.Sprintf("Unknown Op token (%v)", op))
 	case token.EQL:
-		seteq := "SETEQ"
-		asm += indent + fmt.Sprintf("%-9v    %v\n", seteq, result.name)
+		asm += indent + fmt.Sprintf("%-9v    %v\n", SETEQ, result.name)
 	case token.NEQ:
-		setneq := "SETNEQ"
-		asm += indent + fmt.Sprintf("%-9v    %v\n", setneq, result.name)
+		asm += indent + fmt.Sprintf("%-9v    %v\n", SETNE, result.name)
 	case token.LEQ:
 		// for some reason the SETXX are flipped for xmm compares
 		if data.op == XMM_OP {

@@ -2,45 +2,109 @@ package codegen
 
 import "fmt"
 
+var simdToGoAsm = map[SimdInstr]InstructionType{
+	AddI8x16: I_PADD,
+	SubI8x16: I_PSUB,
+	AddI16x8: I_PADD,
+	SubI16x8: I_PSUB,
+	MulI16x8: I_PIMUL,
+	ShlI16x8: I_PSLL,
+	ShrI16x8: I_PSRA,
+	AddI32x4: I_PADD,
+	SubI32x4: I_PSUB,
+	ShlI32x4: I_PSLL,
+	ShrI32x4: I_PSRA,
+	//ShufI32x4:
+	AddI64x2: I_PADD,
+	SubI64x2: I_PSUB,
+	AddU8x16: I_PADD,
+	SubU8x16: I_PSUB,
+	AddU16x8: I_PADD,
+	SubU16x8: I_PSUB,
+	MulU16x8: I_PIMUL, // TODO: calculate properly using I_PMUL
+	ShlU16x8: I_PSLL,
+	//ShrU16x8:
+	AddU32x4: I_PADD,
+	SubU32x4: I_PSUB,
+	//MulU32x4: I_PMUL,
+	ShlU32x4: I_PSLL,
+	ShrU32x4: I_PSRL,
+	//ShufU32x4:
+	AddU64x2: I_PADD,
+	SubU64x2: I_PSUB,
+	AddF32x4: I_ADD,
+	SubF32x4: I_SUB,
+	MulF32x4: I_MUL,
+	DivF32x4: I_DIV,
+	AddF64x2: I_ADD,
+	SubF64x2: I_SUB,
+	MulF64x2: I_MUL,
+	DivF64x2: I_DIV,
+}
+
+type SimdInstr int
+
+const (
+	SIMD_INVALID SimdInstr = iota
+	// Integer
+	AddI8x16
+	SubI8x16
+	AddI16x8
+	SubI16x8
+	MulI16x8
+	ShlI16x8
+	ShrI16x8
+	AddI32x4
+	SubI32x4
+	MulI32x4
+	ShlI32x4
+	ShrI32x4
+	ShufI32x4
+	AddI64x2
+	SubI64x2
+	AddU8x16
+	SubU8x16
+	AddU16x8
+	SubU16x8
+	MulU16x8
+	ShlU16x8
+	ShrU16x8
+	AddU32x4
+	SubU32x4
+	MulU32x4
+	ShlU32x4
+	ShrU32x4
+	ShufU32x4
+	AddU64x2
+	SubU64x2
+	AddF32x4
+	SubF32x4
+	MulF32x4
+	DivF32x4
+	AddF64x2
+	SubF64x2
+	MulF64x2
+	DivF64x2
+	LoadSi128
+)
+
+func getSimdInstr(name string) (InstructionType, bool) {
+	for simdinstr, goinstr := range simdToGoAsm {
+		if fmt.Sprintf("%v", simdinstr) == name {
+			return goinstr, true
+		}
+	}
+	return I_INVALID, false
+}
+
 type intrinsic func(f *Function, x, y, result *identifier) (string, *Error)
 
 var intrinsics = map[string]intrinsic{
-	"AddI8x16": addI8x16,
-	"SubI8x16": subI8x16,
-	"AddI16x8": addI16x8,
-	"SubI16x8": subI16x8,
-	"MulI16x8": mulI16x8,
-	"ShlI16x8": shlI16x8,
-	"ShrI16x8": shrI16x8,
-	"AddI32x4": addI32x4,
-	"SubI32x4": subI32x4,
 	"MulI32x4": mulI32x4,
-	"ShlI32x4": shlI32x4,
-	"ShrI32x4": shrI32x4,
-	"AddI64x2": addI64x2,
-	"SubI64x2": subI64x2,
-	"AddU8x16": addU8x16,
-	"SubU8x16": subU8x16,
-	"AddU16x8": addU16x8,
-	"SubU16x8": subU16x8,
-	"MulU16x8": mulU16x8,
-	"ShlU16x8": shlU16x8,
+	//"ShufI32x4": shufI32x4,
+	"MulU32x4": mulI32x4, //TODO: FIX
 	"ShrU16x8": shrU16x8,
-	"AddU32x4": addU32x4,
-	"SubU32x4": subU32x4,
-	"MulU32x4": mulU32x4,
-	"ShlU32x4": shlU32x4,
-	"ShrU32x4": shrU32x4,
-	"AddU64x2": addU64x2,
-	"SubU64x2": subU64x2,
-	"AddF32x4": addF32x4,
-	"SubF32x4": subF32x4,
-	"MulF32x4": mulF32x4,
-	"DivF32x4": divF32x4,
-	"AddF64x2": addF64x2,
-	"SubF64x2": subF64x2,
-	"MulF64x2": mulF64x2,
-	"DivF64x2": divF64x2,
+	//"ShufU32x4": shufU32x5,
 }
 
 func packedOp(f *Function, instrtype InstructionType, optypes XmmData, x, y, result *identifier) (string, *Error) {
@@ -87,35 +151,7 @@ func instrImm8RegReg(f *Function, instr Instr, imm8 uint8, src, dst *register) s
 
 // implementations of SIMD functions:
 // add, sub, mul, div, <<, >> for each type
-func addI8x16(f *Function, x, y, result *identifier) (string, *Error) {
-	return packedOp(f, I_PADD, XMM_I8X16, x, y, result)
-}
-func subI8x16(f *Function, x, y, result *identifier) (string, *Error) {
-	return packedOp(f, I_PSUB, XMM_I8X16, y, x, result)
-}
 
-func addI16x8(f *Function, x, y, result *identifier) (string, *Error) {
-	return packedOp(f, I_PADD, XMM_I16X8, x, y, result)
-}
-func subI16x8(f *Function, x, y, result *identifier) (string, *Error) {
-	return packedOp(f, I_PSUB, XMM_I16X8, y, x, result)
-}
-func mulI16x8(f *Function, x, y, result *identifier) (string, *Error) {
-	return packedOp(f, I_PIMUL, XMM_I16X8, x, y, result)
-}
-func shlI16x8(f *Function, x, shift, result *identifier) (string, *Error) {
-	return packedOp(f, I_PSLL, XMM_I16X8, shift, x, result)
-}
-func shrI16x8(f *Function, x, shift, result *identifier) (string, *Error) {
-	return packedOp(f, I_PSRA, XMM_I16X8, shift, x, result)
-}
-
-func addI32x4(f *Function, x, y, result *identifier) (string, *Error) {
-	return packedOp(f, I_PADD, XMM_I32X4, x, y, result)
-}
-func subI32x4(f *Function, x, y, result *identifier) (string, *Error) {
-	return packedOp(f, I_PSUB, XMM_I32X4, y, x, result)
-}
 func mulI32x4(f *Function, x, y, result *identifier) (string, *Error) {
 	// native x64 SSE4.1 instruction "PMULLD"
 	// emulate on SSE2 with below
@@ -173,19 +209,6 @@ func mulI32x4(f *Function, x, y, result *identifier) (string, *Error) {
 	return asm, nil
 
 }
-func shlI32x4(f *Function, x, shift, result *identifier) (string, *Error) {
-	return packedOp(f, I_PSLL, XMM_I32X4, shift, x, result)
-}
-func shrI32x4(f *Function, x, shift, result *identifier) (string, *Error) {
-	return packedOp(f, I_PSRA, XMM_I32X4, shift, x, result)
-}
-
-func addI64x2(f *Function, x, y, result *identifier) (string, *Error) {
-	return packedOp(f, I_PADD, XMM_I64X2, x, y, result)
-}
-func subI64x2(f *Function, x, y, result *identifier) (string, *Error) {
-	return packedOp(f, I_PSUB, XMM_I64X2, y, x, result)
-}
 
 // TODO
 // the shift count for PSLLO (intel instruction PSLLDQ)
@@ -198,30 +221,6 @@ func subI64x2(f *Function, x, y, result *identifier) (string, *Error) {
 // func shrI64x2(f *Function, x, shift, result *identifier) (string, *Error) {
 // }
 
-func addU8x16(f *Function, x, y, result *identifier) (string, *Error) {
-	// the PADD instructions work for both signed and unsigned values
-	return addI8x16(f, x, y, result)
-}
-func subU8x16(f *Function, x, y, result *identifier) (string, *Error) {
-	// the PSUB instructions work for both signed and unsigned values
-	return subI8x16(f, x, y, result)
-}
-
-func addU16x8(f *Function, x, y, result *identifier) (string, *Error) {
-	// the PADD instructions work for both signed and unsigned values
-	return addI16x8(f, x, y, result)
-}
-func subU16x8(f *Function, x, y, result *identifier) (string, *Error) {
-	// the PSUB instructions work for both signed and unsigned values
-	return subI16x8(f, x, y, result)
-}
-func mulU16x8(f *Function, x, y, result *identifier) (string, *Error) {
-	// TODO: calculate properly
-	return mulI16x8(f, x, y, result)
-}
-func shlU16x8(f *Function, x, count, result *identifier) (string, *Error) {
-	return shlI16x8(f, x, count, result)
-}
 func shrU16x8(f *Function, x, count, result *identifier) (string, *Error) {
 
 	// PSRL isn't used before go1.5.2 (https://github.com/golang/go/issues/13010)
@@ -276,33 +275,6 @@ func shrU16x8(f *Function, x, count, result *identifier) (string, *Error) {
 	}
 }
 
-func addU32x4(f *Function, x, y, result *identifier) (string, *Error) {
-	// the PADD instructions work for both signed and unsigned values
-	return addI32x4(f, x, y, result)
-}
-func subU32x4(f *Function, x, y, result *identifier) (string, *Error) {
-	// the PSUB instructions work for both signed and unsigned values
-	return subI32x4(f, x, y, result)
-}
-func mulU32x4(f *Function, x, y, result *identifier) (string, *Error) {
-	return mulI32x4(f, x, y, result)
-}
-func shlU32x4(f *Function, x, shift, result *identifier) (string, *Error) {
-	return shlI32x4(f, x, shift, result)
-}
-func shrU32x4(f *Function, x, shift, result *identifier) (string, *Error) {
-	return packedOp(f, I_PSRL, XMM_U32X4, shift, x, result)
-}
-
-func addU64x2(f *Function, x, y, result *identifier) (string, *Error) {
-	// the PADD instructions work for both signed and unsigned values
-	return addI64x2(f, x, y, result)
-}
-func subU64x2(f *Function, x, y, result *identifier) (string, *Error) {
-	// the PSUB instructions work for both signed and unsigned values
-	return subI64x2(f, x, y, result)
-}
-
 // TODO
 // the shift count for PSLLO (intel instruction PSLLDQ)
 // must be an imm8 NOT a register or memory location
@@ -315,29 +287,3 @@ func subU64x2(f *Function, x, y, result *identifier) (string, *Error) {
 // must be an imm8 NOT a register or memory location
 // func shrU64x2(f *Function, x, shift, result *identifier) (string, *Error) {
 // }
-
-func addF32x4(f *Function, x, y, result *identifier) (string, *Error) {
-	return packedOp(f, I_ADD, XMM_4X_F32, x, y, result)
-}
-func subF32x4(f *Function, x, y, result *identifier) (string, *Error) {
-	return packedOp(f, I_SUB, XMM_4X_F32, y, x, result)
-}
-func mulF32x4(f *Function, x, y, result *identifier) (string, *Error) {
-	return packedOp(f, I_MUL, XMM_4X_F32, x, y, result)
-}
-func divF32x4(f *Function, x, y, result *identifier) (string, *Error) {
-	return packedOp(f, I_DIV, XMM_4X_F32, y, x, result)
-}
-
-func addF64x2(f *Function, x, y, result *identifier) (string, *Error) {
-	return packedOp(f, I_ADD, XMM_2X_F64, x, y, result)
-}
-func subF64x2(f *Function, x, y, result *identifier) (string, *Error) {
-	return packedOp(f, I_SUB, XMM_2X_F64, y, x, result)
-}
-func mulF64x2(f *Function, x, y, result *identifier) (string, *Error) {
-	return packedOp(f, I_MUL, XMM_2X_F64, x, y, result)
-}
-func divF64x2(f *Function, x, y, result *identifier) (string, *Error) {
-	return packedOp(f, I_DIV, XMM_2X_F64, y, x, result)
-}

@@ -16,6 +16,7 @@ type simdtype struct {
 	elemSize uint
 	align    uint
 	optype   OpDataType
+	t        reflect.Type
 }
 
 func simdReflect(t reflect.Type) simdtype {
@@ -28,6 +29,7 @@ func simdReflect(t reflect.Type) simdtype {
 		size:     uint(t.Size()),
 		elemSize: elemSize,
 		align:    uint(t.Size()),
+		t:        t,
 	}
 }
 
@@ -72,6 +74,7 @@ type sse2type struct {
 	elemSize uint
 	align    uint
 	optype   OpDataType
+	t        reflect.Type
 }
 
 func sse2Reflect(t reflect.Type) sse2type {
@@ -84,6 +87,7 @@ func sse2Reflect(t reflect.Type) sse2type {
 		size:     uint(t.Size()),
 		elemSize: elemSize,
 		align:    uint(t.Size()),
+		t:        t,
 	}
 }
 
@@ -168,8 +172,7 @@ func sizeofElem(t types.Type) uint {
 	case *types.Array:
 		e = t.Elem()
 	case *types.Named:
-		typeinfo, ok := simdInfo(t)
-		if ok {
+		if typeinfo, ok := simdInfo(t); ok {
 			return typeinfo.elemSize
 		}
 		panic(internal(
@@ -362,7 +365,12 @@ func reflectType(t types.Type) reflect.Type {
 	case *types.Array:
 		return reflect.ArrayOf(int(t.Len()), reflectType(t.Elem()))
 	case *types.Named:
-		// TODO
+		if st, ok := simdInfo(t); ok {
+			return st.t
+		}
+		if sse2, ok := sse2Info(t); ok {
+			return sse2.t
+		}
 	}
 	internal(fmt.Sprintf("error unknown type:\"%v\"", t))
 	panic("")

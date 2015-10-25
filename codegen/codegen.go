@@ -257,10 +257,13 @@ func (f *Function) stackAlign() uint32 {
 	return stackAlignment
 }
 
-func (f *Function) GoProto() (string, string) {
+func (f *Function) GoProto() (string, string, string) {
 	pkgname := "package " + f.ssa.Package().Pkg.Name() + "\n"
-	fnproto := "func " + f.outfname() + "(" + strings.TrimPrefix(f.ssa.Signature.String(), "func(")
-	return pkgname, fnproto
+	imports := "import " + "\"github.com/bjwbell/gensimd/simd\"\n"
+	sig := strings.TrimPrefix(f.ssa.Signature.String(), "func(")
+	sig = strings.Replace(sig, "github.com/bjwbell/gensimd/", "", -1)
+	fnproto := "func " + f.outfname() + "(" + sig
+	return pkgname, imports, fnproto
 }
 
 func (f *Function) outfname() string {
@@ -547,13 +550,21 @@ func (f *Function) SimdIntrinsic(call *ssa.Call) (string, *Error) {
 	y := f.Ident(args[1])
 	result := f.Ident(call)
 	name := call.Common().StaticCallee().Name()
-
-	intrinsic, ok := intrinsics[name]
-	if !ok {
-		panic(internal(fmt.Sprintf("Expected simd intrinsic got (%v)", name)))
+	if simdinstr, ok := getSimdInstr(name); ok {
+		if result.typ != x.typ {
+			panic(internal(fmt.Sprintf("Simd variable type (%v) and op type (%v)  dont match", result.typ.String(), x.typ.String())))
+		}
+		optypes := GetOpDataType(x.typ)
+		a, e := packedOp(f, simdinstr, optypes.xmmvariant, y, x, result)
+		return a, e
+	} else {
+		intrinsic, ok := intrinsics[name]
+		if !ok {
+			panic(internal(fmt.Sprintf("Expected simd intrinsic got (%v)", name)))
+		}
+		a, e = intrinsic(f, x, y, result)
+		return a, e
 	}
-	a, e = intrinsic(f, x, y, result)
-	return a, e
 }
 
 func isSimdIntrinsic(call *ssa.Call) bool {
@@ -561,8 +572,12 @@ func isSimdIntrinsic(call *ssa.Call) bool {
 		return false
 	}
 	name := call.Common().StaticCallee().Name()
-	_, ok := intrinsics[name]
-	return ok
+	if _, ok := getSimdInstr(name); ok {
+		return ok
+	} else {
+		_, ok := intrinsics[name]
+		return ok
+	}
 }
 
 func isSSE2Intrinsic(call *ssa.Call) (sse2.SSE2Instr, bool) {
@@ -1534,13 +1549,13 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 			&tmp)
 		f.freeReg(tmp)
 	} else {
-		var tmp1 register
+		var tmpData register
 		if isSimd(instr.Type()) || isSSE2(instr.Type()) {
-			tmp1 = f.allocReg(XMM_REG, XmmRegSize)
+			tmpData = f.allocReg(XMM_REG, XmmRegSize)
 		} else {
-			tmp1 = f.allocReg(DATA_REG, DataRegSize)
+			tmpData = f.allocReg(regType(instr.Type()), DataRegSize)
 		}
-		tmp2 := f.allocReg(regType(instr.Type()), DataRegSize)
+		tmpAddr := f.allocReg(DATA_REG, DataRegSize)
 
 		asm += MovMemIndirectMem(
 			f.Indent,
@@ -1552,10 +1567,10 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 			aOffset,
 			&aReg,
 			size,
-			&tmp1,
-			&tmp2)
-		f.freeReg(tmp1)
-		f.freeReg(tmp2)
+			&tmpAddr,
+			&tmpData)
+		f.freeReg(tmpAddr)
+		f.freeReg(tmpData)
 
 	}
 	f.identifiers[assignment.name] = *assignment
@@ -1630,8 +1645,11 @@ func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 		asm += MovMemReg(f.Indent, optypes, xInfo.name, xOffset, &xReg, &addrReg)
 	} else if isArray(xInfo.typ) {
 		asm += Lea(f.Indent, xInfo.name, xOffset, &xReg, &addrReg)
+	} else if isSimd(xInfo.typ) {
+		asm += Lea(f.Indent, xInfo.name, xOffset, &xReg, &addrReg)
 	} else {
-		internal("indexing non-slice/array variable")
+
+		internal(fmt.Sprintf("indexing non-slice/array variable, type %v", xInfo.typ))
 	}
 
 	optypes := GetIntegerOpDataType(false, idxReg.size())

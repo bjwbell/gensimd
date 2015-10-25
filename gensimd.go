@@ -1,6 +1,6 @@
 package main
 
-//go:generate stringer -type=Instr,InstrOpType,InstructionType,XmmData codegen
+//go:generate stringer -type=Instr,InstrOpType,InstructionType,SimdInstr,XmmData codegen
 //go:generate stringer -type=SSE2Instr codegen/sse2
 
 import (
@@ -130,6 +130,7 @@ func main() {
 	assembly := codegen.AssemblyFilePreamble()
 	goprotos := ""
 	protoPkgName := ""
+	protoImports := ""
 	foundpkg := false
 	for _, pkg := range prog.AllPackages() {
 		if pkg.Pkg.Path() == filePkgPath && pkg.Pkg.Name() == filePkgName {
@@ -154,10 +155,13 @@ func main() {
 							fmt.Println(asm)
 						} else {
 							if *goprotofile != "" {
-								pkg, proto := fn.GoProto()
-								goprotos += proto + "\n"
+								pkg, imports, proto := fn.GoProto()
+								goprotos += proto
 								if protoPkgName == "" {
 									protoPkgName = pkg + "\n"
+								}
+								if protoImports == "" {
+									protoImports = imports
 								}
 							}
 							assembly += asm
@@ -175,7 +179,7 @@ func main() {
 
 	writeFile(*output, assembly)
 	if *goprotofile != "" {
-		writeFile(*goprotofile, protoPkgName+"\n"+goprotos)
+		writeFile(*goprotofile, protoPkgName+"\n"+protoImports+"\n"+goprotos)
 	}
 }
 

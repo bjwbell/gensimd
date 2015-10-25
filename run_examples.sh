@@ -22,3 +22,14 @@ go build
 ./sse2_example
 rm *.s
 go clean
+cd ../..
+
+echo "Running distsq"
+cd examples/distsq
+rm -f *.s
+go generate
+go build
+./distsq
+rm *.s
+go clean
+cd ../../

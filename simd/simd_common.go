@@ -95,6 +95,22 @@ func ShrI32x4(x I32x4, shift uint8) I32x4 {
 	}
 	return val
 }
+func ShufI32x4(x I32x4, order uint8) I32x4 {
+	val := I32x4{}
+	for i := 0; i < 4; i++ {
+		switch (order >> uint8(2*i)) & 0x3 {
+		case 0:
+			val[i] = x[0]
+		case 1:
+			val[i] = x[1]
+		case 2:
+			val[i] = x[2]
+		case 3:
+			val[i] = x[3]
+		}
+	}
+	return val
+}
 
 func AddI64x2(x, y I64x2) I64x2 {
 	val := I64x2{}
@@ -211,6 +227,23 @@ func ShrU32x4(x U32x4, shift uint8) U32x4 {
 		val[i] = x[i] >> shift
 	}
 	return val
+}
+func ShufU32x4(x U32x4, order uint8) U32x4 {
+	val := U32x4{}
+	for i := 0; i < 4; i++ {
+		switch (order >> uint8(2*i)) & 0x3 {
+		case 0:
+			val[i] = x[0]
+		case 1:
+			val[i] = x[1]
+		case 2:
+			val[i] = x[2]
+		case 3:
+			val[i] = x[3]
+		}
+	}
+	return val
+
 }
 
 func AddU64x2(x, y U64x2) U64x2 {

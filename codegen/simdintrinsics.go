@@ -14,7 +14,6 @@ var simdToGoAsm = map[SimdInstr]InstructionType{
 	SubI32x4: I_PSUB,
 	ShlI32x4: I_PSLL,
 	ShrI32x4: I_PSRA,
-	//ShufI32x4:
 	AddI64x2: I_PADD,
 	SubI64x2: I_PSUB,
 	AddU8x16: I_PADD,
@@ -29,7 +28,6 @@ var simdToGoAsm = map[SimdInstr]InstructionType{
 	//MulU32x4: I_PMUL,
 	ShlU32x4: I_PSLL,
 	ShrU32x4: I_PSRL,
-	//ShufU32x4:
 	AddU64x2: I_PADD,
 	SubU64x2: I_PSUB,
 	AddF32x4: I_ADD,
@@ -100,11 +98,11 @@ func getSimdInstr(name string) (InstructionType, bool) {
 type intrinsic func(f *Function, x, y, result *identifier) (string, *Error)
 
 var intrinsics = map[string]intrinsic{
-	"MulI32x4": mulI32x4,
-	//"ShufI32x4": shufI32x4,
-	"MulU32x4": mulI32x4, //TODO: FIX
-	"ShrU16x8": shrU16x8,
-	//"ShufU32x4": shufU32x5,
+	"MulI32x4":  mulI32x4,
+	"ShufI32x4": shufU32x4,
+	"MulU32x4":  mulI32x4, //TODO: FIX
+	"ShrU16x8":  shrU16x8,
+	"ShufU32x4": shufU32x4,
 }
 
 func packedOp(f *Function, instrtype InstructionType, optypes XmmData, x, y, result *identifier) (string, *Error) {
@@ -287,3 +285,34 @@ func shrU16x8(f *Function, x, count, result *identifier) (string, *Error) {
 // must be an imm8 NOT a register or memory location
 // func shrU64x2(f *Function, x, shift, result *identifier) (string, *Error) {
 // }
+
+func shufU32x4(f *Function, x, result, order *identifier) (string, *Error) {
+
+	asm, src, err := f.LoadSimd(x)
+	if err != nil {
+		panic(internal("couldn't load SIMD value"))
+	}
+
+	if order.cnst == nil {
+		msg := "Shuf(I/U)32x4 the shuffle order operand must be a constant"
+		return ErrorMsg(msg)
+	}
+	orderImm8 := uint8(order.cnst.Uint64())
+	if uint64(orderImm8) != order.cnst.Uint64() {
+		msgstr := "Shuf(I/U)32x4 the shuffle order operand (%v) must be <= 255"
+		return ErrorMsg(fmt.Sprintf(msgstr, order.cnst.Uint64()))
+	}
+
+	dst := f.allocReg(XMM_REG, XmmRegSize)
+
+	asm += instrImm8RegReg(f, PSHUFL, orderImm8, src, &dst)
+
+	a, e := f.StoreSimd(&dst, result)
+	if e != nil {
+		panic(internal("couldn't store SIMD register"))
+	}
+	asm += a
+	f.freeReg(dst)
+
+	return asm, nil
+}

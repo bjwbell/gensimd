@@ -1676,7 +1676,9 @@ func (f *Function) AllocInstr(instr *ssa.Alloc) (string, *Error) {
 
 	}
 	if instr.Heap {
-		return ErrorMsg("AllocInstr: heap alloc")
+		msg := "Heap allocations are unsupported, ssa variable: %v, type: %v"
+		msgstr := fmt.Sprintf(msg, instr.Name(), instr.Type())
+		return ErrorMsg(msgstr)
 	}
 
 	//Alloc values are always addresses, and have pointer types, so the type

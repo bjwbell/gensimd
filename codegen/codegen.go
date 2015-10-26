@@ -1676,7 +1676,7 @@ func (f *Function) AllocInstr(instr *ssa.Alloc) (string, *Error) {
 
 	}
 	if instr.Heap {
-		msg := "Heap allocations are unsupported, ssa variable: %v, type: %v"
+		msg := "Heap allocations are unsupported (are all print and log statements removed?), ssa variable: %v, type: %v"
 		msgstr := fmt.Sprintf(msg, instr.Name(), instr.Type())
 		return ErrorMsg(msgstr)
 	}

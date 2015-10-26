@@ -43,6 +43,7 @@ For functions `gensimd` translates from Go to assembly it supports only a small 
 - Arrays and slices
 
 ### Go - Unsupported
+- Heap allocated local variables
 - Multiple and named return values
 - Builtins except `len`
 - Function calls except to `simd.*`

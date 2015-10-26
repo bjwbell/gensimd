@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/token"
 	"math"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -156,6 +157,10 @@ func (f *Function) GoAssembly() (string, *Error) {
 	return asm, err
 }
 
+func (f *Function) Position(pos token.Pos) token.Position {
+	return f.ssa.Prog.Fset.Position(pos)
+}
+
 func (f *Function) Params() (string, *Error) {
 	// offset in bytes from frame pointer (FP)
 	offset := int(0)
@@ -168,7 +173,10 @@ func (f *Function) Params() (string, *Error) {
 		} else if basic, ok := p.Type().(*types.Basic); ok {
 			switch basic.Kind() {
 			default:
-				return ErrorMsg(fmt.Sprintf("Unsupported param type (%v)", basic))
+				err := ErrorMsg2(fmt.Sprintf("Unsupported param type (%v)", basic))
+				err.Pos = p.Pos()
+				return "", err
+
 			case types.Float32, types.Float64:
 				break
 
@@ -281,7 +289,9 @@ func (f *Function) ZeroSsaLocals() (string, *Error) {
 
 	for _, local := range locals {
 		if local.Heap {
-			return ErrorMsg(fmt.Sprintf("Can't heap alloc local, name: %v", local.Name()))
+			err := ErrorMsg2(fmt.Sprintf("Can't heap alloc local, name: %v", local.Name()))
+			err.Pos = local.Pos()
+			return "", err
 		}
 		sp := getRegister(REG_SP)
 
@@ -383,7 +393,7 @@ func (f *Function) Instr(instr ssa.Instruction) (string, *Error) {
 
 	switch instr := instr.(type) {
 	default:
-		asm = f.Indent + fmt.Sprintf("Unknown ssa instruction: %v\n", instr)
+		err = &Error{Err: fmt.Errorf("Unknown ssa instruction (type:%v): %v\n", reflect.TypeOf(instr), instr), Pos: instr.Pos()}
 	case *ssa.Alloc:
 		asm, err = f.AllocInstr(instr)
 	case *ssa.BinOp:
@@ -396,6 +406,8 @@ func (f *Function) Instr(instr ssa.Instruction) (string, *Error) {
 		asm, err = errormsg("changing between types unsupported")
 	case *ssa.Convert:
 		asm, err = f.Convert(instr)
+	case *ssa.DebugRef:
+		// Nothing to do
 	case *ssa.Defer:
 		asm, err = errormsg("defer unsupported")
 	case *ssa.Extract:
@@ -444,6 +456,10 @@ func (f *Function) Instr(instr ssa.Instruction) (string, *Error) {
 		asm, err = errormsg("type assert unsupported")
 	case *ssa.UnOp:
 		asm, err = f.UnOp(instr)
+	}
+
+	if err != nil && !err.Pos.IsValid() {
+		err.Pos = instr.Pos()
 	}
 
 	return asm, err
@@ -535,7 +551,7 @@ func (f *Function) Call(call *ssa.Call) (string, *Error) {
 	} else if call.Common().StaticCallee() != nil {
 		name = call.Common().StaticCallee().Name()
 	}
-	msg := fmt.Sprintf("function calls are not supported, func name (%v), description (%v), ",
+	msg := fmt.Sprintf("function calls are not supported, func name (%v), description (%v)",
 		name, call.Common().Description())
 	return ErrorMsg(msg)
 

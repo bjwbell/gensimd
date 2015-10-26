@@ -10,7 +10,7 @@ rm -f *.s
 go generate
 go build
 ./simd_example
-rm *.s
+rm -f *.s
 go clean
 cd ../..
 
@@ -20,7 +20,7 @@ rm -f *.s
 go generate
 go build
 ./sse2_example
-rm *.s
+rm -f *.s
 go clean
 cd ../..
 
@@ -30,7 +30,7 @@ rm -f *.s
 go generate
 go build
 ./distsq
-rm *.s
-rm distsq_simd_proto.go
+rm -f *.s
+rm -f distsq_simd_proto.go
 go clean
 cd ../../

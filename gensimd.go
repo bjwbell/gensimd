@@ -113,7 +113,7 @@ func main() {
 	}
 
 	// Create and build SSA-form program representation.
-	builderMode := ssa.SanityCheckFunctions
+	builderMode := ssa.SanityCheckFunctions | ssa.GlobalDebug
 	if *ssaDump {
 		builderMode = ssa.PrintFunctions
 	}
@@ -149,7 +149,13 @@ func main() {
 					}
 					if asm, err := fn.GoAssembly(); err != nil {
 						msg := "Error creating fn asm: \"%v\"\n"
-						log.Fatalf(msg, err)
+						msgp := "Error creating fn asm, %v, \"%v\"\n"
+						position := fn.Position(err.Pos)
+						if position.IsValid() {
+							log.Fatalf(msgp, position, err.Err)
+						} else {
+							log.Fatalf(msg, err.Err)
+						}
 					} else {
 						if *output == "" {
 							fmt.Println(asm)

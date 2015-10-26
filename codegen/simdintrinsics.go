@@ -121,7 +121,7 @@ func packedOp(f *Function, instrtype InstructionType, optypes XmmData, x, y, res
 		return "", err
 	}
 	asm += b
-	asm += instrRegReg(f, instr, regx, regy)
+	asm += instrRegReg(f.Indent, instr, regx, regy)
 	c, err := f.StoreSimd(regy, result, pos)
 	if err != nil {
 		return "", err
@@ -132,12 +132,6 @@ func packedOp(f *Function, instrtype InstructionType, optypes XmmData, x, y, res
 	f.freeReg(regy)
 
 	return asm, err
-}
-
-func instrRegReg(f *Function, instr Instr, src, dst *register) string {
-	asm := f.Indent
-	asm += fmt.Sprintf("%-9v    %v, %v\n", instr, src.name, dst.name)
-	return asm
 }
 
 func instrImm8Reg(f *Function, instr Instr, imm8 uint8, dst *register) string {
@@ -172,14 +166,14 @@ func mulI32x4(f *Function, x, y, result *identifier, pos token.Pos) (string, *Er
 	asm += b
 
 	asm += MovRegReg(f.Indent, OpDataType{op: XMM_OP, xmmvariant: XMM_F128}, regy, tmp1)
-	asm += instrRegReg(f, PMULULQ, regx, tmp1) // mul dwords 2, 0
+	asm += instrRegReg(f.Indent, PMULULQ, regx, tmp1) // mul dwords 2, 0
 
 	asm += instrImm8Reg(f, PSRLO, 4, regx) // shift logical right by 4 bytes
 	asm += instrImm8Reg(f, PSRLO, 4, regy) // shift logical right by 4 bytes
 
 	tmp2 := f.allocReg(XMM_REG, 16)
 	asm += MovRegReg(f.Indent, OpDataType{op: XMM_OP, xmmvariant: XMM_F128}, regy, tmp2)
-	asm += instrRegReg(f, PMULULQ, regx, tmp2) // mul dwords 3, 1
+	asm += instrRegReg(f.Indent, PMULULQ, regx, tmp2) // mul dwords 3, 1
 
 	// shuffle into first 64 bits of shufflet1
 	shufflet1 := f.allocReg(XMM_REG, 16)
@@ -192,7 +186,7 @@ func mulI32x4(f *Function, x, y, result *identifier, pos token.Pos) (string, *Er
 	punpckllq := PUNPCKLLQ
 
 	// Unpack and interleave 32-bit integers from the low half of shuffletmp1 and shuffletmp2, and store the results in shufflet2.
-	asm += instrRegReg(f, punpckllq, shufflet2, shufflet1)
+	asm += instrRegReg(f.Indent, punpckllq, shufflet2, shufflet1)
 
 	if a, err := f.StoreSimd(shufflet1, result, pos); err != nil {
 		return "", err
@@ -232,15 +226,15 @@ func shrU16x8(f *Function, x, count, result *identifier, pos token.Pos) (string,
 
 		asm, reg, err := f.LoadSimd(x, pos)
 		if err != nil {
-			panic(internal("couldn't load SIMD value"))
+			panic(ice("couldn't load SIMD value"))
 		}
 
 		a, countReg, e := f.LoadIdentSimple(count, pos)
 		if e != nil {
-			panic(internal("couldn't load shift count for SIMD shift right "))
+			panic(ice("couldn't load shift count for SIMD shift right "))
 		}
 		if countReg.typ != DATA_REG {
-			panic(internal("couldn't alloc register for SIMD shift right"))
+			panic(ice("couldn't alloc register for SIMD shift right"))
 		}
 		asm += a
 
@@ -266,7 +260,7 @@ func shrU16x8(f *Function, x, count, result *identifier, pos token.Pos) (string,
 
 		a, e = f.StoreSimd(reg, result, pos)
 		if e != nil {
-			panic(internal("couldn't store SIMD register"))
+			panic(ice("couldn't store SIMD register"))
 		}
 		asm += a
 
@@ -291,7 +285,7 @@ func shufU32x4(f *Function, x, result, order *identifier, pos token.Pos) (string
 
 	asm, src, err := f.LoadSimd(x, pos)
 	if err != nil {
-		panic(internal("couldn't load SIMD value"))
+		panic(ice("couldn't load SIMD value"))
 	}
 
 	if order.cnst == nil {
@@ -310,7 +304,7 @@ func shufU32x4(f *Function, x, result, order *identifier, pos token.Pos) (string
 
 	a, e := f.StoreSimd(dst, result, pos)
 	if e != nil {
-		panic(internal("couldn't store SIMD register"))
+		panic(ice("couldn't store SIMD register"))
 	}
 	asm += a
 	f.freeReg(dst)

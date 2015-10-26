@@ -166,7 +166,7 @@ func sizeofElem(t types.Type) uint {
 	var e types.Type
 	switch t := t.(type) {
 	default:
-		panic(internal(fmt.Sprintf("type (%v) not an array or slice\n", t.String())))
+		panic(ice(fmt.Sprintf("type (%v) not an array or slice\n", t.String())))
 	case *types.Slice:
 		e = t.Elem()
 	case *types.Array:
@@ -175,7 +175,7 @@ func sizeofElem(t types.Type) uint {
 		if typeinfo, ok := simdInfo(t); ok {
 			return typeinfo.elemSize
 		}
-		panic(internal(
+		panic(ice(
 			fmt.Sprintf("t (%v), isSimd (%v)\n", t.String(), isSimd(t))))
 
 	}
@@ -203,10 +203,10 @@ func sizeof(t types.Type) uint {
 		} else if info, ok := simdInfo(t); ok {
 			return info.size
 		} else {
-			panic(internal(fmt.Sprintf("unknown named type \"%v\"", t.String())))
+			panic(ice(fmt.Sprintf("unknown named type \"%v\"", t.String())))
 		}
 	}
-	panic(internal(fmt.Sprintf("unknown type: %v", t)))
+	panic(ice(fmt.Sprintf("unknown type: %v", t)))
 }
 
 func sizeArray(t *types.Array) uint {
@@ -246,10 +246,10 @@ func align(t types.Type) uint {
 		} else if info, ok := simdInfo(t); ok {
 			return info.align
 		} else {
-			panic(internal(fmt.Sprintf("unknown named type \"%v\"", t.String())))
+			panic(ice(fmt.Sprintf("unknown named type \"%v\"", t.String())))
 		}
 	}
-	panic(internal(fmt.Sprintf("unknown type (%v)", t)))
+	panic(ice(fmt.Sprintf("unknown type (%v)", t)))
 }
 
 const tupleAlignment = 8
@@ -264,7 +264,7 @@ func signed(t types.Type) bool {
 	case *types.Basic:
 		return signedBasic(t.Kind())
 	}
-	panic(internal(fmt.Sprintf("unknown type: %v", t)))
+	panic(ice(fmt.Sprintf("unknown type: %v", t)))
 }
 
 func signedBasic(b types.BasicKind) bool {
@@ -278,7 +278,7 @@ func signedBasic(b types.BasicKind) bool {
 	case types.Float32, types.Float64:
 		return true
 	}
-	panic(internal(fmt.Sprintf("unknown basic type (%v)", b)))
+	panic(ice(fmt.Sprintf("unknown basic type (%v)", b)))
 }
 
 func isUint(t types.Type) bool {
@@ -372,14 +372,14 @@ func reflectType(t types.Type) reflect.Type {
 			return sse2.t
 		}
 	}
-	internal(fmt.Sprintf("error unknown type:\"%v\"", t))
+	ice(fmt.Sprintf("error unknown type:\"%v\"", t))
 	panic("")
 }
 
 func reflectBasic(b types.BasicKind) reflect.Type {
 	switch b {
 	default:
-		panic(internal("unknown basic type"))
+		panic(ice("unknown basic type"))
 	case types.Bool:
 		return reflect.TypeOf(true)
 	case types.Int:
@@ -443,7 +443,7 @@ func GetOpDataType(t types.Type) OpDataType {
 	if isBasic(t) {
 		return GetIntegerOpDataType(signed(t), sizeof(t))
 	} else {
-		panic(internal(fmt.Sprintf("non basic type \"%v\"", t)))
+		panic(ice(fmt.Sprintf("non basic type \"%v\"", t)))
 	}
 
 }

@@ -22,6 +22,11 @@ func (r *register) size() uint {
 	return r.width / 8
 }
 
+func (r *register) modified() {
+	r.assigned = nil
+	r.loaded = false
+}
+
 type RegType int
 
 const (

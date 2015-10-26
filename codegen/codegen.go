@@ -67,7 +67,7 @@ func (name *identifier) Addr() (reg register, offset int, size uint) {
 	} else if name.param != nil {
 		reg = *getRegister(REG_FP)
 	} else {
-		internal(fmt.Sprintf("identifier (%v) is not a local or param", name))
+		ice(fmt.Sprintf("identifier (%v) is not a local or param", name))
 	}
 	return
 }
@@ -83,7 +83,7 @@ func (name *identifier) IsPointer() bool {
 
 func (name *identifier) PointerUnderlyingType() types.Type {
 	if !name.IsPointer() {
-		internal(fmt.Sprintf("identifier (%v) not ptr type", name))
+		ice(fmt.Sprintf("identifier (%v) not ptr type", name))
 	}
 	ptrType := name.typ.(*types.Pointer)
 	return ptrType.Elem()
@@ -382,7 +382,7 @@ func (f *Function) BasicBlock(block *ssa.BasicBlock) (string, *Error) {
 func (f *Function) Instr(instr ssa.Instruction) (string, *Error) {
 
 	if instr == nil {
-		internal("nil instr")
+		ice("nil instr")
 	}
 	asm := ""
 	var err *Error
@@ -485,22 +485,22 @@ func (f *Function) Len(call *ssa.Call) (string, *Error) {
 	arg := callcommon.Args[0]
 
 	if callcommon.IsInvoke() {
-		panic(internal("len is a function, not a method"))
+		panic(ice("len is a function, not a method"))
 	}
 	if len(callcommon.Args) != 1 {
-		panic(internal(fmt.Sprintf("too many args (%v) for len", len(callcommon.Args))))
+		panic(ice(fmt.Sprintf("too many args (%v) for len", len(callcommon.Args))))
 	}
 
 	ident := f.Ident(call.Value())
 	if reflectType(ident.typ).Name() != "int" {
-		panic(internal(fmt.Sprintf("len returns int not (%v)", reflectType(ident.typ).Name())))
+		panic(ice(fmt.Sprintf("len returns int not (%v)", reflectType(ident.typ).Name())))
 	}
 
 	if isArray(arg.Type()) {
 
 		length := reflectType(arg.Type()).Len()
 		if length >= math.MaxInt32 {
-			panic(internal(fmt.Sprintf("array too large (%v), maximum (%v)", length, math.MaxInt32)))
+			panic(ice(fmt.Sprintf("array too large (%v), maximum (%v)", length, math.MaxInt32)))
 		}
 		reg := f.allocIdentReg(ident, sizeof(ident.typ), arg.Pos())
 		asm += MovImm32Reg(f.Indent, int32(length), reg)
@@ -518,7 +518,7 @@ func (f *Function) Len(call *ssa.Call) (string, *Error) {
 		}
 
 	} else {
-		panic(internal(fmt.Sprintf("bad type (%v) passed to len", arg.Type())))
+		panic(ice(fmt.Sprintf("bad type (%v) passed to len", arg.Type())))
 	}
 	asm += fmt.Sprintf(f.Indent+"// END Builtin.Len: %v\n", call)
 	return asm, nil
@@ -568,7 +568,7 @@ func (f *Function) SimdIntrinsic(call *ssa.Call) (string, *Error) {
 	name := call.Common().StaticCallee().Name()
 	if simdinstr, ok := getSimdInstr(name); ok {
 		if result.typ != x.typ {
-			panic(internal(fmt.Sprintf("Simd variable type (%v) and op type (%v)  dont match", result.typ.String(), x.typ.String())))
+			panic(ice(fmt.Sprintf("Simd variable type (%v) and op type (%v)  dont match", result.typ.String(), x.typ.String())))
 		}
 		optypes := GetOpDataType(x.typ)
 		a, e := packedOp(f, simdinstr, optypes.xmmvariant, y, x, result, call.Pos())
@@ -576,7 +576,7 @@ func (f *Function) SimdIntrinsic(call *ssa.Call) (string, *Error) {
 	} else {
 		intrinsic, ok := intrinsics[name]
 		if !ok {
-			panic(internal(fmt.Sprintf("Expected simd intrinsic got (%v)", name)))
+			panic(ice(fmt.Sprintf("Expected simd intrinsic got (%v)", name)))
 		}
 		a, e = intrinsic(f, x, y, result, call.Pos())
 		return a, e
@@ -692,7 +692,7 @@ func (f *Function) ConvertFromTo(instr *ssa.Convert, fromOpType, toOpType InstrO
 		} else if isFloat64(instr.Type()) {
 			floatSize = 64
 		} else {
-			internal("converting from uint64 to float")
+			ice("converting from uint64 to float")
 		}
 
 		asm += f.ConvertUint64ToFloat(tmp, from, to, floatSize)
@@ -791,7 +791,7 @@ func (f *Function) If(instr *ssa.If) (string, *Error) {
 
 	}
 	if tblock == -1 || fblock == -1 {
-		internal("malformed CFG with if stmt")
+		ice("malformed CFG with if stmt")
 	}
 
 	if info, ok := f.identifiers[instr.Cond.Name()]; !ok {
@@ -844,7 +844,7 @@ func (f *Function) Jump(jmp *ssa.Jump) (string, *Error) {
 	if jmp.Block() != nil && len(jmp.Block().Succs) == 1 {
 		block = jmp.Block().Succs[0].Index
 	} else {
-		internal("malformed CFG with jmp stmt")
+		ice("malformed CFG with jmp stmt")
 	}
 	a, err := f.JumpPreamble(jmp.Block().Index, block)
 	if err != nil {
@@ -889,7 +889,7 @@ func (f *Function) computePhiInstr(phi *ssa.Phi) *Error {
 			edgeBlock = phi.Block().Preds[i].Index
 		}
 		if edgeBlock == -1 {
-			internal("malformed CFG")
+			ice("malformed CFG")
 		}
 		if _, ok := f.phiInfo[edgeBlock]; !ok {
 			f.phiInfo[edgeBlock] = make(map[int][]phiInfo)
@@ -966,10 +966,10 @@ func (f *Function) SetStackPointer() string {
 func (f *Function) StoreValAddr(val ssa.Value, addr *identifier, pos token.Pos) (string, *Error) {
 
 	if nameinfo := f.Ident(val); nameinfo == nil {
-		internal("error in allocating local")
+		ice("error in allocating local")
 	}
 	if addr.local == nil && addr.param == nil {
-		internal(fmt.Sprintf("invalid addr \"%v\"", addr))
+		ice(fmt.Sprintf("invalid addr \"%v\"", addr))
 	}
 
 	asm := ""
@@ -1025,7 +1025,7 @@ func (f *Function) StoreValAddr(val ssa.Value, addr *identifier, pos token.Pos) 
 
 		if size > sizeInt() {
 			if size%sizeInt() != 0 {
-				internal(fmt.Sprintf("Size (%v) not multiple of sizeInt (%v)", size, sizeInt()))
+				ice(fmt.Sprintf("Size (%v) not multiple of sizeInt (%v)", size, sizeInt()))
 			}
 		}
 
@@ -1057,7 +1057,7 @@ func (f *Function) Store(instr *ssa.Store) (string, *Error) {
 	}
 	addr, ok := f.identifiers[instr.Addr.Name()]
 	if !ok {
-		internal(fmt.Sprintf("couldnt store identifier \"%v\"", addr.name))
+		ice(fmt.Sprintf("couldnt store identifier \"%v\"", addr.name))
 	}
 	asm := f.Indent + fmt.Sprintf("// BEGIN Store, instr: %v\n", instr)
 	a, err := f.StoreValAddr(instr.Val, &addr, instr.Pos())
@@ -1093,7 +1093,7 @@ func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 
 	switch instr.Op {
 	default:
-		internal(fmt.Sprintf("unknown op (%v)", instr.Op))
+		ice(fmt.Sprintf("unknown op (%v)", instr.Op))
 	case token.ADD, token.SUB, token.MUL, token.QUO, token.REM:
 		optypes := GetOpDataType(instr.Type())
 		asm += ArithOp(f.Indent, optypes, instr.Op, regX, regY, regVal)
@@ -1101,7 +1101,7 @@ func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 		asm += BitwiseOp(f.Indent, instr.Op, xIsSigned, regX, regY, regVal, size)
 	case token.EQL, token.NEQ, token.LEQ, token.GEQ, token.LSS, token.GTR:
 		if size != f.sizeof(instr.Y) {
-			internal("comparing two different size values")
+			ice("comparing two different size values")
 		}
 		optypes := GetOpDataType(instr.X.Type())
 		asm += CmpOp(f.Indent, optypes, instr.Op, regX, regY, regVal)
@@ -1112,7 +1112,7 @@ func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 
 	addr, ok := f.identifiers[instr.Name()]
 	if !ok {
-		internal(fmt.Sprintf("unknown name (%v), instr (%v)\n", instr.Name(), instr))
+		ice(fmt.Sprintf("unknown name (%v), instr (%v)\n", instr.Name(), instr))
 	}
 
 	a, err := f.StoreValue(&addr, regVal, instr.Pos())
@@ -1168,7 +1168,7 @@ func (f *Function) sizeof(val ssa.Value) uint {
 	}
 	info, ok := f.identifiers[val.Name()]
 	if !ok {
-		internal(fmt.Sprintf("unknown name (%v), value (%v)\n", val.Name(), val))
+		ice(fmt.Sprintf("unknown name (%v), value (%v)\n", val.Name(), val))
 	}
 	_, _, size := info.Addr()
 	return size
@@ -1180,7 +1180,7 @@ func (f *Function) sizeofConst(cnst *ssa.Const) uint {
 
 func (f *Function) SliceLen(slice ssa.Value, ident *identifier) (string, *Error) {
 	if _, ok := slice.Type().(*types.Slice); !ok {
-		panic(internal(fmt.Sprintf("getting len of slice, type should slice not (%v)", slice.Type().String())))
+		panic(ice(fmt.Sprintf("getting len of slice, type should slice not (%v)", slice.Type().String())))
 	}
 
 	asm := f.Indent + fmt.Sprintf("// BEGIN SliceLen: slice (%v), ident (%v)\n", slice, *ident)
@@ -1241,7 +1241,7 @@ func (f *Function) allocIdentReg(ident *identifier, size uint, pos token.Pos) *r
 	reg.assigned = ident
 	if size > 8 && ((!isSimd(ident.typ) && !isSSE2(ident.typ)) || reg.typ != XMM_REG) {
 		msg := "ident (%v), allocating more than 8 byte chunk"
-		internal(fmt.Sprintf(msg, ident.name))
+		ice(fmt.Sprintf(msg, ident.name))
 	}
 	if isSimd(ident.typ) || isSSE2(ident.typ) || isIntegerSSE2(ident.typ) {
 		return reg
@@ -1255,12 +1255,12 @@ func (f *Function) LoadIdent(ident *identifier, offset int, size uint, pos token
 	r, roffset, rsize := ident.Addr()
 	if rsize%size != 0 {
 		msg := "ident (%v), size (%v) not a multiple of chunk size (%v)"
-		internal(fmt.Sprintf(msg, ident.name, ident.size(), size))
+		ice(fmt.Sprintf(msg, ident.name, ident.size(), size))
 	}
 	reg := f.allocIdentReg(ident, size, pos)
 	if size > 8 && ((!isSimd(ident.typ) && !isSSE2(ident.typ)) || reg.typ != XMM_REG) {
 		msg := "ident (%v), loading more than 8 byte chunk"
-		internal(fmt.Sprintf(msg, ident.name))
+		ice(fmt.Sprintf(msg, ident.name))
 	}
 	if isSimd(ident.typ) || isSSE2(ident.typ) || isIntegerSSE2(ident.typ) {
 		optypes := GetOpDataType(ident.typ)
@@ -1271,7 +1271,11 @@ func (f *Function) LoadIdent(ident *identifier, offset int, size uint, pos token
 		} else {
 			a = MovMemReg(f.Indent, optypes, ident.name, roffset+offset, &r, reg)
 		}
-
+		if size == ident.size() {
+			reg.loaded = true
+		} else {
+			ice("trying to partially load SIMD a value into register")
+		}
 		asm += a
 		asm += f.Indent + fmt.Sprintf("// END LoadIdent (SIMD), ident: %v, offset %v, size %v\n", ident.name, offset, size)
 		return asm, reg, nil
@@ -1280,6 +1284,9 @@ func (f *Function) LoadIdent(ident *identifier, offset int, size uint, pos token
 	optypes := GetIntegerOpDataType(false, size)
 	asm := f.Indent + fmt.Sprintf("// BEGIN LoadIdent, ident: %v, offset %v, size %v\n", ident.name, offset, size)
 	a := MovMemReg(f.Indent, optypes, ident.name, roffset+offset, &r, reg)
+	if size == ident.size() {
+		reg.loaded = true
+	}
 	asm += a
 	asm += f.Indent + fmt.Sprintf("// END LoadIdent, ident: %v, offset %v, size %v\n", ident.name, offset, size)
 	return asm, reg, nil
@@ -1300,7 +1307,7 @@ func (f *Function) LoadValue(val ssa.Value, offset int, size uint) (string, *reg
 	}
 	ident, ok := f.identifiers[val.Name()]
 	if !ok {
-		internal(fmt.Sprintf("unknown name (%v), value (%v)\n", val.Name(), val))
+		ice(fmt.Sprintf("unknown name (%v), value (%v)\n", val.Name(), val))
 	}
 
 	asm := f.Indent + fmt.Sprintf("// BEGIN LoadValue, val: %v, offset %v, size %v\n", val, offset, size)
@@ -1324,7 +1331,7 @@ func (f *Function) StoreSSE2(reg *register, ident *identifier, pos token.Pos) (s
 func (f *Function) StoreValue(ident *identifier, reg *register, pos token.Pos) (string, *Error) {
 	if ident.size() > reg.size() {
 		msgstr := "identifier, %v, size (%v) is greater than register size (%v)"
-		internal(fmt.Sprintf(msgstr, ident.name, ident.size(), reg.size()))
+		ice(fmt.Sprintf(msgstr, ident.name, ident.size(), reg.size()))
 
 	}
 	return f.StoreReg(reg, ident, 0, ident.size())
@@ -1333,10 +1340,10 @@ func (f *Function) StoreValue(ident *identifier, reg *register, pos token.Pos) (
 func (f *Function) StoreReg(reg *register, ident *identifier, offset int, size uint) (string, *Error) {
 	r, roffset, rsize := ident.Addr()
 	if rsize%size != 0 {
-		internal(fmt.Sprintf("storing identifier \"%v\"", ident.name))
+		ice(fmt.Sprintf("storing identifier \"%v\"", ident.name))
 	}
 	if rsize == 0 {
-		internal(fmt.Sprintf("identifier (%v) size is 0", ident.name))
+		ice(fmt.Sprintf("identifier (%v) size is 0", ident.name))
 	}
 	if isSimd(ident.typ) || isSSE2(ident.typ) {
 		asm := f.Indent + fmt.Sprintf("// BEGIN StoreReg (SIMD), size (%v)\n", size)
@@ -1371,7 +1378,7 @@ func (f *Function) LoadConstValue(cnst *ssa.Const) (string, *register, *Error) {
 	if isFloat(cnst.Type()) {
 		r := f.allocReg(regType(cnst.Type()), 1)
 		if r.typ != XMM_REG {
-			internal("can't load float const into non xmm register")
+			ice("can't load float const into non xmm register")
 		}
 		tmp := f.allocReg(DATA_REG, 8)
 		asm := ""
@@ -1385,7 +1392,7 @@ func (f *Function) LoadConstValue(cnst *ssa.Const) (string, *register, *Error) {
 
 	}
 	if isComplex(cnst.Type()) {
-		internal("complex64/128 unsupported")
+		ice("complex64/128 unsupported")
 	}
 
 	size := sizeof(cnst.Type())
@@ -1406,7 +1413,7 @@ func (f *Function) UnOp(instr *ssa.UnOp) (string, *Error) {
 	asm := ""
 	switch instr.Op {
 	default:
-		internal(fmt.Sprintf("unknown Op token (%v): \"%v\"", instr.Op, instr))
+		ice(fmt.Sprintf("unknown Op token (%v): \"%v\"", instr.Op, instr))
 	case token.NOT: // logical negation
 		asm, err = f.UnOpXor(instr, 1)
 	case token.XOR: //bitwise negation
@@ -1432,7 +1439,7 @@ func (f *Function) UnOpXor(instr *ssa.UnOp, xorVal int32) (string, *Error) {
 	addr, ok := f.identifiers[instr.Name()]
 	if !ok {
 		msg := fmt.Sprintf("unknown name (%v), instr (%v)\n", instr.Name(), instr)
-		internal(msg)
+		ice(msg)
 	}
 	asm, reg, err := f.LoadValueSimple(instr.X)
 
@@ -1474,7 +1481,7 @@ func (f *Function) UnOpSub(instr *ssa.UnOp) (string, *Error) {
 	addr, ok := f.identifiers[instr.Name()]
 	if !ok {
 		msg := fmt.Sprintf("unknown name (%v), instr (%v)\n", instr.Name(), instr)
-		internal(msg)
+		ice(msg)
 	}
 
 	asm, regX, err := f.LoadValueSimple(instr.X)
@@ -1518,12 +1525,12 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 	}
 	if !okX {
 		msgstr := "Unknown name for UnOp X (%v), instr \"(%v)\""
-		internal(fmt.Sprintf(msgstr, instr.X, instr))
+		ice(fmt.Sprintf(msgstr, instr.X, instr))
 	}
 	if xInfo.local == nil && xInfo.param == nil && !xInfo.IsPointer() {
 		fmtstr := "in UnOp, X (%v) isn't a pointer, X.type (%v), instr \"(%v)\""
 		msg := fmt.Sprintf(fmtstr, instr.X, instr.X.Type(), instr)
-		internal(msg)
+		ice(msg)
 	}
 
 	asm := ""
@@ -1533,7 +1540,7 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 
 	// ssa locals are always pointers (even though actually not)
 	if xSize != sizePtr() && !xInfo.IsSsaLocal() {
-		internal(fmt.Sprintf("xSize (%v) != ptr size (%v)", xSize, sizePtr()))
+		ice(fmt.Sprintf("xSize (%v) != ptr size (%v)", xSize, sizePtr()))
 	}
 
 	size := aSize
@@ -1664,7 +1671,7 @@ func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 		asm += Lea(f.Indent, xInfo.name, xOffset, &xReg, addrReg)
 	} else {
 
-		internal(fmt.Sprintf("indexing non-slice/array variable, type %v", xInfo.typ))
+		ice(fmt.Sprintf("indexing non-slice/array variable, type %v", xInfo.typ))
 	}
 
 	optypes := GetIntegerOpDataType(false, idxReg.size())
@@ -1701,7 +1708,7 @@ func (f *Function) AllocInstr(instr *ssa.Alloc) (string, *Error) {
 	//Type().Underlying().(*types.Pointer).Elem().
 	info := f.identifiers[instr.Name()]
 	if info.local == nil {
-		internal(fmt.Sprintf("expected %v to be a local variable", instr.Name()))
+		ice(fmt.Sprintf("expected %v to be a local variable", instr.Name()))
 	}
 	if _, ok := info.typ.(*types.Pointer); ok {
 	} else {
@@ -1712,10 +1719,10 @@ func (f *Function) AllocInstr(instr *ssa.Alloc) (string, *Error) {
 
 func (f *Function) Value(value ssa.Value, dstReg *register, dstVar *varInfo) string {
 	if dstReg == nil && dstVar == nil {
-		internal("destination register/var are nil!")
+		ice("destination register/var are nil!")
 	}
 	if dstReg != nil && dstVar != nil {
-		internal("destination register/var are both non-nil!")
+		ice("destination register/var are both non-nil!")
 	}
 	if dstReg != nil {
 		// TODO
@@ -1772,7 +1779,7 @@ func (f *Function) allocReg(t RegType, size uint) *register {
 			return f.allocReg(DATA_REG, size)
 		} else {
 			msgstr := "couldn't alloc register (t: %v, w: %v, s: %v)"
-			internal(fmt.Sprintf(msgstr, t, size*8, size))
+			ice(fmt.Sprintf(msgstr, t, size*8, size))
 		}
 	}
 	return reg
@@ -1879,7 +1886,8 @@ func (f *Function) Ident(v ssa.Value) *identifier {
 	return &local
 }
 
-func internal(msg string) string {
+// ice (internal compiler error) calls panic with "Internal error " + msg.
+func ice(msg string) string {
 	panic(fmt.Sprintf("Internal error, \"%v\"", msg))
 }
 

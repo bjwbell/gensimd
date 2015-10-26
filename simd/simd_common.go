@@ -95,7 +95,7 @@ func ShrI32x4(x I32x4, shift uint8) I32x4 {
 	}
 	return val
 }
-func ShufI32x4(x I32x4, order uint8) I32x4 {
+func ShuffleI32x4(x I32x4, order uint8) I32x4 {
 	val := I32x4{}
 	for i := 0; i < 4; i++ {
 		switch (order >> uint8(2*i)) & 0x3 {
@@ -228,7 +228,7 @@ func ShrU32x4(x U32x4, shift uint8) U32x4 {
 	}
 	return val
 }
-func ShufU32x4(x U32x4, order uint8) U32x4 {
+func ShuffleU32x4(x U32x4, order uint8) U32x4 {
 	val := U32x4{}
 	for i := 0; i < 4; i++ {
 		switch (order >> uint8(2*i)) & 0x3 {

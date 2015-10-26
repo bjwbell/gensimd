@@ -37,9 +37,9 @@ func (i InstructionType) String() string {
 	return _InstructionType_name[_InstructionType_index[i]:_InstructionType_index[i+1]]
 }
 
-const _SimdInstr_name = "SIMD_INVALIDAddI8x16SubI8x16AddI16x8SubI16x8MulI16x8ShlI16x8ShrI16x8AddI32x4SubI32x4MulI32x4ShlI32x4ShrI32x4ShufI32x4AddI64x2SubI64x2AddU8x16SubU8x16AddU16x8SubU16x8MulU16x8ShlU16x8ShrU16x8AddU32x4SubU32x4MulU32x4ShlU32x4ShrU32x4ShufU32x4AddU64x2SubU64x2AddF32x4SubF32x4MulF32x4DivF32x4AddF64x2SubF64x2MulF64x2DivF64x2LoadSi128"
+const _SimdInstr_name = "SIMD_INVALIDAddI8x16SubI8x16AddI16x8SubI16x8MulI16x8ShlI16x8ShrI16x8AddI32x4SubI32x4MulI32x4ShlI32x4ShrI32x4ShuffleI32x4AddI64x2SubI64x2AddU8x16SubU8x16AddU16x8SubU16x8MulU16x8ShlU16x8ShrU16x8AddU32x4SubU32x4MulU32x4ShlU32x4ShrU32x4ShuffleU32x4AddU64x2SubU64x2AddF32x4SubF32x4MulF32x4DivF32x4AddF64x2SubF64x2MulF64x2DivF64x2LoadSi128"
 
-var _SimdInstr_index = [...]uint16{0, 12, 20, 28, 36, 44, 52, 60, 68, 76, 84, 92, 100, 108, 117, 125, 133, 141, 149, 157, 165, 173, 181, 189, 197, 205, 213, 221, 229, 238, 246, 254, 262, 270, 278, 286, 294, 302, 310, 318, 327}
+var _SimdInstr_index = [...]uint16{0, 12, 20, 28, 36, 44, 52, 60, 68, 76, 84, 92, 100, 108, 120, 128, 136, 144, 152, 160, 168, 176, 184, 192, 200, 208, 216, 224, 232, 244, 252, 260, 268, 276, 284, 292, 300, 308, 316, 324, 333}
 
 func (i SimdInstr) String() string {
 	if i < 0 || i >= SimdInstr(len(_SimdInstr_index)-1) {

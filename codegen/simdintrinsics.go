@@ -57,7 +57,7 @@ const (
 	MulI32x4
 	ShlI32x4
 	ShrI32x4
-	ShufI32x4
+	ShuffleI32x4
 	AddI64x2
 	SubI64x2
 	AddU8x16
@@ -72,7 +72,7 @@ const (
 	MulU32x4
 	ShlU32x4
 	ShrU32x4
-	ShufU32x4
+	ShuffleU32x4
 	AddU64x2
 	SubU64x2
 	AddF32x4
@@ -98,11 +98,11 @@ func getSimdInstr(name string) (InstructionType, bool) {
 type intrinsic func(f *Function, x, y, result *identifier) (string, *Error)
 
 var intrinsics = map[string]intrinsic{
-	"MulI32x4":  mulI32x4,
-	"ShufI32x4": shufU32x4,
-	"MulU32x4":  mulI32x4, //TODO: FIX
-	"ShrU16x8":  shrU16x8,
-	"ShufU32x4": shufU32x4,
+	"MulI32x4":     mulI32x4,
+	"ShuffleI32x4": shufU32x4,
+	"MulU32x4":     mulI32x4, //TODO: FIX
+	"ShrU16x8":     shrU16x8,
+	"ShuffleU32x4": shufU32x4,
 }
 
 func packedOp(f *Function, instrtype InstructionType, optypes XmmData, x, y, result *identifier) (string, *Error) {
@@ -299,7 +299,7 @@ func shufU32x4(f *Function, x, result, order *identifier) (string, *Error) {
 	}
 	orderImm8 := uint8(order.cnst.Uint64())
 	if uint64(orderImm8) != order.cnst.Uint64() {
-		msgstr := "Shuf(I/U)32x4 the shuffle order operand (%v) must be <= 255"
+		msgstr := "Shuffle(I/U)32x4 the shuffle order operand (%v) must be <= 255"
 		return ErrorMsg(fmt.Sprintf(msgstr, order.cnst.Uint64()))
 	}
 

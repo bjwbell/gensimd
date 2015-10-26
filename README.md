@@ -102,13 +102,13 @@ The behavior of the floating point SIMD functions `Add*`, `Sub*`, `Mul*`, and `D
     func MulI32x4(x, y I32x4) I32x4
     func ShlI32x4(x I32x4, shift uint8) I32x4
     func ShrI32x4(x I32x4, shift uint8) I32x4
-    func ShufI32x4(x I32x4, order uint8) I32x4
+    func ShuffleI32x4(x I32x4, order uint8) I32x4
     func AddU32x4(x, y U32x4) U32x4
     func SubU32x4(x, y U32x4) U32x4
     func MulU32x4(x, y U32x4) U32x4
     func ShlU32x4(x U32x4, shift uint8) U32x4
     func ShrU32x4(x U32x4, shift uint8) U32x4
-    func ShufU32x4(x U32x4, order uint8) U32x4
+    func ShuffleU32x4(x U32x4, order uint8) U32x4
     
     func AddI64x2(x, y I64x2) I64x2
     func SubI64x2(x, y I64x2) I64x2

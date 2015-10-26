@@ -1,6 +1,9 @@
 package codegen
 
-import "fmt"
+import (
+	"fmt"
+	"go/token"
+)
 
 var simdToGoAsm = map[SimdInstr]InstructionType{
 	AddI8x16: I_PADD,
@@ -95,7 +98,7 @@ func getSimdInstr(name string) (InstructionType, bool) {
 	return I_INVALID, false
 }
 
-type intrinsic func(f *Function, x, y, result *identifier) (string, *Error)
+type intrinsic func(f *Function, x, y, result *identifier, pos token.Pos) (string, *Error)
 
 var intrinsics = map[string]intrinsic{
 	"MulI32x4":     mulI32x4,
@@ -105,7 +108,7 @@ var intrinsics = map[string]intrinsic{
 	"ShuffleU32x4": shufU32x4,
 }
 
-func packedOp(f *Function, instrtype InstructionType, optypes XmmData, x, y, result *identifier) (string, *Error) {
+func packedOp(f *Function, instrtype InstructionType, optypes XmmData, x, y, result *identifier, pos token.Pos) (string, *Error) {
 	asm := ""
 	instr := GetXmmInstruction(instrtype).Select(optypes)
 	a, regx, err := f.LoadSimd(x)
@@ -119,7 +122,7 @@ func packedOp(f *Function, instrtype InstructionType, optypes XmmData, x, y, res
 	}
 	asm += b
 	asm += instrRegReg(f, instr, regx, regy)
-	c, err := f.StoreSimd(regy, result)
+	c, err := f.StoreSimd(regy, result, pos)
 	if err != nil {
 		return "", err
 	}
@@ -150,7 +153,7 @@ func instrImm8RegReg(f *Function, instr Instr, imm8 uint8, src, dst *register) s
 // implementations of SIMD functions:
 // add, sub, mul, div, <<, >> for each type
 
-func mulI32x4(f *Function, x, y, result *identifier) (string, *Error) {
+func mulI32x4(f *Function, x, y, result *identifier, pos token.Pos) (string, *Error) {
 	// native x64 SSE4.1 instruction "PMULLD"
 	// emulate on SSE2 with below
 
@@ -191,7 +194,7 @@ func mulI32x4(f *Function, x, y, result *identifier) (string, *Error) {
 	// Unpack and interleave 32-bit integers from the low half of shuffletmp1 and shuffletmp2, and store the results in shufflet2.
 	asm += instrRegReg(f, punpckllq, &shufflet2, &shufflet1)
 
-	if a, err := f.StoreSimd(&shufflet1, result); err != nil {
+	if a, err := f.StoreSimd(&shufflet1, result, pos); err != nil {
 		return "", err
 	} else {
 		asm += a
@@ -219,12 +222,12 @@ func mulI32x4(f *Function, x, y, result *identifier) (string, *Error) {
 // func shrI64x2(f *Function, x, shift, result *identifier) (string, *Error) {
 // }
 
-func shrU16x8(f *Function, x, count, result *identifier) (string, *Error) {
+func shrU16x8(f *Function, x, count, result *identifier, pos token.Pos) (string, *Error) {
 
 	// PSRL isn't used before go1.5.2 (https://github.com/golang/go/issues/13010)
 	v152 := goversion{1, 5, 2}
 	if v, e := goVersion(); e == nil && cmpGoVersion(v, v152) > 0 {
-		return packedOp(f, I_PSRL, XMM_U16X8, count, x, result)
+		return packedOp(f, I_PSRL, XMM_U16X8, count, x, result, pos)
 	} else {
 
 		asm, reg, err := f.LoadSimd(x)
@@ -232,14 +235,12 @@ func shrU16x8(f *Function, x, count, result *identifier) (string, *Error) {
 			panic(internal("couldn't load SIMD value"))
 		}
 
-		countReg := f.allocReg(regType(count.typ), sizeof(count.typ))
-		if countReg.typ != DATA_REG {
-			panic(internal("couldn't alloc register for SIMD shift right"))
-		}
-
-		a, e := f.LoadIdentSimple(count, &countReg)
+		a, countReg, e := f.LoadIdentSimple(count)
 		if e != nil {
 			panic(internal("couldn't load shift count for SIMD shift right "))
+		}
+		if countReg.typ != DATA_REG {
+			panic(internal("couldn't alloc register for SIMD shift right"))
 		}
 		asm += a
 
@@ -255,7 +256,7 @@ func shrU16x8(f *Function, x, count, result *identifier) (string, *Error) {
 				false,
 				SHIFT_RIGHT,
 				&wordReg,
-				&countReg,
+				countReg,
 				&tmp,
 				wordReg.size())
 
@@ -263,7 +264,7 @@ func shrU16x8(f *Function, x, count, result *identifier) (string, *Error) {
 
 		}
 
-		a, e = f.StoreSimd(reg, result)
+		a, e = f.StoreSimd(reg, result, pos)
 		if e != nil {
 			panic(internal("couldn't store SIMD register"))
 		}
@@ -286,7 +287,7 @@ func shrU16x8(f *Function, x, count, result *identifier) (string, *Error) {
 // func shrU64x2(f *Function, x, shift, result *identifier) (string, *Error) {
 // }
 
-func shufU32x4(f *Function, x, result, order *identifier) (string, *Error) {
+func shufU32x4(f *Function, x, result, order *identifier, pos token.Pos) (string, *Error) {
 
 	asm, src, err := f.LoadSimd(x)
 	if err != nil {
@@ -307,7 +308,7 @@ func shufU32x4(f *Function, x, result, order *identifier) (string, *Error) {
 
 	asm += instrImm8RegReg(f, PSHUFL, orderImm8, src, &dst)
 
-	a, e := f.StoreSimd(&dst, result)
+	a, e := f.StoreSimd(&dst, result, pos)
 	if e != nil {
 		panic(internal("couldn't store SIMD register"))
 	}

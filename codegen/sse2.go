@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"go/token"
 
 	"github.com/bjwbell/gensimd/codegen/sse2"
 )
@@ -39,7 +40,7 @@ func getSSE2(name string) (sse2.SSE2Instr, bool) {
 	return sse2.INVALID, false
 }
 
-func sse2Op(f *Function, instr sse2.SSE2Instr, x, y, result *identifier) (string, *Error) {
+func sse2Op(f *Function, instr sse2.SSE2Instr, x, y, result *identifier, pos token.Pos) (string, *Error) {
 	asm := ""
 	goInstr := sse2ToGoAsm[instr]
 	a, regx, err := f.LoadSSE2(x)
@@ -53,7 +54,7 @@ func sse2Op(f *Function, instr sse2.SSE2Instr, x, y, result *identifier) (string
 	}
 	asm += b
 	asm += instrRegReg(f, goInstr, regx, regy)
-	c, err := f.StoreSSE2(regy, result)
+	c, err := f.StoreSSE2(regy, result, pos)
 	if err != nil {
 		return "", err
 	}

@@ -504,7 +504,7 @@ func (f *Function) Len(call *ssa.Call) (string, *Error) {
 		}
 		reg := f.allocReg(regType(ident.typ), sizeof(ident.typ))
 		asm += MovImm32Reg(f.Indent, int32(length), &reg)
-		a, err := f.StoreValue(ident, &reg)
+		a, err := f.StoreValue(ident, &reg, arg.Pos())
 		asm += a
 		if err != nil {
 			return asm, err
@@ -571,14 +571,14 @@ func (f *Function) SimdIntrinsic(call *ssa.Call) (string, *Error) {
 			panic(internal(fmt.Sprintf("Simd variable type (%v) and op type (%v)  dont match", result.typ.String(), x.typ.String())))
 		}
 		optypes := GetOpDataType(x.typ)
-		a, e := packedOp(f, simdinstr, optypes.xmmvariant, y, x, result)
+		a, e := packedOp(f, simdinstr, optypes.xmmvariant, y, x, result, call.Pos())
 		return a, e
 	} else {
 		intrinsic, ok := intrinsics[name]
 		if !ok {
 			panic(internal(fmt.Sprintf("Expected simd intrinsic got (%v)", name)))
 		}
-		a, e = intrinsic(f, x, y, result)
+		a, e = intrinsic(f, x, y, result, call.Pos())
 		return a, e
 	}
 }
@@ -612,7 +612,7 @@ func (f *Function) SSE2Intrinsic(call *ssa.Call, sse2Instr sse2.SSE2Instr) (stri
 	x := f.Ident(args[0])
 	y := f.Ident(args[1])
 	result := f.Ident(call)
-	a, e = sse2Op(f, sse2Instr, x, y, result)
+	a, e = sse2Op(f, sse2Instr, x, y, result, call.Pos())
 	return a, e
 }
 
@@ -674,12 +674,16 @@ func (f *Function) AllocFromToRegs(instr *ssa.Convert) (from register, to regist
 func (f *Function) ConvertFromTo(instr *ssa.Convert, fromOpType, toOpType InstrOpType, fromXmm, toXmm XmmData) (string, *Error) {
 
 	asm := ""
-	from, to := f.AllocFromToRegs(instr)
-	if a, err := f.LoadValueSimple(instr.X, &from); err != nil {
+
+	a, from, err := f.LoadValueSimple(instr.X)
+	if err != nil {
 		return "", err
 	} else {
 		asm += a
 	}
+
+	to := f.allocReg(regType(f.Ident(instr).typ), f.Ident(instr).size())
+
 	tmp := f.allocReg(DATA_REG, sizeInt())
 
 	fromType :=
@@ -704,17 +708,17 @@ func (f *Function) ConvertFromTo(instr *ssa.Convert, fromOpType, toOpType InstrO
 			internal("converting from uint64 to float")
 		}
 
-		asm += f.ConvertUint64ToFloat(&tmp, &from, &to, floatSize)
+		asm += f.ConvertUint64ToFloat(&tmp, from, &to, floatSize)
 	} else {
-		asm += ConvertOp(f.Indent, &from, fromType, &to, toType, &tmp)
+		asm += ConvertOp(f.Indent, from, fromType, &to, toType, &tmp)
 	}
 	toNameInfo := f.identifiers[instr.Name()]
-	if a, err := f.StoreValue(&toNameInfo, &to); err != nil {
+	if a, err := f.StoreValue(&toNameInfo, &to, instr.Pos()); err != nil {
 		return "", err
 	} else {
 		asm += a
 	}
-	f.freeReg(from)
+	f.freeReg(*from)
 	f.freeReg(to)
 	f.freeReg(tmp)
 
@@ -950,7 +954,7 @@ func (f *Function) CopyToRet(val []ssa.Value) (string, *Error) {
 			param:  f.retParam(),
 			offset: f.retOffset()}
 
-	return f.StoreValAddr(val[0], &retAddr)
+	return f.StoreValAddr(val[0], &retAddr, val[0].Pos())
 }
 
 func ResetStackPointer(indent string, size uint32) string {
@@ -972,7 +976,7 @@ func (f *Function) SetStackPointer() string {
 	return ""
 }
 
-func (f *Function) StoreValAddr(val ssa.Value, addr *identifier) (string, *Error) {
+func (f *Function) StoreValAddr(val ssa.Value, addr *identifier, pos token.Pos) (string, *Error) {
 
 	if nameinfo := f.Ident(val); nameinfo == nil {
 		internal("error in allocating local")
@@ -988,19 +992,18 @@ func (f *Function) StoreValAddr(val ssa.Value, addr *identifier) (string, *Error
 		return ErrorMsg("complex32/64 unsupported")
 	} else if isFloat(val.Type()) {
 
-		valReg := f.allocReg(regType(val.Type()), f.sizeof(val))
-		a, err := f.LoadValue(val, 0, f.sizeof(val), &valReg)
+		a, valReg, err := f.LoadValue(val, 0, f.sizeof(val))
 		if err != nil {
 			return a, err
 		}
 		asm += a
 
-		a, err = f.StoreValue(addr, &valReg)
+		a, err = f.StoreValue(addr, valReg, pos)
 		if err != nil {
 			return a, err
 		}
 		asm += a
-		f.freeReg(valReg)
+		f.freeReg(*valReg)
 
 	} else if isSimd(val.Type()) || isSSE2(val.Type()) {
 
@@ -1009,7 +1012,7 @@ func (f *Function) StoreValAddr(val ssa.Value, addr *identifier) (string, *Error
 			return a, err
 		}
 		asm += a
-		a, err = f.StoreSimd(valReg, addr)
+		a, err = f.StoreSimd(valReg, addr, pos)
 		if err != nil {
 			return a, err
 		}
@@ -1039,23 +1042,20 @@ func (f *Function) StoreValAddr(val ssa.Value, addr *identifier) (string, *Error
 			}
 		}
 
-		valReg := f.allocReg(DATA_REG, uint(datasize))
-
 		for i := int(0); i < int(iterations); i++ {
 			offset := i * datasize
-			a, err := f.LoadValue(val, offset, uint(datasize), &valReg)
+			a, valReg, err := f.LoadValue(val, offset, uint(datasize))
 			if err != nil {
 				return a, err
 			}
 			asm += a
-			a, err = f.StoreReg(&valReg, addr, offset, uint(datasize))
+			a, err = f.StoreReg(valReg, addr, offset, uint(datasize))
 			if err != nil {
 				return a, err
 			}
 			asm += a
+			f.freeReg(*valReg)
 		}
-		f.freeReg(valReg)
-
 	}
 
 	asm += f.Indent +
@@ -1066,14 +1066,14 @@ func (f *Function) StoreValAddr(val ssa.Value, addr *identifier) (string, *Error
 
 func (f *Function) Store(instr *ssa.Store) (string, *Error) {
 	if nameinfo := f.Ident(instr.Addr); nameinfo == nil {
-		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
+		return ErrorMsg(fmt.Sprintf("Cannot store value: %v", instr))
 	}
 	addr, ok := f.identifiers[instr.Addr.Name()]
 	if !ok {
 		internal(fmt.Sprintf("couldnt store identifier \"%v\"", addr.name))
 	}
 	asm := f.Indent + fmt.Sprintf("// BEGIN Store, instr: %v\n", instr)
-	a, err := f.StoreValAddr(instr.Val, &addr)
+	a, err := f.StoreValAddr(instr.Val, &addr, instr.Pos())
 	asm = asm + a + f.Indent + fmt.Sprintf("// END Store, instr: %v\n", instr)
 	return asm, err
 }
@@ -1128,7 +1128,7 @@ func (f *Function) BinOp(instr *ssa.BinOp) (string, *Error) {
 		internal(fmt.Sprintf("unknown name (%v), instr (%v)\n", instr.Name(), instr))
 	}
 
-	a, err := f.StoreValue(&addr, &regVal)
+	a, err := f.StoreValue(&addr, &regVal, instr.Pos())
 	if err != nil {
 		return asm, err
 	} else {
@@ -1153,19 +1153,19 @@ func (f *Function) BinOpLoadXY(instr *ssa.BinOp) (asm string, x *register, y *re
 		return "", nil, nil, ErrorMsg2(fmt.Sprintf("Cannot alloc value: %v", instr.Y))
 	}
 
-	xtmp := f.allocReg(regType(instr.X.Type()), f.sizeof(instr.X))
-	x = &xtmp
-	ytmp := f.allocReg(regType(instr.Y.Type()), f.sizeof(instr.Y))
-	y = &ytmp
+	var a string
+
 	asm = f.Indent + "// BEGIN BinOpLoadXY\n"
 
-	if a, err := f.LoadValue(instr.X, 0, f.sizeof(instr.X), x); err != nil {
+	a, x, err = f.LoadValue(instr.X, 0, f.sizeof(instr.X))
+	if err != nil {
 		return "", nil, nil, err
 	} else {
 		asm += a
 	}
 
-	if a, err := f.LoadValue(instr.Y, 0, f.sizeof(instr.Y), y); err != nil {
+	a, y, err = f.LoadValue(instr.Y, 0, f.sizeof(instr.Y))
+	if err != nil {
 		return "", nil, nil, err
 	} else {
 		asm += a
@@ -1197,15 +1197,14 @@ func (f *Function) SliceLen(slice ssa.Value, ident *identifier) (string, *Error)
 	}
 
 	asm := f.Indent + fmt.Sprintf("// BEGIN SliceLen: slice (%v), ident (%v)\n", slice, *ident)
-	reg := f.allocReg(DATA_REG, sliceLenSize())
 
-	a, err := f.LoadValue(slice, sliceLenOffset(), sliceLenSize(), &reg)
+	a, reg, err := f.LoadValue(slice, sliceLenOffset(), sliceLenSize())
 	asm += a
 	if err != nil {
 		return asm, err
 	}
 
-	a, err = f.StoreValue(ident, &reg)
+	a, err = f.StoreValue(ident, reg, slice.Pos())
 	asm += a
 	if err != nil {
 		return asm, err
@@ -1216,51 +1215,46 @@ func (f *Function) SliceLen(slice ssa.Value, ident *identifier) (string, *Error)
 
 func (f *Function) LoadSimdValue(simdvalue ssa.Value) (string, *register, *Error) {
 	asm := f.Indent + fmt.Sprintf("// BEGIN LoadSimdValue, simdvalue: %v\n", simdvalue)
-	reg := f.allocReg(regType(simdvalue.Type()), f.sizeof(simdvalue))
-	a, err := f.LoadValue(simdvalue, 0, f.sizeof(simdvalue), &reg)
+	a, reg, err := f.LoadValue(simdvalue, 0, f.sizeof(simdvalue))
 	asm += a
 	asm += f.Indent + fmt.Sprintf("// END LoadSimdValue, simdvalue: %v, reg %v\n", simdvalue, reg.name)
-	return asm, &reg, err
+	return asm, reg, err
 }
 
 func (f *Function) LoadSimd(ident *identifier) (string, *register, *Error) {
 	asm := f.Indent + fmt.Sprintf("// BEGIN LoadSimd, ident: %v\n", ident.name)
-	reg := f.allocReg(regType(ident.typ), sizeof(ident.typ))
-	a, err := f.LoadIdentSimple(ident, &reg)
+	a, reg, err := f.LoadIdentSimple(ident)
 	asm += a
 	if reg.typ != XMM_REG {
 		xmmReg := f.allocReg(XMM_REG, 16)
-		asm += MovRegReg(f.Indent, OpDataType{XMM_OP, InstrData{}, XMM_F128}, &reg, &xmmReg)
-		f.freeReg(reg)
-		reg = xmmReg
+		asm += MovRegReg(f.Indent, OpDataType{XMM_OP, InstrData{}, XMM_F128}, reg, &xmmReg)
+		f.freeReg(*reg)
+		reg = &xmmReg
 	}
 
 	asm += f.Indent + fmt.Sprintf("// END LoadSimd, ident: %v, reg %v\n", ident.name, reg.name)
-	return asm, &reg, err
+	return asm, reg, err
 }
 
 func (f *Function) LoadSSE2(ident *identifier) (string, *register, *Error) {
 	return f.LoadSimd(ident)
 }
 
-func (f *Function) LoadIdentSimple(ident *identifier, reg *register) (string, *Error) {
-	asm := f.Indent + fmt.Sprintf("// BEGIN LoadIdentSimple, ident: %v, reg %v\n", ident.name, reg.name)
-	if sizeof(ident.typ) > reg.size() {
-		msg := "Value too large (size=%v) to load into register (size=%v)"
-		panic(internal(fmt.Sprintf(msg, sizeof(ident.typ), reg.size())))
-	}
-	a, err := f.LoadIdent(ident, 0, sizeof(ident.typ), reg)
+func (f *Function) LoadIdentSimple(ident *identifier) (string, *register, *Error) {
+	asm := f.Indent + fmt.Sprintf("// BEGIN LoadIdentSimple, ident: %v\n", ident.name)
+	a, reg, err := f.LoadIdent(ident, 0, sizeof(ident.typ))
 	asm += a
 	asm += f.Indent + fmt.Sprintf("// END LoadIdentSimple, ident: %v, reg %v\n", ident.name, reg.name)
-	return asm, err
+	return asm, reg, err
 }
 
-func (f *Function) LoadIdent(ident *identifier, offset int, size uint, reg *register) (string, *Error) {
+func (f *Function) LoadIdent(ident *identifier, offset int, size uint) (string, *register, *Error) {
 	r, roffset, rsize := ident.Addr()
 	if rsize%size != 0 {
 		msg := "ident (%v), size (%v) not a multiple of chunk size (%v) in loading"
 		internal(fmt.Sprintf(msg, ident.name, ident.size(), size))
 	}
+	reg := f.allocReg(regType(ident.typ), size)
 	if size > 8 && ((!isSimd(ident.typ) && !isSSE2(ident.typ)) || reg.typ != XMM_REG) {
 		msg := "ident (%v), loading more than 8 byte chunk"
 		internal(fmt.Sprintf(msg, ident.name))
@@ -1270,35 +1264,36 @@ func (f *Function) LoadIdent(ident *identifier, offset int, size uint, reg *regi
 		asm := f.Indent + fmt.Sprintf("// BEGIN LoadIdent (SIMD), ident: %v, offset %v, size %v\n", ident.name, offset, size)
 		a := ""
 		if isIntegerSimd(ident.typ) || isIntegerSSE2(ident.typ) {
-			a = MovIntegerSimdMemReg(f.Indent, optypes, ident.name, roffset+offset, &r, reg)
+			a = MovIntegerSimdMemReg(f.Indent, optypes, ident.name, roffset+offset, &r, &reg)
 		} else {
-			a = MovMemReg(f.Indent, optypes, ident.name, roffset+offset, &r, reg)
+			a = MovMemReg(f.Indent, optypes, ident.name, roffset+offset, &r, &reg)
 		}
 
 		asm += a
 		asm += f.Indent + fmt.Sprintf("// END LoadIdent (SIMD), ident: %v, offset %v, size %v\n", ident.name, offset, size)
-		return asm, nil
+		return asm, &reg, nil
 	}
 
 	optypes := GetIntegerOpDataType(false, size)
 	asm := f.Indent + fmt.Sprintf("// BEGIN LoadIdent, ident: %v, offset %v, size %v\n", ident.name, offset, size)
-	a := MovMemReg(f.Indent, optypes, ident.name, roffset+offset, &r, reg)
+	a := MovMemReg(f.Indent, optypes, ident.name, roffset+offset, &r, &reg)
 	asm += a
 	asm += f.Indent + fmt.Sprintf("// END LoadIdent, ident: %v, offset %v, size %v\n", ident.name, offset, size)
-	return asm, nil
+	return asm, &reg, nil
 }
 
-func (f *Function) LoadValueSimple(val ssa.Value, reg *register) (string, *Error) {
-	asm := f.Indent + fmt.Sprintf("// BEGIN LoadValueSimple, val: %v, reg %v\n", val, reg.name)
-	a, err := f.LoadValue(val, 0, f.sizeof(val), reg)
+func (f *Function) LoadValueSimple(val ssa.Value) (string, *register, *Error) {
+	asm := f.Indent + fmt.Sprintf("// BEGIN LoadValueSimple, val: %v\n", val)
+	a, reg, err := f.LoadValue(val, 0, f.sizeof(val))
 	asm += a
 	asm += f.Indent + fmt.Sprintf("// END LoadValueSimple, val: %v, reg %v\n", val, reg.name)
-	return asm, err
+	return asm, reg, err
 }
 
-func (f *Function) LoadValue(val ssa.Value, offset int, size uint, reg *register) (string, *Error) {
+func (f *Function) LoadValue(val ssa.Value, offset int, size uint) (string, *register, *Error) {
+
 	if _, ok := val.(*ssa.Const); ok {
-		return f.LoadConstValue(val.(*ssa.Const), reg)
+		return f.LoadConstValue(val.(*ssa.Const))
 	}
 	ident, ok := f.identifiers[val.Name()]
 	if !ok {
@@ -1306,24 +1301,24 @@ func (f *Function) LoadValue(val ssa.Value, offset int, size uint, reg *register
 	}
 
 	asm := f.Indent + fmt.Sprintf("// BEGIN LoadValue, val: %v, offset %v, size %v\n", val, offset, size)
-	a, err := f.LoadIdent(&ident, offset, size, reg)
+	a, reg, err := f.LoadIdent(&ident, offset, size)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	asm += a
 	asm += f.Indent + fmt.Sprintf("// END LoadValue, val: %v, offset %v, size %v\n", val, offset, size)
-	return asm, nil
+	return asm, reg, nil
 }
 
-func (f *Function) StoreSimd(reg *register, ident *identifier) (string, *Error) {
-	return f.StoreValue(ident, reg)
+func (f *Function) StoreSimd(reg *register, ident *identifier, pos token.Pos) (string, *Error) {
+	return f.StoreValue(ident, reg, pos)
 }
 
-func (f *Function) StoreSSE2(reg *register, ident *identifier) (string, *Error) {
-	return f.StoreValue(ident, reg)
+func (f *Function) StoreSSE2(reg *register, ident *identifier, pos token.Pos) (string, *Error) {
+	return f.StoreValue(ident, reg, pos)
 }
 
-func (f *Function) StoreValue(ident *identifier, reg *register) (string, *Error) {
+func (f *Function) StoreValue(ident *identifier, reg *register, pos token.Pos) (string, *Error) {
 	if ident.size() > reg.size() {
 		msgstr := "identifier, %v, size (%v) is greater than register size (%v)"
 		internal(fmt.Sprintf(msgstr, ident.name, ident.size(), reg.size()))
@@ -1360,28 +1355,30 @@ func (f *Function) StoreReg(reg *register, ident *identifier, offset int, size u
 	}
 }
 
-func (f *Function) LoadConstValue(cnst *ssa.Const, r *register) (string, *Error) {
+func (f *Function) LoadConstValue(cnst *ssa.Const) (string, *register, *Error) {
 
 	if isBool(cnst.Type()) {
+		r := f.allocReg(regType(cnst.Type()), 1)
 		var val int8
 		if cnst.Value.String() == "true" {
 			val = 1
 		}
-		return MovImm8Reg(f.Indent, val, r), nil
+		return MovImm8Reg(f.Indent, val, &r), &r, nil
 	}
 	if isFloat(cnst.Type()) {
+		r := f.allocReg(regType(cnst.Type()), 1)
 		if r.typ != XMM_REG {
 			internal("can't load float const into non xmm register")
 		}
 		tmp := f.allocReg(DATA_REG, 8)
 		asm := ""
 		if isFloat32(cnst.Type()) {
-			asm = MovImmf32Reg(f.Indent, float32(cnst.Float64()), &tmp, r)
+			asm = MovImmf32Reg(f.Indent, float32(cnst.Float64()), &tmp, &r)
 		} else {
-			asm = MovImmf64Reg(f.Indent, cnst.Float64(), &tmp, r)
+			asm = MovImmf64Reg(f.Indent, cnst.Float64(), &tmp, &r)
 		}
 		f.freeReg(tmp)
-		return asm, nil
+		return asm, &r, nil
 
 	}
 	if isComplex(cnst.Type()) {
@@ -1390,6 +1387,7 @@ func (f *Function) LoadConstValue(cnst *ssa.Const, r *register) (string, *Error)
 
 	size := sizeof(cnst.Type())
 	signed := signed(cnst.Type())
+	r := f.allocReg(regType(cnst.Type()), size)
 	var val int64
 	if signed {
 		val = cnst.Int64()
@@ -1397,7 +1395,7 @@ func (f *Function) LoadConstValue(cnst *ssa.Const, r *register) (string, *Error)
 
 		val = int64(cnst.Uint64())
 	}
-	return MovImmReg(f.Indent, val, size, r), nil
+	return MovImmReg(f.Indent, val, size, &r), &r, nil
 }
 
 func (f *Function) UnOp(instr *ssa.UnOp) (string, *Error) {
@@ -1427,30 +1425,26 @@ func (f *Function) UnOpXor(instr *ssa.UnOp, xorVal int32) (string, *Error) {
 	if nameinfo := f.Ident(instr); nameinfo == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
-	size := f.sizeof(instr)
-	reg := f.allocReg(regType(instr.X.Type()), size)
 
 	addr, ok := f.identifiers[instr.Name()]
 	if !ok {
 		msg := fmt.Sprintf("unknown name (%v), instr (%v)\n", instr.Name(), instr)
 		internal(msg)
 	}
+	asm, reg, err := f.LoadValueSimple(instr.X)
 
-	asm := ZeroReg(f.Indent, &reg)
-
-	asm, err := f.LoadValueSimple(instr.X, &reg)
 	if err != nil {
 		return asm, err
 	}
 
-	if size < 8 {
-		asm += XorImm32Reg(f.Indent, xorVal, &reg, size)
+	if reg.size() < 8 {
+		asm += XorImm32Reg(f.Indent, xorVal, reg, reg.size())
 	} else {
-		asm += XorImm64Reg(f.Indent, int64(xorVal), &reg, size)
+		asm += XorImm64Reg(f.Indent, int64(xorVal), reg, reg.size())
 	}
 
-	a, err := f.StoreValue(&addr, &reg)
-	f.freeReg(reg)
+	a, err := f.StoreValue(&addr, reg, instr.Pos())
+	f.freeReg(*reg)
 
 	if err != nil {
 		return asm, err
@@ -1469,12 +1463,11 @@ func (f *Function) UnOpSub(instr *ssa.UnOp) (string, *Error) {
 	if nameinfo := f.Ident(instr); nameinfo == nil {
 		return ErrorMsg(fmt.Sprintf("Cannot alloc value: %v", instr))
 	}
-	var regX register
+	var regX *register
 	var regSubX register
 	var regVal register
 
 	regVal = f.allocReg(regType(instr.Type()), f.sizeof(instr))
-	regX = f.allocReg(regType(instr.X.Type()), f.sizeof(instr.X))
 	regSubX = f.allocReg(regType(instr.X.Type()), f.sizeof(instr.X))
 
 	addr, ok := f.identifiers[instr.Name()]
@@ -1483,18 +1476,18 @@ func (f *Function) UnOpSub(instr *ssa.UnOp) (string, *Error) {
 		internal(msg)
 	}
 
-	asm, err := f.LoadValueSimple(instr.X, &regX)
+	asm, regX, err := f.LoadValueSimple(instr.X)
 	if err != nil {
 		return asm, err
 	}
 
 	asm += ZeroReg(f.Indent, &regSubX)
 	optypes := GetOpDataType(instr.Type())
-	asm += ArithOp(f.Indent, optypes, token.SUB, &regSubX, &regX, &regVal)
-	f.freeReg(regX)
+	asm += ArithOp(f.Indent, optypes, token.SUB, &regSubX, regX, &regVal)
+	f.freeReg(*regX)
 	f.freeReg(regSubX)
 
-	a, err := f.StoreValue(&addr, &regVal)
+	a, err := f.StoreValue(&addr, &regVal, instr.Pos())
 	if err != nil {
 		return asm, err
 	} else {
@@ -1610,19 +1603,23 @@ func (f *Function) Index(instr *ssa.Index) (string, *Error) {
 	xReg, xOffset, _ := xInfo.Addr()
 	aReg, aOffset, _ := assignment.Addr()
 	addrReg := f.allocReg(DATA_REG, sizePtr())
-	idxReg := f.allocReg(DATA_REG, sizePtr())
+	//idxReg := f.allocReg(DATA_REG, sizePtr())
 
-	f.LoadValueSimple(instr.Index, &idxReg)
+	a, idxReg, err := f.LoadValueSimple(instr.Index)
+	if err != nil {
+		return "", err
+	}
+	asm += a
 
 	asm += Lea(f.Indent, xInfo.name, xOffset, &xReg, &addrReg)
 
 	optypes := GetIntegerOpDataType(false, idxReg.width/8)
-	asm += AddRegReg(f.Indent, optypes, &idxReg, &addrReg)
+	asm += AddRegReg(f.Indent, optypes, idxReg, &addrReg)
 
 	optypes = GetOpDataType(assignment.typ)
 	asm += MovRegMem(f.Indent, optypes, &addrReg, assignment.name, &aReg, aOffset)
 
-	f.freeReg(idxReg)
+	f.freeReg(*idxReg)
 	f.freeReg(addrReg)
 
 	f.identifiers[instr.Name()] = *assignment
@@ -1646,14 +1643,15 @@ func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 	xReg, xOffset, _ := xInfo.Addr()
 	aReg, aOffset, _ := assignment.Addr()
 	addrReg := f.allocReg(DATA_REG, sizePtr())
-	idxReg := f.allocReg(DATA_REG, sizePtr())
+	//idxReg := f.allocReg(DATA_REG, sizePtr())
 
-	if a, err := f.LoadValueSimple(instr.Index, &idxReg); err == nil {
-		asm += a
-	} else {
+	a, idxReg, err := f.LoadValueSimple(instr.Index)
+	if err != nil {
 		return "", err
 	}
-	asm += MulImm32RegReg(f.Indent, uint32(sizeofElem(xInfo.typ)), &idxReg, &idxReg)
+	asm += a
+
+	asm += MulImm32RegReg(f.Indent, uint32(sizeofElem(xInfo.typ)), idxReg, idxReg)
 
 	if isSlice(xInfo.typ) {
 		// TODO: add bounds checking
@@ -1670,12 +1668,12 @@ func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 
 	optypes := GetIntegerOpDataType(false, idxReg.size())
 
-	asm += AddRegReg(f.Indent, optypes, &idxReg, &addrReg)
+	asm += AddRegReg(f.Indent, optypes, idxReg, &addrReg)
 
 	optypes = GetIntegerOpDataType(false, assignment.size())
 	asm += MovRegMem(f.Indent, optypes, &addrReg, assignment.name, &aReg, aOffset)
 
-	f.freeReg(idxReg)
+	f.freeReg(*idxReg)
 	f.freeReg(addrReg)
 
 	f.identifiers[instr.Name()] = *assignment

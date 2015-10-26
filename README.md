@@ -4,10 +4,25 @@ Gensimd is a collection of packages and a command, `gensimd`, for using SIMD in 
 Write functions in a subset of Go, using the `gensimd/simd`, `gensimd/simd/sse2`
 packages and convert them to Go assembly with the `gensimd` command.
 
+## Install
+
+```
+go install https://github.com/bjwbell/gensimd
+go install https://github.com/bjwbell/gensimd/simd
+```
+
+### Optional - SSE2
+
+To install and use the SSE2 intrinsics execute:
+```
+go install https://github.com/bjwbell/gensimd/simd/sse
+```
+
+
 ## Examples
-- [Distance calculation example](examples/distsq/)
-- [Cross platform - SIMD example](examples/simd_example/README.md)
-- [Platform specific - SSE2 example](examples/sse2_example/README.md)
+- [Distance calculation](examples/distsq/)
+- [Cross platform - SIMD](examples/simd_example/README.md)
+- [Platform specific - SSE2](examples/sse2_example/README.md)
 
 To build and run both examples execute `./run_examples.sh`.
 

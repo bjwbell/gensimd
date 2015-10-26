@@ -2,10 +2,10 @@ package codegen
 
 type register struct {
 	// register name e.g. ax, eax, rax, r15,...
-	name string
-	used bool
+	name  string
+	inUse bool
 
-	regconst regconst
+	regconst Reg
 
 	// type of register, for example xmm register, normal integer register, mmx register, etc.
 	typ RegType
@@ -14,8 +14,7 @@ type register struct {
 	// allowed data sizes in bytes used in reg
 	datasizes []uint
 
-	assigned *identifier
-	loaded   bool
+	aliases []*identifier
 }
 
 func (r *register) size() uint {
@@ -23,8 +22,79 @@ func (r *register) size() uint {
 }
 
 func (r *register) modified() {
-	r.assigned = nil
-	r.loaded = false
+	inUse := r.inUse
+	r.spill()
+	r.inUse = inUse
+}
+
+func (r *register) isAlias(ident *identifier) bool {
+	for _, alias := range r.aliases {
+		if alias == ident {
+			return true
+		}
+		if alias.name == ident.name {
+			ice("aliases with same name should have equal memory locations")
+		}
+	}
+	return false
+}
+
+func (r *register) addAlias(alias *identifier) {
+	if !r.isAlias(alias) {
+		if r.name == "R15" && "github.com/bjwbell/gensimd/simd.I32x4" == alias.typ.String() {
+			panic("ddsdssd")
+		}
+		r.aliases = append(r.aliases, alias)
+	}
+	if !r.isAlias(alias) {
+		ice("!r.isAlias")
+	}
+}
+
+func (r *register) removeAlias(alias *identifier) bool {
+	var aliases []*identifier
+	removed := false
+	for i := range r.aliases {
+		if r.aliases[i] == alias {
+			removed = true
+			continue
+		} else {
+			if alias.name == r.aliases[i].name {
+				ice("aliases with same name should have equal memory locations")
+			}
+			aliases = append(aliases, r.aliases[i])
+		}
+	}
+	r.aliases = aliases
+	return removed
+}
+
+func (r *register) spill() (string, *Error) {
+	asm := ""
+	for _, alias := range r.aliases {
+		f := alias.f
+		//	if r.name == "R15" {
+		//		fmt.Printf("REG:%v, ALIAS:(t: %v, v:%v)\n", r.name, alias.typ, alias)
+		//		}
+		if a, err := f.StoreReg(r, alias, 0, alias.size()); err != nil {
+			return a, err
+		} else {
+			asm += a
+		}
+	}
+
+	r.aliases = nil
+	r.inUse = false
+	return asm, nil
+}
+
+func (r *register) spillAlias(alias *identifier) (string, *Error) {
+	if !r.isAlias(alias) {
+		ice("can't spill register alias")
+	}
+	r.removeAlias(alias)
+	f := alias.f
+	return f.StoreReg(r, alias, 0, alias.size())
 }
 
 type RegType int
@@ -32,8 +102,6 @@ type RegType int
 const (
 	// integer register
 	DATA_REG = RegType(iota)
-	// address register
-	ADDR_REG
 	// Stack pointer pseudo register
 	SpReg
 	// Frame pointer pseudo register
@@ -46,8 +114,6 @@ func (r RegType) String() string {
 	switch r {
 	case DATA_REG:
 		return "DATA_REG"
-	case ADDR_REG:
-		return "ADDR_REG"
 	case SpReg:
 		return "SpReg"
 	case XMM_REG:
@@ -63,10 +129,11 @@ const XmmRegSize = 16
 const NumDataRegs = 14
 const NumXMM_REGs = 16
 
-type regconst int
+type Reg int
 
 const (
-	REG_AL = regconst(iota)
+	REG_INVALID Reg = 1 << iota
+	REG_AL
 	REG_CL
 	REG_DL
 	REG_BL
@@ -111,61 +178,62 @@ var QuadSize = []uint{8}
 var XmmDataSizes = []uint{1, 2, 4, 8, 16}
 
 var registers = []register{
-	{"AL", false, REG_AL, DATA_REG, 32, LongSizes, nil, false},
-	{"CL", false, REG_CL, DATA_REG, 32, LongSizes, nil, false},
-	{"DL", false, REG_DL, DATA_REG, 32, LongSizes, nil, false},
-	{"BL", false, REG_BL, DATA_REG, 32, LongSizes, nil, false},
-	{"AX", false, REG_AX, DATA_REG, 64, QuadSizes, nil, false},
-	{"CX", false, REG_CX, DATA_REG, 64, QuadSizes, nil, false},
-	{"DX", false, REG_DX, DATA_REG, 64, QuadSizes, nil, false},
-	{"SI", false, REG_SI, ADDR_REG, 64, QuadSize, nil, false},
-	{"DI", false, REG_DI, ADDR_REG, 64, QuadSize, nil, false},
-	{"BX", false, REG_BX, ADDR_REG, 64, QuadSize, nil, false},
-	{"BP", false, REG_BP, ADDR_REG, 64, QuadSize, nil, false},
-	{"SP", false, REG_SP, SpReg, 64, QuadSize, nil, false},
-	{"FP", false, REG_FP, FpReg, 64, QuadSize, nil, false},
-	{"R8", false, REG_R8, DATA_REG, 64, QuadSizes, nil, false},
-	{"R9", false, REG_R9, DATA_REG, 64, QuadSizes, nil, false},
-	{"R10", false, REG_R10, DATA_REG, 64, QuadSizes, nil, false},
-	{"R11", false, REG_R11, DATA_REG, 64, QuadSizes, nil, false},
-	{"R12", false, REG_R12, DATA_REG, 64, QuadSizes, nil, false},
-	{"R13", false, REG_R13, DATA_REG, 64, QuadSizes, nil, false},
-	{"R14", false, REG_R14, DATA_REG, 64, QuadSizes, nil, false},
-	{"R15", false, REG_R15, DATA_REG, 64, QuadSizes, nil, false},
-	{"X0", false, REG_X0, XMM_REG, 128, XmmDataSizes, nil, false},
-	{"X1", false, REG_X1, XMM_REG, 128, XmmDataSizes, nil, false},
-	{"X2", false, REG_X2, XMM_REG, 128, XmmDataSizes, nil, false},
-	{"X3", false, REG_X3, XMM_REG, 128, XmmDataSizes, nil, false},
-	{"X4", false, REG_X4, XMM_REG, 128, XmmDataSizes, nil, false},
-	{"X5", false, REG_X5, XMM_REG, 128, XmmDataSizes, nil, false},
-	{"X6", false, REG_X6, XMM_REG, 128, XmmDataSizes, nil, false},
-	{"X7", false, REG_X7, XMM_REG, 128, XmmDataSizes, nil, false},
-	{"X8", false, REG_X8, XMM_REG, 128, XmmDataSizes, nil, false},
-	{"X9", false, REG_X9, XMM_REG, 128, XmmDataSizes, nil, false},
-	{"X10", false, REG_X10, XMM_REG, 128, XmmDataSizes, nil, false},
-	{"X11", false, REG_X11, XMM_REG, 128, XmmDataSizes, nil, false},
-	{"X12", false, REG_X12, XMM_REG, 128, XmmDataSizes, nil, false},
-	{"X13", false, REG_X13, XMM_REG, 128, XmmDataSizes, nil, false},
-	{"X14", false, REG_X14, XMM_REG, 128, XmmDataSizes, nil, false},
-	{"X15", false, REG_X15, XMM_REG, 128, XmmDataSizes, nil, false},
+	{"AL", false, REG_AL, DATA_REG, 32, LongSizes, nil},
+	{"CL", false, REG_CL, DATA_REG, 32, LongSizes, nil},
+	{"DL", false, REG_DL, DATA_REG, 32, LongSizes, nil},
+	{"BL", false, REG_BL, DATA_REG, 32, LongSizes, nil},
+	{"AX", false, REG_AX, DATA_REG, 64, QuadSizes, nil},
+	{"CX", false, REG_CX, DATA_REG, 64, QuadSizes, nil},
+	{"DX", false, REG_DX, DATA_REG, 64, QuadSizes, nil},
+	{"SI", false, REG_SI, DATA_REG, 64, QuadSize, nil},
+	{"DI", false, REG_DI, DATA_REG, 64, QuadSize, nil},
+	{"BX", false, REG_BX, DATA_REG, 64, QuadSize, nil},
+	{"BP", false, REG_BP, DATA_REG, 64, QuadSize, nil},
+	{"SP", false, REG_SP, SpReg, 64, QuadSize, nil},
+	{"FP", false, REG_FP, FpReg, 64, QuadSize, nil},
+	{"R8", false, REG_R8, DATA_REG, 64, QuadSizes, nil},
+	{"R9", false, REG_R9, DATA_REG, 64, QuadSizes, nil},
+	{"R10", false, REG_R10, DATA_REG, 64, QuadSizes, nil},
+	{"R11", false, REG_R11, DATA_REG, 64, QuadSizes, nil},
+	{"R12", false, REG_R12, DATA_REG, 64, QuadSizes, nil},
+	{"R13", false, REG_R13, DATA_REG, 64, QuadSizes, nil},
+	{"R14", false, REG_R14, DATA_REG, 64, QuadSizes, nil},
+	{"R15", false, REG_R15, DATA_REG, 64, QuadSizes, nil},
+	{"X0", false, REG_X0, XMM_REG, 128, XmmDataSizes, nil},
+	{"X1", false, REG_X1, XMM_REG, 128, XmmDataSizes, nil},
+	{"X2", false, REG_X2, XMM_REG, 128, XmmDataSizes, nil},
+	{"X3", false, REG_X3, XMM_REG, 128, XmmDataSizes, nil},
+	{"X4", false, REG_X4, XMM_REG, 128, XmmDataSizes, nil},
+	{"X5", false, REG_X5, XMM_REG, 128, XmmDataSizes, nil},
+	{"X6", false, REG_X6, XMM_REG, 128, XmmDataSizes, nil},
+	{"X7", false, REG_X7, XMM_REG, 128, XmmDataSizes, nil},
+	{"X8", false, REG_X8, XMM_REG, 128, XmmDataSizes, nil},
+	{"X9", false, REG_X9, XMM_REG, 128, XmmDataSizes, nil},
+	{"X10", false, REG_X10, XMM_REG, 128, XmmDataSizes, nil},
+	{"X11", false, REG_X11, XMM_REG, 128, XmmDataSizes, nil},
+	{"X12", false, REG_X12, XMM_REG, 128, XmmDataSizes, nil},
+	{"X13", false, REG_X13, XMM_REG, 128, XmmDataSizes, nil},
+	{"X14", false, REG_X14, XMM_REG, 128, XmmDataSizes, nil},
+	{"X15", false, REG_X15, XMM_REG, 128, XmmDataSizes, nil},
 }
 
 var excludedRegisters = []register{
 	// used as implicit operands in arithmetic instructions
-	{"AL", false, REG_AL, DATA_REG, 32, LongSizes, nil, false},
-	{"CL", false, REG_CL, DATA_REG, 32, LongSizes, nil, false},
-	{"DL", false, REG_DL, DATA_REG, 32, LongSizes, nil, false},
-	{"AX", false, REG_AX, DATA_REG, 64, QuadSizes, nil, false},
-	{"CX", false, REG_CX, DATA_REG, 64, QuadSizes, nil, false},
-	{"DX", false, REG_DX, DATA_REG, 64, QuadSizes, nil, false},
+	{"AL", false, REG_AL, DATA_REG, 32, LongSizes, nil},
+	{"BL", false, REG_AL, DATA_REG, 32, LongSizes, nil},
+	{"CL", false, REG_CL, DATA_REG, 32, LongSizes, nil},
+	{"DL", false, REG_DL, DATA_REG, 32, LongSizes, nil},
+	{"AX", false, REG_AX, DATA_REG, 64, QuadSizes, nil},
+	{"CX", false, REG_CX, DATA_REG, 64, QuadSizes, nil},
+	{"DX", false, REG_DX, DATA_REG, 64, QuadSizes, nil},
 
 	// stack pointer pseudo register
-	{"SP", false, REG_SP, SpReg, 64, QuadSize, nil, false},
+	{"SP", false, REG_SP, SpReg, 64, QuadSize, nil},
 	// frame pointer pseudo register
-	{"FP", false, REG_FP, FpReg, 64, QuadSize, nil, false},
+	{"FP", false, REG_FP, FpReg, 64, QuadSize, nil},
 }
 
-func getRegister(reg regconst) *register {
+func getRegister(reg Reg) *register {
 	for _, r := range registers {
 		if r.regconst == reg {
 			return &r

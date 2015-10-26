@@ -723,3 +723,260 @@ const (
 	FUCOMIP
 	LAST
 )
+
+type InstrFlags int
+
+const (
+	FLAGS_NONE InstrFlags = 1 << iota
+	SizeB                 // byte
+	SizeW                 // word
+	SizeL                 // dword
+	SizeQ                 // quad word
+	SizeO                 // oct word
+	SizeD                 // float64
+	SizeF                 // float32
+
+	UseCarry
+	SetCarry
+	KillCarry
+
+	ShiftCX
+	ImulAXDX
+
+	LeftRead
+	LeftRdwr
+	RightRead
+	RightRdwr
+	RightWrite
+
+	LeftAddr
+	RightAddr
+
+	Call
+	OK
+	Conv
+
+	Cjmp
+	Jump
+	Break
+
+	Move
+)
+
+type InstrInfo struct {
+	Flags InstrFlags
+	Use   Reg
+	Set   Reg
+}
+
+var instrTable = map[Instr]InstrInfo{
+	ADCL:  {Flags: SizeL | LeftRead | RightRdwr | SetCarry | UseCarry},
+	ADCW:  {Flags: SizeW | LeftRead | RightRdwr | SetCarry | UseCarry},
+	ADDB:  {Flags: SizeB | LeftRead | RightRdwr | SetCarry},
+	ADDL:  {Flags: SizeL | LeftRead | RightRdwr | SetCarry},
+	ADDW:  {Flags: SizeW | LeftRead | RightRdwr | SetCarry},
+	ADDSD: {Flags: SizeD | LeftRead | RightRdwr},
+	ADDSS: {Flags: SizeF | LeftRead | RightRdwr},
+	ANDB:  {Flags: SizeB | LeftRead | RightRdwr | SetCarry},
+	ANDL:  {Flags: SizeL | LeftRead | RightRdwr | SetCarry},
+	ANDW:  {Flags: SizeW | LeftRead | RightRdwr | SetCarry},
+	//CALL:      {Flags: RightAddr | Call | KillCarry},
+	CDQ:       {Flags: OK, Use: REG_AX, Set: REG_AX | REG_DX},
+	CWD:       {Flags: OK, Use: REG_AX, Set: REG_AX | REG_DX},
+	CLD:       {Flags: OK},
+	STD:       {Flags: OK},
+	CMPB:      {Flags: SizeB | LeftRead | RightRead | SetCarry},
+	CMPL:      {Flags: SizeL | LeftRead | RightRead | SetCarry},
+	CMPW:      {Flags: SizeW | LeftRead | RightRead | SetCarry},
+	COMISD:    {Flags: SizeD | LeftRead | RightRead | SetCarry},
+	COMISS:    {Flags: SizeF | LeftRead | RightRead | SetCarry},
+	CVTSD2SL:  {Flags: SizeL | LeftRead | RightWrite | Conv},
+	CVTSD2SS:  {Flags: SizeF | LeftRead | RightWrite | Conv},
+	CVTSL2SD:  {Flags: SizeD | LeftRead | RightWrite | Conv},
+	CVTSL2SS:  {Flags: SizeF | LeftRead | RightWrite | Conv},
+	CVTSS2SD:  {Flags: SizeD | LeftRead | RightWrite | Conv},
+	CVTSS2SL:  {Flags: SizeL | LeftRead | RightWrite | Conv},
+	CVTTSD2SL: {Flags: SizeL | LeftRead | RightWrite | Conv},
+	CVTTSS2SL: {Flags: SizeL | LeftRead | RightWrite | Conv},
+	DECB:      {Flags: SizeB | RightRdwr},
+	DECL:      {Flags: SizeL | RightRdwr},
+	DECW:      {Flags: SizeW | RightRdwr},
+	DIVB:      {Flags: SizeB | LeftRead | SetCarry, Use: REG_AX, Set: REG_AX},
+	DIVL:      {Flags: SizeL | LeftRead | SetCarry, Use: REG_AX | REG_DX, Set: REG_AX | REG_DX},
+	DIVW:      {Flags: SizeW | LeftRead | SetCarry, Use: REG_AX | REG_DX, Set: REG_AX | REG_DX},
+	DIVSD:     {Flags: SizeD | LeftRead | RightRdwr},
+	DIVSS:     {Flags: SizeF | LeftRead | RightRdwr},
+	FLDCW:     {Flags: SizeW | LeftAddr},
+	FSTCW:     {Flags: SizeW | RightAddr},
+	FSTSW:     {Flags: SizeW | RightAddr | RightWrite},
+	FADDD:     {Flags: SizeD | LeftAddr | RightRdwr},
+	FADDDP:    {Flags: SizeD | LeftAddr | RightRdwr},
+	FADDF:     {Flags: SizeF | LeftAddr | RightRdwr},
+	FCOMD:     {Flags: SizeD | LeftAddr | RightRead},
+	FCOMDP:    {Flags: SizeD | LeftAddr | RightRead},
+	FCOMDPP:   {Flags: SizeD | LeftAddr | RightRead},
+	FCOMF:     {Flags: SizeF | LeftAddr | RightRead},
+	FCOMFP:    {Flags: SizeF | LeftAddr | RightRead},
+	FUCOMIP:   {Flags: SizeF | LeftAddr | RightRead},
+	FCHS:      {Flags: SizeD | RightRdwr}, // also SizeF
+
+	FDIVDP:  {Flags: SizeD | LeftAddr | RightRdwr},
+	FDIVF:   {Flags: SizeF | LeftAddr | RightRdwr},
+	FDIVD:   {Flags: SizeD | LeftAddr | RightRdwr},
+	FDIVRDP: {Flags: SizeD | LeftAddr | RightRdwr},
+	FDIVRF:  {Flags: SizeF | LeftAddr | RightRdwr},
+	FDIVRD:  {Flags: SizeD | LeftAddr | RightRdwr},
+	FXCHD:   {Flags: SizeD | LeftRdwr | RightRdwr},
+	FSUBD:   {Flags: SizeD | LeftAddr | RightRdwr},
+	FSUBDP:  {Flags: SizeD | LeftAddr | RightRdwr},
+	FSUBF:   {Flags: SizeF | LeftAddr | RightRdwr},
+	FSUBRD:  {Flags: SizeD | LeftAddr | RightRdwr},
+	FSUBRDP: {Flags: SizeD | LeftAddr | RightRdwr},
+	FSUBRF:  {Flags: SizeF | LeftAddr | RightRdwr},
+	FMOVD:   {Flags: SizeD | LeftAddr | RightWrite},
+	FMOVF:   {Flags: SizeF | LeftAddr | RightWrite},
+	FMOVL:   {Flags: SizeL | LeftAddr | RightWrite},
+	FMOVW:   {Flags: SizeW | LeftAddr | RightWrite},
+	FMOVV:   {Flags: SizeQ | LeftAddr | RightWrite},
+
+	FMOVDP: {Flags: SizeD | LeftRead | RightWrite},
+	FMOVFP: {Flags: SizeF | LeftRead | RightWrite},
+	FMOVLP: {Flags: SizeL | LeftRead | RightWrite},
+	FMOVWP: {Flags: SizeW | LeftRead | RightWrite},
+	FMOVVP: {Flags: SizeQ | LeftRead | RightWrite},
+	FMULD:  {Flags: SizeD | LeftAddr | RightRdwr},
+	FMULDP: {Flags: SizeD | LeftAddr | RightRdwr},
+	FMULF:  {Flags: SizeF | LeftAddr | RightRdwr},
+	IDIVB:  {Flags: SizeB | LeftRead | SetCarry, Use: REG_AX, Set: REG_AX},
+	IDIVL:  {Flags: SizeL | LeftRead | SetCarry, Use: REG_AX | REG_DX, Set: REG_AX | REG_DX},
+	IDIVW:  {Flags: SizeW | LeftRead | SetCarry, Use: REG_AX | REG_DX, Set: REG_AX | REG_DX},
+	IMULB:  {Flags: SizeB | LeftRead | SetCarry, Use: REG_AX, Set: REG_AX},
+	IMULL:  {Flags: SizeL | LeftRead | ImulAXDX | SetCarry},
+	IMULW:  {Flags: SizeW | LeftRead | ImulAXDX | SetCarry},
+	INCB:   {Flags: SizeB | RightRdwr},
+	INCL:   {Flags: SizeL | RightRdwr},
+	INCW:   {Flags: SizeW | RightRdwr},
+	JCC:    {Flags: Cjmp | UseCarry},
+	JCS:    {Flags: Cjmp | UseCarry},
+	JEQ:    {Flags: Cjmp | UseCarry},
+	JGE:    {Flags: Cjmp | UseCarry},
+	JGT:    {Flags: Cjmp | UseCarry},
+	JHI:    {Flags: Cjmp | UseCarry},
+	JLE:    {Flags: Cjmp | UseCarry},
+	JLS:    {Flags: Cjmp | UseCarry},
+	JLT:    {Flags: Cjmp | UseCarry},
+	JMI:    {Flags: Cjmp | UseCarry},
+	JNE:    {Flags: Cjmp | UseCarry},
+	JOC:    {Flags: Cjmp | UseCarry},
+	JOS:    {Flags: Cjmp | UseCarry},
+	JPC:    {Flags: Cjmp | UseCarry},
+	JPL:    {Flags: Cjmp | UseCarry},
+	JPS:    {Flags: Cjmp | UseCarry},
+	//JMP:      {Flags: Jump | Break | KillCarry},
+	LEAL:    {Flags: LeftAddr | RightWrite},
+	MOVBLSX: {Flags: SizeL | LeftRead | RightWrite | Conv},
+	MOVBLZX: {Flags: SizeL | LeftRead | RightWrite | Conv},
+	MOVBWSX: {Flags: SizeW | LeftRead | RightWrite | Conv},
+	MOVBWZX: {Flags: SizeW | LeftRead | RightWrite | Conv},
+	MOVWLSX: {Flags: SizeL | LeftRead | RightWrite | Conv},
+	MOVWLZX: {Flags: SizeL | LeftRead | RightWrite | Conv},
+	MOVB:    {Flags: SizeB | LeftRead | RightWrite | Move},
+	MOVL:    {Flags: SizeL | LeftRead | RightWrite | Move},
+	MOVW:    {Flags: SizeW | LeftRead | RightWrite | Move},
+	MOVSB:   {Flags: OK, Use: REG_DI | REG_SI, Set: REG_DI | REG_SI},
+	MOVSL:   {Flags: OK, Use: REG_DI | REG_SI, Set: REG_DI | REG_SI},
+	MOVSW:   {Flags: OK, Use: REG_DI | REG_SI, Set: REG_DI | REG_SI},
+	//DUFFCOPY: {Flags: OK, Use: REG_DI | REG_SI, Set: REG_DI | REG_SI | REG_CX},
+	MOVSD: {Flags: SizeD | LeftRead | RightWrite | Move},
+	MOVSS: {Flags: SizeF | LeftRead | RightWrite | Move},
+
+	// We use MOVAPD as a faster synonym for MOVSD.
+	MOVAPD: {Flags: SizeD | LeftRead | RightWrite | Move},
+	MULB:   {Flags: SizeB | LeftRead | SetCarry, Use: REG_AX, Set: REG_AX},
+	MULL:   {Flags: SizeL | LeftRead | SetCarry, Use: REG_AX, Set: REG_AX | REG_DX},
+	MULW:   {Flags: SizeW | LeftRead | SetCarry, Use: REG_AX, Set: REG_AX | REG_DX},
+	MULSD:  {Flags: SizeD | LeftRead | RightRdwr},
+	MULSS:  {Flags: SizeF | LeftRead | RightRdwr},
+	NEGB:   {Flags: SizeB | RightRdwr | SetCarry},
+	NEGL:   {Flags: SizeL | RightRdwr | SetCarry},
+	NEGW:   {Flags: SizeW | RightRdwr | SetCarry},
+	NOTB:   {Flags: SizeB | RightRdwr},
+	NOTL:   {Flags: SizeL | RightRdwr},
+	NOTW:   {Flags: SizeW | RightRdwr},
+	ORB:    {Flags: SizeB | LeftRead | RightRdwr | SetCarry},
+	ORL:    {Flags: SizeL | LeftRead | RightRdwr | SetCarry},
+	ORW:    {Flags: SizeW | LeftRead | RightRdwr | SetCarry},
+	PEXTRW: {Flags: SizeW | RightWrite},
+	PINSRW: {Flags: SizeW | RightWrite},
+	POPL:   {Flags: SizeL | RightWrite},
+	PSRLO:  {Flags: SizeO | RightWrite},
+	PSHUFD: {Flags: SizeO | RightWrite},
+	PUSHL:  {Flags: SizeL | LeftRead},
+	RCLB:   {Flags: SizeB | LeftRead | RightRdwr | ShiftCX | SetCarry | UseCarry},
+	RCLL:   {Flags: SizeL | LeftRead | RightRdwr | ShiftCX | SetCarry | UseCarry},
+	RCLW:   {Flags: SizeW | LeftRead | RightRdwr | ShiftCX | SetCarry | UseCarry},
+	RCRB:   {Flags: SizeB | LeftRead | RightRdwr | ShiftCX | SetCarry | UseCarry},
+	RCRL:   {Flags: SizeL | LeftRead | RightRdwr | ShiftCX | SetCarry | UseCarry},
+	RCRW:   {Flags: SizeW | LeftRead | RightRdwr | ShiftCX | SetCarry | UseCarry},
+	REP:    {Flags: OK, Use: REG_CX, Set: REG_CX},
+	REPN:   {Flags: OK, Use: REG_CX, Set: REG_CX},
+	//RET:      {Flags: Break | KillCarry},
+	ROLB:  {Flags: SizeB | LeftRead | RightRdwr | ShiftCX | SetCarry},
+	ROLL:  {Flags: SizeL | LeftRead | RightRdwr | ShiftCX | SetCarry},
+	ROLW:  {Flags: SizeW | LeftRead | RightRdwr | ShiftCX | SetCarry},
+	RORB:  {Flags: SizeB | LeftRead | RightRdwr | ShiftCX | SetCarry},
+	RORL:  {Flags: SizeL | LeftRead | RightRdwr | ShiftCX | SetCarry},
+	RORW:  {Flags: SizeW | LeftRead | RightRdwr | ShiftCX | SetCarry},
+	SAHF:  {Flags: OK, Use: REG_AX, Set: REG_AX},
+	SALB:  {Flags: SizeB | LeftRead | RightRdwr | ShiftCX | SetCarry},
+	SALL:  {Flags: SizeL | LeftRead | RightRdwr | ShiftCX | SetCarry},
+	SALW:  {Flags: SizeW | LeftRead | RightRdwr | ShiftCX | SetCarry},
+	SARB:  {Flags: SizeB | LeftRead | RightRdwr | ShiftCX | SetCarry},
+	SARL:  {Flags: SizeL | LeftRead | RightRdwr | ShiftCX | SetCarry},
+	SARW:  {Flags: SizeW | LeftRead | RightRdwr | ShiftCX | SetCarry},
+	SBBB:  {Flags: SizeB | LeftRead | RightRdwr | SetCarry | UseCarry},
+	SBBL:  {Flags: SizeL | LeftRead | RightRdwr | SetCarry | UseCarry},
+	SBBW:  {Flags: SizeW | LeftRead | RightRdwr | SetCarry | UseCarry},
+	SETCC: {Flags: SizeB | RightRdwr | UseCarry},
+	SETCS: {Flags: SizeB | RightRdwr | UseCarry},
+	SETEQ: {Flags: SizeB | RightRdwr | UseCarry},
+	SETGE: {Flags: SizeB | RightRdwr | UseCarry},
+	SETGT: {Flags: SizeB | RightRdwr | UseCarry},
+	SETHI: {Flags: SizeB | RightRdwr | UseCarry},
+	SETLE: {Flags: SizeB | RightRdwr | UseCarry},
+	SETLS: {Flags: SizeB | RightRdwr | UseCarry},
+	SETLT: {Flags: SizeB | RightRdwr | UseCarry},
+	SETMI: {Flags: SizeB | RightRdwr | UseCarry},
+	SETNE: {Flags: SizeB | RightRdwr | UseCarry},
+	SETOC: {Flags: SizeB | RightRdwr | UseCarry},
+	SETOS: {Flags: SizeB | RightRdwr | UseCarry},
+	SETPC: {Flags: SizeB | RightRdwr | UseCarry},
+	SETPL: {Flags: SizeB | RightRdwr | UseCarry},
+	SETPS: {Flags: SizeB | RightRdwr | UseCarry},
+	SHLB:  {Flags: SizeB | LeftRead | RightRdwr | ShiftCX | SetCarry},
+	SHLL:  {Flags: SizeL | LeftRead | RightRdwr | ShiftCX | SetCarry},
+	SHLW:  {Flags: SizeW | LeftRead | RightRdwr | ShiftCX | SetCarry},
+	SHRB:  {Flags: SizeB | LeftRead | RightRdwr | ShiftCX | SetCarry},
+	SHRL:  {Flags: SizeL | LeftRead | RightRdwr | ShiftCX | SetCarry},
+	SHRW:  {Flags: SizeW | LeftRead | RightRdwr | ShiftCX | SetCarry},
+	STOSB: {Flags: OK, Use: REG_AX | REG_DI, Set: REG_DI},
+	STOSL: {Flags: OK, Use: REG_AX | REG_DI, Set: REG_DI},
+	STOSW: {Flags: OK, Use: REG_AX | REG_DI, Set: REG_DI},
+	//DUFFZERO: {Flags: OK, Use: REG_AX | REG_DI, Set: REG_DI},
+	SUBB:    {Flags: SizeB | LeftRead | RightRdwr | SetCarry},
+	SUBL:    {Flags: SizeL | LeftRead | RightRdwr | SetCarry},
+	SUBW:    {Flags: SizeW | LeftRead | RightRdwr | SetCarry},
+	SUBSD:   {Flags: SizeD | LeftRead | RightRdwr},
+	SUBSS:   {Flags: SizeF | LeftRead | RightRdwr},
+	TESTB:   {Flags: SizeB | LeftRead | RightRead | SetCarry},
+	TESTL:   {Flags: SizeL | LeftRead | RightRead | SetCarry},
+	TESTW:   {Flags: SizeW | LeftRead | RightRead | SetCarry},
+	UCOMISD: {Flags: SizeD | LeftRead | RightRead},
+	UCOMISS: {Flags: SizeF | LeftRead | RightRead},
+	XCHGB:   {Flags: SizeB | LeftRdwr | RightRdwr},
+	XCHGL:   {Flags: SizeL | LeftRdwr | RightRdwr},
+	XCHGW:   {Flags: SizeW | LeftRdwr | RightRdwr},
+	XORB:    {Flags: SizeB | LeftRead | RightRdwr | SetCarry},
+	XORL:    {Flags: SizeL | LeftRead | RightRdwr | SetCarry},
+	XORW:    {Flags: SizeW | LeftRead | RightRdwr | SetCarry},
+}

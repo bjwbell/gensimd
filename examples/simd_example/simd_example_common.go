@@ -65,7 +65,7 @@ func main() {
 			}
 
 			if addi32x4(xI32x4, yI32x4) != simd.AddI32x4(xI32x4, yI32x4) {
-				fmt.Printf("addi32x4(%v, %v)", xI32x4, yI32x4)
+				fmt.Printf("addi32x4(%v, %v)\n", xI32x4, yI32x4)
 				fmt.Println("x:", xI32x4)
 				fmt.Println("y:", yI32x4)
 				fmt.Println("s(xI32x4, yI32x4):", addi32x4(xI32x4, yI32x4))
@@ -73,7 +73,7 @@ func main() {
 				errors++
 			}
 			if subi32x4(xI32x4, yI32x4) != simd.SubI32x4(xI32x4, yI32x4) {
-				fmt.Printf("subi32x4(%v, %v)", xI32x4, yI32x4)
+				fmt.Printf("subi32x4(%v, %v)\n", xI32x4, yI32x4)
 				fmt.Println("x:", xI32x4)
 				fmt.Println("y:", yI32x4)
 				fmt.Println("s:", subi32x4(xI32x4, yI32x4))
@@ -81,7 +81,7 @@ func main() {
 				errors++
 			}
 			if muli32x4(xI32x4, yI32x4) != simd.MulI32x4(xI32x4, yI32x4) {
-				fmt.Printf("muli32x4(%v, %v)", xI32x4, yI32x4)
+				fmt.Printf("muli32x4(%v, %v)\n", xI32x4, yI32x4)
 				fmt.Println("x:", xI32x4)
 				fmt.Println("y:", yI32x4)
 				fmt.Println("s:", muli32x4(xI32x4, yI32x4))
@@ -89,7 +89,7 @@ func main() {
 				errors++
 			}
 			if shli32x4(xI32x4, shift) != simd.ShlI32x4(xI32x4, shift) {
-				fmt.Printf("shli32x4(%v, %v)", xI32x4, shift)
+				fmt.Printf("shli32x4(%v, %v)\n", xI32x4, shift)
 				fmt.Println("x:", xI32x4)
 				fmt.Println("shift:", shift)
 				fmt.Println("s:", shli32x4(xI32x4, shift))
@@ -97,7 +97,7 @@ func main() {
 				errors++
 			}
 			if shri32x4(xI32x4, shift) != simd.ShrI32x4(xI32x4, shift) {
-				fmt.Printf("shri32x4(%v, %v)", xI32x4, shift)
+				fmt.Printf("shri32x4(%v, %v)\n", xI32x4, shift)
 				fmt.Println("x:", xI32x4)
 				fmt.Println("shift:", shift)
 				fmt.Println("s:", shri32x4(xI32x4, shift))
@@ -106,7 +106,7 @@ func main() {
 			}
 
 			if addf32x4(xF32x4, yF32x4) != simd.AddF32x4(xF32x4, yF32x4) {
-				fmt.Printf("addf32x4(%v, %v)", xF32x4, yF32x4)
+				fmt.Printf("addf32x4(%v, %v)\n", xF32x4, yF32x4)
 				fmt.Println("x:", xF32x4)
 				fmt.Println("y:", yF32x4)
 				fmt.Println("s:", addf32x4(xF32x4, yF32x4))
@@ -114,7 +114,7 @@ func main() {
 				errors++
 			}
 			if subf32x4(xF32x4, yF32x4) != simd.SubF32x4(xF32x4, yF32x4) {
-				fmt.Printf("subf32x4(%v, %v)", xF32x4, yF32x4)
+				fmt.Printf("subf32x4(%v, %v)\n", xF32x4, yF32x4)
 				fmt.Println("x:", xF32x4)
 				fmt.Println("y:", yF32x4)
 				fmt.Println("s:", subf32x4(xF32x4, yF32x4))
@@ -122,14 +122,14 @@ func main() {
 				errors++
 			}
 			if mulf32x4(xF32x4, yF32x4) != simd.MulF32x4(xF32x4, yF32x4) {
-				fmt.Printf("mulf32x4(%v, %v)", xF32x4, yF32x4)
+				fmt.Printf("mulf32x4(%v, %v)\n", xF32x4, yF32x4)
 				fmt.Println("x:", xF32x4)
 				fmt.Println("y:", yF32x4)
 				fmt.Println("s:", mulf32x4(xF32x4, yF32x4))
 				fmt.Println(" :", simd.MulF32x4(xF32x4, yF32x4))
 			}
 			if divf32x4(xF32x4, yF32x4) != simd.DivF32x4(xF32x4, yF32x4) {
-				fmt.Printf("divf32x4(%v, %v)", xF32x4, yF32x4)
+				fmt.Printf("divf32x4(%v, %v)\n", xF32x4, yF32x4)
 				fmt.Println("x:", xF32x4)
 				fmt.Println("y:", yF32x4)
 				fmt.Println("s:", divf32x4(xF32x4, yF32x4))

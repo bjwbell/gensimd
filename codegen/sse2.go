@@ -53,7 +53,7 @@ func sse2Op(f *Function, instr sse2.SSE2Instr, x, y, result *identifier, pos tok
 		return "", err
 	}
 	asm += b
-	asm += instrRegReg(f.Indent, goInstr, regx, regy)
+	asm += instrRegReg(goInstr, regx, regy)
 	c, err := f.StoreSSE2(regy, result, pos)
 	if err != nil {
 		return "", err

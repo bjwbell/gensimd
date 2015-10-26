@@ -140,5 +140,5 @@ func main() {
 		}
 	}
 
-	fmt.Printf("Done checking simd example results, errors: %d\n", errors)
+	fmt.Printf("Done, errors: %d\n", errors)
 }

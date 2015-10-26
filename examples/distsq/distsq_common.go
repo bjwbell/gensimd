@@ -56,5 +56,5 @@ func main() {
 		errors++
 	}
 
-	fmt.Printf("Done checking distsq example results, errors: %d\n", errors)
+	fmt.Printf("Done, errors: %d\n", errors)
 }

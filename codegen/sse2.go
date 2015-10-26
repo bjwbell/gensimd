@@ -43,12 +43,12 @@ func getSSE2(name string) (sse2.SSE2Instr, bool) {
 func sse2Op(f *Function, instr sse2.SSE2Instr, x, y, result *identifier, pos token.Pos) (string, *Error) {
 	asm := ""
 	goInstr := sse2ToGoAsm[instr]
-	a, regx, err := f.LoadSSE2(x)
+	a, regx, err := f.LoadSSE2(x, pos)
 	if err != nil {
 		return "", err
 	}
 	asm += a
-	b, regy, err := f.LoadSSE2(y)
+	b, regy, err := f.LoadSSE2(y, pos)
 	if err != nil {
 		return "", err
 	}

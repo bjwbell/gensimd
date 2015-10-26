@@ -111,12 +111,12 @@ var intrinsics = map[string]intrinsic{
 func packedOp(f *Function, instrtype InstructionType, optypes XmmData, x, y, result *identifier, pos token.Pos) (string, *Error) {
 	asm := ""
 	instr := GetXmmInstruction(instrtype).Select(optypes)
-	a, regx, err := f.LoadSimd(x)
+	a, regx, err := f.LoadSimd(x, pos)
 	if err != nil {
 		return "", err
 	}
 	asm += a
-	b, regy, err := f.LoadSimd(y)
+	b, regy, err := f.LoadSimd(y, pos)
 	if err != nil {
 		return "", err
 	}
@@ -160,12 +160,12 @@ func mulI32x4(f *Function, x, y, result *identifier, pos token.Pos) (string, *Er
 	asm := ""
 	tmp1 := f.allocReg(XMM_REG, 16)
 
-	a, regx, err := f.LoadSimd(x)
+	a, regx, err := f.LoadSimd(x, pos)
 	if err != nil {
 		return "", err
 	}
 	asm += a
-	b, regy, err := f.LoadSimd(y)
+	b, regy, err := f.LoadSimd(y, pos)
 	if err != nil {
 		return "", err
 	}
@@ -230,12 +230,12 @@ func shrU16x8(f *Function, x, count, result *identifier, pos token.Pos) (string,
 		return packedOp(f, I_PSRL, XMM_U16X8, count, x, result, pos)
 	} else {
 
-		asm, reg, err := f.LoadSimd(x)
+		asm, reg, err := f.LoadSimd(x, pos)
 		if err != nil {
 			panic(internal("couldn't load SIMD value"))
 		}
 
-		a, countReg, e := f.LoadIdentSimple(count)
+		a, countReg, e := f.LoadIdentSimple(count, pos)
 		if e != nil {
 			panic(internal("couldn't load shift count for SIMD shift right "))
 		}
@@ -289,7 +289,7 @@ func shrU16x8(f *Function, x, count, result *identifier, pos token.Pos) (string,
 
 func shufU32x4(f *Function, x, result, order *identifier, pos token.Pos) (string, *Error) {
 
-	asm, src, err := f.LoadSimd(x)
+	asm, src, err := f.LoadSimd(x, pos)
 	if err != nil {
 		panic(internal("couldn't load SIMD value"))
 	}

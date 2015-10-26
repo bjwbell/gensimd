@@ -60,8 +60,8 @@ func sse2Op(f *Function, instr sse2.SSE2Instr, x, y, result *identifier, pos tok
 	}
 	asm += c
 
-	f.freeReg(*regx)
-	f.freeReg(*regy)
+	f.freeReg(regx)
+	f.freeReg(regy)
 
 	return asm, err
 }

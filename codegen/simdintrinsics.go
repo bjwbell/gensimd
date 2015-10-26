@@ -128,8 +128,8 @@ func packedOp(f *Function, instrtype InstructionType, optypes XmmData, x, y, res
 	}
 	asm += c
 
-	f.freeReg(*regx)
-	f.freeReg(*regy)
+	f.freeReg(regx)
+	f.freeReg(regy)
 
 	return asm, err
 }
@@ -171,37 +171,37 @@ func mulI32x4(f *Function, x, y, result *identifier, pos token.Pos) (string, *Er
 	}
 	asm += b
 
-	asm += MovRegReg(f.Indent, OpDataType{op: XMM_OP, xmmvariant: XMM_F128}, regy, &tmp1)
-	asm += instrRegReg(f, PMULULQ, regx, &tmp1) // mul dwords 2, 0
+	asm += MovRegReg(f.Indent, OpDataType{op: XMM_OP, xmmvariant: XMM_F128}, regy, tmp1)
+	asm += instrRegReg(f, PMULULQ, regx, tmp1) // mul dwords 2, 0
 
 	asm += instrImm8Reg(f, PSRLO, 4, regx) // shift logical right by 4 bytes
 	asm += instrImm8Reg(f, PSRLO, 4, regy) // shift logical right by 4 bytes
 
 	tmp2 := f.allocReg(XMM_REG, 16)
-	asm += MovRegReg(f.Indent, OpDataType{op: XMM_OP, xmmvariant: XMM_F128}, regy, &tmp2)
-	asm += instrRegReg(f, PMULULQ, regx, &tmp2) // mul dwords 3, 1
+	asm += MovRegReg(f.Indent, OpDataType{op: XMM_OP, xmmvariant: XMM_F128}, regy, tmp2)
+	asm += instrRegReg(f, PMULULQ, regx, tmp2) // mul dwords 3, 1
 
 	// shuffle into first 64 bits of shufflet1
 	shufflet1 := f.allocReg(XMM_REG, 16)
-	asm += instrImm8RegReg(f, PSHUFD, 0x8, &tmp1, &shufflet1)
+	asm += instrImm8RegReg(f, PSHUFD, 0x8, tmp1, shufflet1)
 
 	// shuffle into first 64 bits of shufflet2
 	shufflet2 := f.allocReg(XMM_REG, 16)
-	asm += instrImm8RegReg(f, PSHUFD, 0x8, &tmp2, &shufflet2)
+	asm += instrImm8RegReg(f, PSHUFD, 0x8, tmp2, shufflet2)
 
 	punpckllq := PUNPCKLLQ
 
 	// Unpack and interleave 32-bit integers from the low half of shuffletmp1 and shuffletmp2, and store the results in shufflet2.
-	asm += instrRegReg(f, punpckllq, &shufflet2, &shufflet1)
+	asm += instrRegReg(f, punpckllq, shufflet2, shufflet1)
 
-	if a, err := f.StoreSimd(&shufflet1, result, pos); err != nil {
+	if a, err := f.StoreSimd(shufflet1, result, pos); err != nil {
 		return "", err
 	} else {
 		asm += a
 	}
 
-	f.freeReg(*regx)
-	f.freeReg(*regy)
+	f.freeReg(regx)
+	f.freeReg(regy)
 	f.freeReg(tmp1)
 	f.freeReg(tmp2)
 	f.freeReg(shufflet1)
@@ -249,18 +249,18 @@ func shrU16x8(f *Function, x, count, result *identifier, pos token.Pos) (string,
 
 		for i := uint8(0); i < 8; i++ {
 
-			asm += instrImm8RegReg(f, PEXTRW, i, reg, &wordReg)
+			asm += instrImm8RegReg(f, PEXTRW, i, reg, wordReg)
 
 			asm += ShiftRegReg(
 				f.Indent,
 				false,
 				SHIFT_RIGHT,
-				&wordReg,
+				wordReg,
 				countReg,
-				&tmp,
+				tmp,
 				wordReg.size())
 
-			asm += instrImm8RegReg(f, PINSRW, i, &wordReg, reg)
+			asm += instrImm8RegReg(f, PINSRW, i, wordReg, reg)
 
 		}
 
@@ -306,9 +306,9 @@ func shufU32x4(f *Function, x, result, order *identifier, pos token.Pos) (string
 
 	dst := f.allocReg(XMM_REG, XmmRegSize)
 
-	asm += instrImm8RegReg(f, PSHUFL, orderImm8, src, &dst)
+	asm += instrImm8RegReg(f, PSHUFL, orderImm8, src, dst)
 
-	a, e := f.StoreSimd(&dst, result, pos)
+	a, e := f.StoreSimd(dst, result, pos)
 	if e != nil {
 		panic(internal("couldn't store SIMD register"))
 	}

@@ -3,6 +3,7 @@ package codegen
 type register struct {
 	// register name e.g. ax, eax, rax, r15,...
 	name string
+	used bool
 
 	regconst regconst
 
@@ -12,6 +13,9 @@ type register struct {
 	width uint
 	// allowed data sizes in bytes used in reg
 	datasizes []uint
+
+	assigned *identifier
+	loaded   bool
 }
 
 func (r *register) size() uint {
@@ -102,58 +106,58 @@ var QuadSize = []uint{8}
 var XmmDataSizes = []uint{1, 2, 4, 8, 16}
 
 var registers = []register{
-	{"AL", REG_AL, DATA_REG, 32, LongSizes},
-	{"CL", REG_CL, DATA_REG, 32, LongSizes},
-	{"DL", REG_DL, DATA_REG, 32, LongSizes},
-	{"BL", REG_BL, DATA_REG, 32, LongSizes},
-	{"AX", REG_AX, DATA_REG, 64, QuadSizes},
-	{"CX", REG_CX, DATA_REG, 64, QuadSizes},
-	{"DX", REG_DX, DATA_REG, 64, QuadSizes},
-	{"SI", REG_SI, ADDR_REG, 64, QuadSize},
-	{"DI", REG_DI, ADDR_REG, 64, QuadSize},
-	{"BX", REG_BX, ADDR_REG, 64, QuadSize},
-	{"BP", REG_BP, ADDR_REG, 64, QuadSize},
-	{"SP", REG_SP, SpReg, 64, QuadSize},
-	{"FP", REG_FP, FpReg, 64, QuadSize},
-	{"R8", REG_R8, DATA_REG, 64, QuadSizes},
-	{"R9", REG_R9, DATA_REG, 64, QuadSizes},
-	{"R10", REG_R10, DATA_REG, 64, QuadSizes},
-	{"R11", REG_R11, DATA_REG, 64, QuadSizes},
-	{"R12", REG_R12, DATA_REG, 64, QuadSizes},
-	{"R13", REG_R13, DATA_REG, 64, QuadSizes},
-	{"R14", REG_R14, DATA_REG, 64, QuadSizes},
-	{"R15", REG_R15, DATA_REG, 64, QuadSizes},
-	{"X0", REG_X0, XMM_REG, 128, XmmDataSizes},
-	{"X1", REG_X1, XMM_REG, 128, XmmDataSizes},
-	{"X2", REG_X2, XMM_REG, 128, XmmDataSizes},
-	{"X3", REG_X3, XMM_REG, 128, XmmDataSizes},
-	{"X4", REG_X4, XMM_REG, 128, XmmDataSizes},
-	{"X5", REG_X5, XMM_REG, 128, XmmDataSizes},
-	{"X6", REG_X6, XMM_REG, 128, XmmDataSizes},
-	{"X7", REG_X7, XMM_REG, 128, XmmDataSizes},
-	{"X8", REG_X8, XMM_REG, 128, XmmDataSizes},
-	{"X9", REG_X9, XMM_REG, 128, XmmDataSizes},
-	{"X10", REG_X10, XMM_REG, 128, XmmDataSizes},
-	{"X11", REG_X11, XMM_REG, 128, XmmDataSizes},
-	{"X12", REG_X12, XMM_REG, 128, XmmDataSizes},
-	{"X13", REG_X13, XMM_REG, 128, XmmDataSizes},
-	{"X14", REG_X14, XMM_REG, 128, XmmDataSizes},
-	{"X15", REG_X15, XMM_REG, 128, XmmDataSizes},
+	{"AL", false, REG_AL, DATA_REG, 32, LongSizes, nil, false},
+	{"CL", false, REG_CL, DATA_REG, 32, LongSizes, nil, false},
+	{"DL", false, REG_DL, DATA_REG, 32, LongSizes, nil, false},
+	{"BL", false, REG_BL, DATA_REG, 32, LongSizes, nil, false},
+	{"AX", false, REG_AX, DATA_REG, 64, QuadSizes, nil, false},
+	{"CX", false, REG_CX, DATA_REG, 64, QuadSizes, nil, false},
+	{"DX", false, REG_DX, DATA_REG, 64, QuadSizes, nil, false},
+	{"SI", false, REG_SI, ADDR_REG, 64, QuadSize, nil, false},
+	{"DI", false, REG_DI, ADDR_REG, 64, QuadSize, nil, false},
+	{"BX", false, REG_BX, ADDR_REG, 64, QuadSize, nil, false},
+	{"BP", false, REG_BP, ADDR_REG, 64, QuadSize, nil, false},
+	{"SP", false, REG_SP, SpReg, 64, QuadSize, nil, false},
+	{"FP", false, REG_FP, FpReg, 64, QuadSize, nil, false},
+	{"R8", false, REG_R8, DATA_REG, 64, QuadSizes, nil, false},
+	{"R9", false, REG_R9, DATA_REG, 64, QuadSizes, nil, false},
+	{"R10", false, REG_R10, DATA_REG, 64, QuadSizes, nil, false},
+	{"R11", false, REG_R11, DATA_REG, 64, QuadSizes, nil, false},
+	{"R12", false, REG_R12, DATA_REG, 64, QuadSizes, nil, false},
+	{"R13", false, REG_R13, DATA_REG, 64, QuadSizes, nil, false},
+	{"R14", false, REG_R14, DATA_REG, 64, QuadSizes, nil, false},
+	{"R15", false, REG_R15, DATA_REG, 64, QuadSizes, nil, false},
+	{"X0", false, REG_X0, XMM_REG, 128, XmmDataSizes, nil, false},
+	{"X1", false, REG_X1, XMM_REG, 128, XmmDataSizes, nil, false},
+	{"X2", false, REG_X2, XMM_REG, 128, XmmDataSizes, nil, false},
+	{"X3", false, REG_X3, XMM_REG, 128, XmmDataSizes, nil, false},
+	{"X4", false, REG_X4, XMM_REG, 128, XmmDataSizes, nil, false},
+	{"X5", false, REG_X5, XMM_REG, 128, XmmDataSizes, nil, false},
+	{"X6", false, REG_X6, XMM_REG, 128, XmmDataSizes, nil, false},
+	{"X7", false, REG_X7, XMM_REG, 128, XmmDataSizes, nil, false},
+	{"X8", false, REG_X8, XMM_REG, 128, XmmDataSizes, nil, false},
+	{"X9", false, REG_X9, XMM_REG, 128, XmmDataSizes, nil, false},
+	{"X10", false, REG_X10, XMM_REG, 128, XmmDataSizes, nil, false},
+	{"X11", false, REG_X11, XMM_REG, 128, XmmDataSizes, nil, false},
+	{"X12", false, REG_X12, XMM_REG, 128, XmmDataSizes, nil, false},
+	{"X13", false, REG_X13, XMM_REG, 128, XmmDataSizes, nil, false},
+	{"X14", false, REG_X14, XMM_REG, 128, XmmDataSizes, nil, false},
+	{"X15", false, REG_X15, XMM_REG, 128, XmmDataSizes, nil, false},
 }
 
 var excludedRegisters = []register{
 	// used as implicit operands in arithmetic instructions
-	{"AL", REG_AL, DATA_REG, 32, LongSizes},
-	{"CL", REG_CL, DATA_REG, 32, LongSizes},
-	{"DL", REG_DL, DATA_REG, 32, LongSizes},
-	{"AX", REG_AX, DATA_REG, 64, QuadSizes},
-	{"CX", REG_CX, DATA_REG, 64, QuadSizes},
-	{"DX", REG_DX, DATA_REG, 64, QuadSizes},
+	{"AL", false, REG_AL, DATA_REG, 32, LongSizes, nil, false},
+	{"CL", false, REG_CL, DATA_REG, 32, LongSizes, nil, false},
+	{"DL", false, REG_DL, DATA_REG, 32, LongSizes, nil, false},
+	{"AX", false, REG_AX, DATA_REG, 64, QuadSizes, nil, false},
+	{"CX", false, REG_CX, DATA_REG, 64, QuadSizes, nil, false},
+	{"DX", false, REG_DX, DATA_REG, 64, QuadSizes, nil, false},
 
 	// stack pointer pseudo register
-	{"SP", REG_SP, SpReg, 64, QuadSize},
+	{"SP", false, REG_SP, SpReg, 64, QuadSize, nil, false},
 	// frame pointer pseudo register
-	{"FP", REG_FP, FpReg, 64, QuadSize},
+	{"FP", false, REG_FP, FpReg, 64, QuadSize, nil, false},
 }
 
 func getRegister(reg regconst) *register {

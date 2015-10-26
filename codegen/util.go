@@ -56,3 +56,33 @@ func cmpGoVersion(v1, v2 goversion) int {
 	}
 
 }
+
+// ice (internal compiler error) calls panic with "Internal error " + msg.
+func ice(msg string) string {
+	panic(fmt.Sprintf("Internal error, \"%v\"", msg))
+}
+
+func addIndent(assembly, indent string) string {
+	lines := strings.Split(assembly, "\n")
+	indented := ""
+	for _, line := range lines {
+		// skip debug comments
+		indented += indent + line + "\n"
+	}
+	return indented
+}
+
+func stripDebug(assembly, indent string) string {
+	lines := strings.Split(assembly, "\n")
+	stripped := ""
+	begin := indent + "// BEGIN"
+	end := indent + "// END"
+	for _, line := range lines {
+		// skip debug comments
+		if strings.HasPrefix(line, begin) || strings.HasPrefix(line, end) {
+			continue
+		}
+		stripped += line + "\n"
+	}
+	return stripped
+}

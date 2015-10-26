@@ -159,7 +159,7 @@ func AssemblyFilePreamble() string {
 func (f *Function) GoAssembly() (string, *Error) {
 	asm, err := f.Func()
 	if !f.Debug {
-		asm = StripDebugComments(asm, f.Indent)
+		asm = stripDebug(asm, f.Indent)
 	}
 	return asm, err
 }
@@ -249,7 +249,7 @@ func (f *Function) Func() (string, *Error) {
 	asm += zeroNonSsaLocals
 	asm += basicblocks
 	asm = f.fixupRets(asm)
-	asm = AddIndent(asm, f.Indent)
+	asm = addIndent(asm, f.Indent)
 	a := fmt.Sprintf("TEXT ·%v(SB),NOSPLIT,$%v-%v\n%v", f.outfname(), frameSize, argsSize, asm)
 	return a, nil
 }
@@ -2047,34 +2047,4 @@ func (f *Function) Ident(v ssa.Value) *identifier {
 	f.identifiers[v.Name()] = &local
 
 	return &local
-}
-
-// ice (internal compiler error) calls panic with "Internal error " + msg.
-func ice(msg string) string {
-	panic(fmt.Sprintf("Internal error, \"%v\"", msg))
-}
-
-func AddIndent(assembly, indent string) string {
-	lines := strings.Split(assembly, "\n")
-	indented := ""
-	for _, line := range lines {
-		// skip debug comments
-		indented += indent + line + "\n"
-	}
-	return indented
-}
-
-func StripDebugComments(assembly, indent string) string {
-	lines := strings.Split(assembly, "\n")
-	stripped := ""
-	begin := indent + "// BEGIN"
-	end := indent + "// END"
-	for _, line := range lines {
-		// skip debug comments
-		if strings.HasPrefix(line, begin) || strings.HasPrefix(line, end) {
-			continue
-		}
-		stripped += line + "\n"
-	}
-	return stripped
 }

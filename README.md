@@ -43,10 +43,11 @@ For functions `gensimd` translates from Go to assembly it supports only a small 
 - Arrays and slices
 
 ### Go - Unsupported
+- Multiple and named return values
 - Builtins except `len`
 - Function calls except to `simd.*`
 - Method calls
-- Field access e.g. `point.x` where point is a struct
+- All struct types except `simd.*`
 - Keywords `range`,  `map`, `select`, `chan`, `defer`
 - Slice creation e.g. `newslice := slice[1:len(slice) - 2]`
 

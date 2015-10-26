@@ -385,11 +385,6 @@ func (f *Function) BasicBlock(block *ssa.BasicBlock) (string, *Error) {
 			return asm, err
 		}
 	}
-	a, e := f.spillRegisters()
-	if e != nil {
-		return "", e
-	}
-	asm += a
 	return asm, nil
 }
 

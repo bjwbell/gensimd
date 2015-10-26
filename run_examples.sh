@@ -31,5 +31,6 @@ go generate
 go build
 ./distsq
 rm *.s
+rm distsq_simd_proto.go
 go clean
 cd ../../

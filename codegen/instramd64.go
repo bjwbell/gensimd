@@ -295,6 +295,7 @@ func GetInstruction(tinst InstructionType) Instruction {
 	ice("couldn't get instruction")
 	return Instruction{}
 }
+
 func GetXmmInstruction(tinst InstructionType) XmmInstruction {
 	for _, inst := range XmmInsts {
 		if inst.XmmInstr == tinst {
@@ -373,10 +374,9 @@ func GetInstr(tinst InstructionType, datatype OpDataType) Instr {
 	}
 }
 
-// asmZeroMemory generates "MOVQ $0, name+offset(REG)" instructions,
+// ZeroMemory generates "MOVQ $0, name+offset(REG)" instructions,
 // size is in bytes
 func ZeroMemory(name string, offset int, size uint, reg *register) string {
-
 	chunk := uint(1)
 	if size%8 == 0 {
 		chunk = 8
@@ -390,22 +390,17 @@ func ZeroMemory(name string, offset int, size uint, reg *register) string {
 
 		chunk = 1
 	}
-
 	asm := ""
-
 	if size/chunk == 0 {
 		return asm
 	}
-
 	datatype := OpDataType{INTEGER_OP, InstrData{signed: false, size: chunk}, XMM_INVALID}
 	mov := GetInstr(I_MOV, datatype)
-
 	for i := uint(0); i < size/chunk; i++ {
 		ioffset := int(i*chunk) + offset
-		asm += fmt.Sprintf("%-9v    $0, %v+%v(%v)\n", mov, name, ioffset, reg.name)
+		asm += instrImmMem(mov, 0, reg, name, ioffset)
 	}
-
-	return strings.Replace(asm, "+-", "-", -1)
+	return asm
 }
 
 func instrReg(instr Instr, reg *register) string {
@@ -438,17 +433,123 @@ func instrRegReg(instr Instr, src, dst *register) string {
 	return asm
 }
 
-// asmZeroReg generates "XORQ reg, reg" instructions
+func instrRegMem(instr Instr, src, dst *register, dstName string, dstOffset int) string {
+	var asm string
+	if dstName != "" || dstOffset != 0 {
+		asm = fmt.Sprintf("%-9v    %v, %v+%v(%v)\n", instr, src.name, dstName, dstOffset, dst.name)
+	} else {
+		asm = fmt.Sprintf("%-9v    %v, (%v)\n", instr, src.name, dst.name)
+	}
+	return strings.Replace(asm, "+-", "-", -1)
+}
+
+func instrMemReg(instr Instr, srcName string, srcOffset int, src, dst *register) string {
+	var asm string
+	if srcName != "" || srcOffset != 0 {
+		asm = fmt.Sprintf("%-9v    %v+%v(%v), %v\n", instr, srcName, srcOffset, src.name, dst.name)
+	} else {
+		asm = fmt.Sprintf("%-9v    (%v), %v\n", instr, src.name, dst.name)
+	}
+	return strings.Replace(asm, "+-", "-", -1)
+}
+
+// instrImmReg outputs instr with imm, reg after converting imm to int8/16/32/64 if size=1/2/4/8.
+func instrImmReg(instr Instr, imm int64, size uint, dst *register) string {
+	if dst.width < 8*size {
+		ice("Invalid register width")
+	}
+	switch size {
+	case 1:
+		imm = int64(int8(imm))
+	case 2:
+		imm = int64(int16(imm))
+	case 4:
+		imm = int64(int32(imm))
+	}
+	dst.modified()
+	return fmt.Sprintf("%-9v    $%v, %v\n", instr, imm, dst.name)
+}
+
+// instrImmReg outputs instr with imm, reg after converting imm to int8/16/32/64 if size=1/2/4/8.
+func instrImmMem(instr Instr, imm int64, dst *register, dstName string, dstOffset int) string {
+	return fmt.Sprintf("%-9v    $0, %v+%v(%v)\n", instr, dstName, dstOffset, dst.name)
+}
+
+// instrImmUnsignedReg outputs instr with imm64, reg
+func instrImmUnsignedReg(instr Instr, imm64 uint64, size uint, reg *register) string {
+	if reg.width < 8*size {
+		ice("Invalid register width")
+	}
+	return fmt.Sprintf("%-9v    $%v, %v\n", instr, imm64, reg.name)
+}
+
+func instrMemImm32(instr Instr, name string, offset int32, r *register, imm32 uint32, size uint) string {
+	if r.width != 64 {
+		ice("Invalid register width")
+	}
+	asm := fmt.Sprintf("%-9v    %v+%v(%v), $%v\n", instr, name, offset, r.name, imm32)
+	return strings.Replace(asm, "+-", "-", -1)
+
+}
+
+func instrRegImm32(instr Instr, r *register, imm32 uint32, size uint) string {
+	if r.width < 8*size {
+		ice("Invalid register width")
+	}
+	return fmt.Sprintf("%-9v    %v, $%v\n", instr, r.name, imm32)
+}
+
+// instrImmRegReg outputs instr with imm, reg, reg after converting imm to int8/16/32 if size=1/2/4.
+func instrImmRegReg(instr Instr, imm int64, size uint, src, dst *register) string {
+	if dst.width < 8*size {
+		ice("Invalid register width")
+	}
+	switch size {
+	case 1:
+		imm = int64(int8(imm))
+	case 2:
+		imm = int64(int16(imm))
+	case 4:
+		imm = int64(int32(imm))
+	}
+	dst.modified()
+	return fmt.Sprintf("%-9v    $%v, %v, %v\n", instr, imm, src.name, dst.name)
+}
+
+func instrImmFloatReg(instr Instr, f64 float64, isf32 bool, dst, tmp *register) string {
+	if dst.typ != XMM_REG {
+		ice("Unexpected non xmm register")
+	}
+	var fbits uint64
+	if isf32 {
+		fbits = uint64(math.Float32bits(float32(f64)))
+	} else {
+		fbits = math.Float64bits(f64)
+	}
+	var descrip string
+	if isf32 {
+		descrip = "float32"
+	} else {
+		descrip = "float64"
+	}
+	asm := fmt.Sprintf("//%-9v  $%v = %016x = %v(%v)\n", " ", fbits, fbits, f64, descrip)
+	asm += fmt.Sprintf("%-9v    $%v, %v\n", instr, fbits, tmp.name)
+
+	data := OpDataType{INTEGER_OP, InstrData{signed: false, size: 8}, XMM_INVALID}
+	asm += instrRegReg(GetInstr(I_MOV, data), tmp, dst)
+
+	return asm
+}
+
+// ZeroReg generates "XORQ reg, reg" instructions
 func ZeroReg(reg *register) string {
 	var dt OpDataType
-
 	if reg.typ == XMM_REG {
 		dt = OpDataType{XMM_OP, InstrData{}, XMM_2X_F64}
 
 	} else {
 		dt = OpDataType{INTEGER_OP, InstrData{signed: false, size: reg.width / 8}, XMM_INVALID}
 	}
-
 	return instrRegReg(GetInstr(I_XOR, dt), reg, reg)
 }
 
@@ -471,29 +572,15 @@ func MovRegReg(datatype OpDataType, src, dst *register) string {
 
 func MovRegMem(datatype OpDataType, src *register, dstName string, dst *register, dstOffset int) string {
 	mov := GetInstr(I_MOV, datatype)
-	asm := fmt.Sprintf("// BEGIN MovRegMem, mov (%v)\n", mov)
-	asm += fmt.Sprintf("%-9v    %v, %v+%v(%v)\n", mov, src.name, dstName, dstOffset, dst.name)
-	asm += fmt.Sprintf("// END MovRegMem, mov (%v)\n", mov)
-	return strings.Replace(asm, "+-", "-", -1)
+	return instrRegMem(mov, src, dst, dstName, dstOffset)
 }
 
 func MovIntegerSimdRegMem(datatype OpDataType, src *register, dstName string, dst *register, dstOffset int) string {
 	mov := GetInstr(I_PMOV, datatype)
 	asm := fmt.Sprintf("// BEGIN MovIntegerSimdRegMem, mov (%v)\n", mov)
-	asm += fmt.Sprintf("%-9v    %v, %v+%v(%v)\n", mov, src.name, dstName, dstOffset, dst.name)
+	asm += instrRegMem(mov, src, dst, dstName, dstOffset)
 	asm += fmt.Sprintf("// END MovIntegerSimdRegMem, mov (%v)\n", mov)
-	return strings.Replace(asm, "+-", "-", -1)
-}
-
-func MovRegMemIndirect(src *register, dstName string, dst *register, dstOffset int, tmp *register) string {
-	if tmp.width != src.width {
-		ice("Invalid register width")
-	}
-	data := OpDataType{INTEGER_OP, InstrData{signed: false, size: src.width / 8}, XMM_INVALID}
-	mov := GetInstr(I_MOV, data)
-	asm := fmt.Sprintf("%-9v    %v+%v(%v), %v\n", mov, dstName, dstOffset, dst, tmp)
-	asm += fmt.Sprintf("%-9v    %v, (%v)\n", mov, src.name, tmp.name)
-	return strings.Replace(asm, "+-", "-", -1)
+	return asm
 }
 
 func MovRegIndirectMem(datatype OpDataType, src *register, dstName string, dstOffset int, dst *register, size uint, tmpAddr, tmpData *register) string {
@@ -508,9 +595,7 @@ func MovRegIndirectMem(datatype OpDataType, src *register, dstName string, dstOf
 
 	mov := GetInstr(I_MOV, datatype)
 	movaddr := GetInstr(I_MOV, addrdatatype)
-
 	asm := ""
-
 	var count uint
 	var chunk uint
 	if size <= tmpData.width/8 {
@@ -520,34 +605,19 @@ func MovRegIndirectMem(datatype OpDataType, src *register, dstName string, dstOf
 		chunk = (tmpData.width / 8)
 		count = size / chunk
 	}
-
 	if count == 0 {
 		return asm
 	}
-
 	asm += instrRegReg(movaddr, src, tmpAddr)
-	/*if srcOffset < 0 {
-		panic("Can only handle positive offsets")
-	}
-	asm += AddImm32Reg(uint32(srcOffset), tmpAddr)
-	*/
-
 	for i := uint(0); i < count; i++ {
-
-		asm += fmt.Sprintf("%-9v    (%v), %v\n",
-			mov, tmpAddr.name, tmpData.name)
-
-		asm += fmt.Sprintf("%-9v    %v, %v+%v(%v)\n",
-			mov, tmpData.name, dstName, dstOffset, dst.name)
-
+		asm += instrMemReg(mov, "", 0, tmpAddr, tmpData)
+		asm += instrRegMem(mov, tmpData, dst, dstName, dstOffset)
 		dstOffset += int(chunk)
-
 		if i < count-1 {
 			asm += AddImm32Reg(uint32(chunk), tmpAddr)
 		}
 	}
-
-	return strings.Replace(asm, "+-", "-", -1)
+	return asm
 }
 
 func MovIntegerSimdMemMem(srcName string, srcOffset int, src *register, dstName string, dstOffset int, dst *register, size uint, tmp *register) string {
@@ -557,12 +627,9 @@ func MovIntegerSimdMemMem(srcName string, srcOffset int, src *register, dstName 
 	if size%16 != 0 {
 		ice("Invalid size")
 	}
-	movq := "MOVOU"
-
-	asm := fmt.Sprintf("%-9v    %v+%v(%v), %v\n", movq, srcName, srcOffset, src.name, tmp.name)
-	asm += fmt.Sprintf("%-9v    %v, %v+%v(%v)\n", movq, tmp.name, dstName, dstOffset, dst.name)
-
-	return strings.Replace(asm, "+-", "-", -1)
+	asm := instrMemReg(MOVOU, srcName, srcOffset, src, tmp)
+	asm += instrRegMem(MOVOU, tmp, dst, dstName, dstOffset)
+	return asm
 }
 
 func MovMemMem(srcName string, srcOffset int, src *register, dstName string, dstOffset int, dst *register, size uint, tmp *register) string {
@@ -573,35 +640,21 @@ func MovMemMem(srcName string, srcOffset int, src *register, dstName string, dst
 		ice("Invalid size")
 	}
 	mov := GetInstr(I_MOV, GetIntegerOpDataType(false, size))
-
-	asm := fmt.Sprintf("%-9v    %v+%v(%v), %v\n", mov, srcName, srcOffset, src.name, tmp.name)
-	asm += fmt.Sprintf("%-9v    %v, %v+%v(%v)\n", mov, tmp.name, dstName, dstOffset, dst.name)
-
-	return strings.Replace(asm, "+-", "-", -1)
+	asm := instrMemReg(mov, srcName, srcOffset, src, tmp)
+	asm += instrRegMem(mov, tmp, dst, dstName, dstOffset)
+	return asm
 }
 
-func MovMemReg(datatype OpDataType, srcName string, srcOffset int, src *register, dst *register) string {
+func MovMemReg(datatype OpDataType, srcName string, srcOffset int, src, dst *register) string {
 	mov := GetInstr(I_MOV, datatype)
 	dst.modified()
-	asm := fmt.Sprintf("%-9v    %v+%v(%v), %v\n", mov, srcName, srcOffset, src.name, dst.name)
-	return strings.Replace(asm, "+-", "-", -1)
+	return instrMemReg(mov, srcName, srcOffset, src, dst)
 }
 
-func MovIntegerSimdMemReg(datatype OpDataType, srcName string, srcOffset int, src *register, dst *register) string {
+func MovIntegerSimdMemReg(datatype OpDataType, srcName string, srcOffset int, src, dst *register) string {
 	mov := GetInstr(I_PMOV, datatype)
 	dst.modified()
-	asm := fmt.Sprintf("%-9v    %v+%v(%v), %v\n", mov, srcName, srcOffset, src.name, dst.name)
-	return strings.Replace(asm, "+-", "-", -1)
-}
-
-func MovMemMemIndirect(datatype InstrOpType, srcName string, srcOffset int, src *register, dstName string, dstOffset int, dst *register, tmp *register) string {
-	if src.width != 64 || dst.width != 64 {
-		ice("Invalid register width")
-	}
-	movq := "MOVQ"
-	asm := fmt.Sprintf("%-9v    %v+%v(%v), %v\n", movq, dstName, dstOffset, dst, tmp)
-	asm += fmt.Sprintf("%-9v    %v+%v(%v), (%v)\n", movq, srcName, srcOffset, src.name, tmp)
-	return strings.Replace(asm, "+-", "-", -1)
+	return instrMemReg(mov, srcName, srcOffset, src, dst)
 }
 
 func MovMemIndirectReg(datatype InstrOpType, srcName string, srcOffset int, src, dst, tmp *register) string {
@@ -611,10 +664,9 @@ func MovMemIndirectReg(datatype InstrOpType, srcName string, srcOffset int, src,
 	data := OpDataType{INTEGER_OP, InstrData{signed: false, size: dst.width / 8}, XMM_INVALID}
 	mov := GetInstr(I_MOV, data)
 	dst.modified()
-	asm := fmt.Sprintf("%-9v    %v+%v(%v), %v\n", mov, srcName, srcOffset, src, tmp)
-	asm += fmt.Sprintf("%-9v    (%v), %v\n", mov, tmp, dst.name)
-
-	return strings.Replace(asm, "+-", "-", -1)
+	asm := instrMemReg(mov, srcName, srcOffset, src, dst)
+	asm += instrMemReg(mov, "", 0, tmp, dst)
+	return asm
 }
 
 func MovMemIndirectMem(datatype OpDataType, srcName string, srcOffset int, src *register, dstName string, dstOffset int, dst *register, size uint, tmpAddr, tmpData *register) string {
@@ -629,9 +681,7 @@ func MovMemIndirectMem(datatype OpDataType, srcName string, srcOffset int, src *
 
 	mov := GetInstr(I_MOV, datatype)
 	movaddr := GetInstr(I_MOV, addrdatatype)
-
 	asm := ""
-
 	var count uint
 	var chunk uint
 	if size <= tmpData.width/8 {
@@ -641,29 +691,19 @@ func MovMemIndirectMem(datatype OpDataType, srcName string, srcOffset int, src *
 		chunk = (tmpData.width / 8)
 		count = size / chunk
 	}
-
 	if count == 0 {
 		return asm
 	}
-
-	asm += fmt.Sprintf("%-9v    %v+%v(%v), %v\n",
-		movaddr, srcName, srcOffset, src.name, tmpAddr.name)
-
+	asm += instrMemReg(movaddr, srcName, srcOffset, src, tmpAddr)
 	for i := uint(0); i < count; i++ {
-
-		asm += fmt.Sprintf("%-9v    (%v), %v\n",
-			mov, tmpAddr.name, tmpData.name)
-
-		asm += fmt.Sprintf("%-9v    %v, %v+%v(%v)\n",
-			mov, tmpData.name, dstName, dstOffset, dst.name)
-
+		asm += instrMemReg(mov, "", 0, tmpAddr, tmpData)
+		asm += instrRegMem(mov, tmpData, dst, dstName, dstOffset)
 		dstOffset += int(chunk)
-
 		if i < count-1 {
 			asm += AddImm32Reg(uint32(chunk), tmpAddr)
 		}
 	}
-	return strings.Replace(asm, "+-", "-", -1)
+	return asm
 }
 
 func MovIntegerSimdMemIndirectMem(datatype OpDataType, srcName string, srcOffset int, src *register, dstName string, dstOffset int, dst *register, size uint, tmp1, tmp2 *register) string {
@@ -678,9 +718,7 @@ func MovIntegerSimdMemIndirectMem(datatype OpDataType, srcName string, srcOffset
 
 	mov := GetInstr(I_PMOV, datatype)
 	movaddr := GetInstr(I_MOV, addrdatatype)
-
 	asm := ""
-
 	var count uint
 	var chunk uint
 	if size <= tmp2.width/8 {
@@ -690,43 +728,19 @@ func MovIntegerSimdMemIndirectMem(datatype OpDataType, srcName string, srcOffset
 		chunk = (tmp2.width / 8)
 		count = size / chunk
 	}
-
 	if count == 0 {
 		return asm
 	}
-
-	asm += fmt.Sprintf("%-9v    %v+%v(%v), %v\n",
-		movaddr, srcName, srcOffset, src.name, tmp1.name)
-
+	asm += instrMemReg(movaddr, srcName, srcOffset, src, tmp1)
 	for i := uint(0); i < count; i++ {
-
-		asm += fmt.Sprintf("%-9v    (%v), %v\n",
-			mov, tmp1.name, tmp2.name)
-
-		asm += fmt.Sprintf("%-9v    %v, %v+%v(%v)\n",
-			mov, tmp2.name, dstName, dstOffset, dst.name)
-
+		asm += instrMemReg(mov, "", 0, tmp1, tmp2)
+		asm += instrRegMem(mov, tmp2, dst, dstName, dstOffset)
 		dstOffset += int(chunk)
-
 		if i < count-1 {
 			asm += AddImm32Reg(uint32(chunk), tmp1)
 		}
 	}
-
-	return strings.Replace(asm, "+-", "-", -1)
-}
-
-func MovMemIndirectMemIndirect(datatype InstrOpType, srcName string, srcOffset int, src *register, dstName string, dstOffset int, dst, tmp1, tmp2 *register) string {
-	if src.width != 64 || dst.width != 64 {
-		ice("Invalid register width")
-	}
-	data := OpDataType{INTEGER_OP, InstrData{signed: false, size: tmp1.width / 8}, XMM_INVALID}
-	mov := GetInstr(I_MOV, data)
-	asm := fmt.Sprintf("%-9v    %v+%v(%v), %v\n", mov, srcName, srcOffset, src, tmp1)
-	asm += fmt.Sprintf("%-9v    %v+%v(%v), %v\n", mov, dstName, dstOffset, dst, tmp2)
-	asm += fmt.Sprintf("%-9v    (%v), (%v)\n", mov, tmp1.name, tmp2.name)
-
-	return strings.Replace(asm, "+-", "-", -1)
+	return asm
 }
 
 // asmMovImmReg moves imm to reg after converting it to int8/16/32 if size=1/2/4.
@@ -745,35 +759,13 @@ func MovImmReg(imm int64, size uint, dst *register) string {
 	data := OpDataType{INTEGER_OP, InstrData{signed: true, size: size}, XMM_INVALID}
 	mov := GetInstr(I_MOV, data)
 	dst.modified()
-	asm := fmt.Sprintf("%-9v    $%v, %v\n", mov, imm, dst.name)
-	return strings.Replace(asm, "+-", "-", -1)
+	return instrImmReg(mov, imm, size, dst)
 }
 
 func MovImmFloatReg(f64 float64, isf32 bool, tmp, dst *register) string {
-	if dst.typ != XMM_REG {
-		ice("Unexpected non xmm register")
-	}
 	data := OpDataType{INTEGER_OP, InstrData{signed: false, size: tmp.width / 8}, XMM_INVALID}
 	mov := GetInstr(I_MOV, data)
-	var fbits uint64
-	if isf32 {
-		fbits = uint64(math.Float32bits(float32(f64)))
-	} else {
-		fbits = math.Float64bits(f64)
-	}
-	var descrip string
-	if isf32 {
-		descrip = "float32"
-	} else {
-		descrip = "float64"
-	}
-	asm := fmt.Sprintf("//%-9v  $%v = %016x = %v(%v)\n", " ", fbits, fbits, f64, descrip)
-	asm += fmt.Sprintf("%-9v    $%v, %v\n", mov, fbits, tmp.name)
-
-	data = OpDataType{INTEGER_OP, InstrData{signed: false, size: 8}, XMM_INVALID}
-	asm += instrRegReg(GetInstr(I_MOV, data), tmp, dst)
-
-	return asm
+	return instrImmFloatReg(mov, f64, isf32, dst, tmp)
 }
 
 func MovImmf32Reg(f32 float32, tmp, dst *register) string {
@@ -826,17 +818,14 @@ func Lea(srcName string, srcOffset int, src, dst *register) string {
 	data := OpDataType{INTEGER_OP, InstrData{signed: false, size: src.width / 8}, XMM_INVALID}
 	lea := GetInstr(I_LEA, data)
 	dst.modified()
-	asm := fmt.Sprintf("%-9v    %v+%v(%v), %v\n", lea, srcName, srcOffset, src.name, dst.name)
-	return strings.Replace(asm, "+-", "-", -1)
+	return instrMemReg(lea, srcName, srcOffset, src, dst)
 }
 
 func AddImm32Reg(imm32 uint32, dst *register) string {
 	if dst.width < 32 {
 		ice("Invalid register width")
 	}
-	addq := "ADDQ"
-	asm := fmt.Sprintf("%-9v    $%v, %v\n", addq, imm32, dst.name)
-	return strings.Replace(asm, "+-", "-", -1)
+	return instrImmReg(ADDQ, int64(imm32), 8, dst)
 }
 
 func SubImm32Reg(imm32 uint32, dst *register) string {
@@ -844,9 +833,7 @@ func SubImm32Reg(imm32 uint32, dst *register) string {
 		ice("Invalid register width")
 	}
 	dst.modified()
-	subq := "SUBQ"
-	asm := fmt.Sprintf("%-9v    $%v, %v\n", subq, imm32, dst.name)
-	return strings.Replace(asm, "+-", "-", -1)
+	return instrImmReg(SUBQ, int64(imm32), 8, dst)
 }
 
 func AddRegReg(datatype OpDataType, src, dst *register) string {
@@ -868,15 +855,12 @@ func MulImm32RegReg(imm32 uint32, src, dst *register) string {
 		ice("Invalid register width")
 	}
 	dst.modified()
-	imul3q := IMUL3Q
-	asm := fmt.Sprintf("%-9v    $%v, %v, %v\n", imul3q, imm32, src.name, dst.name)
-	return asm
+	return instrImmRegReg(IMUL3Q, int64(imm32), 8, src, dst)
 }
 
 // MulRegReg multiplies the src register by the dst register and stores
 // the result in the dst register. Overflow is discarded
 func MulRegReg(datatype OpDataType, src, dst *register) string {
-
 	if dst.width != src.width {
 		ice("Invalid register width")
 	}
@@ -897,33 +881,27 @@ func MulRegReg(datatype OpDataType, src, dst *register) string {
 		} else {
 			tinstr = I_MUL
 		}
-
 		mul := GetInstr(tinstr, datatype)
 		asm += instrReg(mul, src)
 		asm += MovRegReg(datatype, rax, dst)
 		return asm
 	}
-
 	if datatype.op == XMM_OP {
 		asm += instrRegReg(GetInstr(I_MUL, datatype), src, dst)
 	}
-
 	return asm
 }
 
 // DivRegReg divides the "dividend" register by the "divisor" register and stores
 // the quotient in rax and the remainder in rdx. DivRegReg is only for integer division.
 func DivRegReg(signed bool, datatype InstrOpType, dividend, divisor *register, size uint) (asm string, rax *register, rdx *register) {
-
 	if dividend.width != divisor.width || divisor.width < size*8 {
 		ice("Invalid register width for DivRegReg")
 	}
 	if datatype != INTEGER_OP {
 		ice("Unsupported arithmetic data type")
 	}
-
 	rax = getRegister(REG_AX)
-
 	if size > 1 {
 		rdx = getRegister(REG_DX)
 	}
@@ -1036,15 +1014,13 @@ func XorImm32Reg(imm32 int32, dst *register, size uint) string {
 	data := OpDataType{INTEGER_OP, InstrData{signed: false, size: size}, XMM_INVALID}
 	dst.modified()
 	xor := GetInstr(I_XOR, data)
-	asm := fmt.Sprintf("%-9v    $%v, %v\n", xor, imm32, dst.name)
-	return asm
+	return instrImmReg(xor, int64(imm32), size, dst)
 }
 
 func XorImm64Reg(imm64 int64, dst *register, size uint) string {
 	data := OpDataType{INTEGER_OP, InstrData{signed: false, size: size}, XMM_INVALID}
 	xor := GetInstr(I_XOR, data)
-	asm := fmt.Sprintf("%-9v    $%v, %v\n", xor, imm64, dst.name)
-	return asm
+	return instrImmReg(xor, imm64, size, dst)
 }
 
 func NotReg(reg *register, size uint) string {
@@ -1068,7 +1044,6 @@ func MovZeroExtend(src, dst *register, srcSize, dstSize uint) string {
 	case 4:
 		movzx = I_MOVLZX
 	}
-
 	if dstSize <= srcSize || (dstSize != 1 && dstSize != 2 && dstSize != 4 && dstSize != 8) {
 		ice(fmt.Sprintf("Bad dstSize (%v) for zero extend result", dstSize))
 	}
@@ -1097,7 +1072,6 @@ func MovSignExtend(src, dst *register, srcSize, dstSize uint) string {
 // The tmp reg is used for intermediates (if shifting right 64 times then SHR
 // isn't used directly)
 func ShiftRegReg(signed bool, direction int, src, shiftReg, tmp *register, size uint) string {
-
 	cl := getRegister(REG_CL)
 	cx := getRegister(REG_CX)
 	regCl := cx
@@ -1110,7 +1084,6 @@ func ShiftRegReg(signed bool, direction int, src, shiftReg, tmp *register, size 
 	} else if signed && direction == SHIFT_RIGHT {
 		opcode = I_SAR
 	}
-
 	data := OpDataType{INTEGER_OP, InstrData{signed: false, size: size}, XMM_INVALID}
 	shift := GetInstr(opcode, data)
 	asm := ""
@@ -1150,7 +1123,6 @@ func ShiftRegReg(signed bool, direction int, src, shiftReg, tmp *register, size 
 		asm += MovZeroExtend(cl, cx, zerosize, cx.width/8)
 		asm += instrRegReg(shift, regCl, src)
 	}
-
 	return asm
 }
 
@@ -1195,7 +1167,6 @@ func BitwiseOp(op token.Token, signed bool, x, y, result *register, size uint) s
 	default:
 		ice(fmt.Sprintf("Unknown Op token (%v)", op))
 	case token.AND:
-
 		asm = MovRegReg(instrdata, y, result)
 		asm += AndRegReg(x, result, size)
 	case token.OR:
@@ -1215,7 +1186,6 @@ func BitwiseOp(op token.Token, signed bool, x, y, result *register, size uint) s
 	case token.AND_NOT:
 		asm = MovRegReg(instrdata, y, result)
 		asm += AndNotRegReg(x, result, size)
-
 	}
 	return asm
 }
@@ -1227,26 +1197,13 @@ func CmpRegReg(odt OpDataType, x, y *register) string {
 	return instrRegReg(GetInstr(I_CMP, odt), x, y)
 }
 
-func CmpMemImm32(name string, offset int32, r *register, imm32 uint32, size uint) string {
-	if r.width != 64 {
-		ice("Invalid register width")
-	}
-	data := OpDataType{INTEGER_OP, InstrData{signed: false, size: size}, XMM_INVALID}
-	cmp := GetInstr(I_CMP, data)
-	asm := fmt.Sprintf("%-9v    %v+%v(%v), $%v\n", cmp, name, offset, r.name, imm32)
-	return strings.Replace(asm, "+-", "-", -1)
-
-}
-
 func CmpRegImm32(r *register, imm32 uint32, size uint) string {
 	if r.width != 64 {
 		ice("Invalid register width")
 	}
 	data := OpDataType{INTEGER_OP, InstrData{signed: false, size: size}, XMM_INVALID}
 	cmp := GetInstr(I_CMP, data)
-	asm := fmt.Sprintf("%-9v    %v, $%v\n", cmp, r.name, imm32)
-	return asm
-
+	return instrRegImm32(cmp, r, imm32, size)
 }
 
 // CmpOp compares x to y, storing the op comparison flag (EQ, NEQ, ...) in result
@@ -1320,7 +1277,6 @@ func isFloatOp(datatype OpDataType) bool {
 }
 
 func ConvertOp(from *register, fromtype OpDataType, to *register, totype OpDataType, tmp *register) string {
-
 	if isIntegerOp(fromtype) && isIntegerOp(totype) {
 		return IntegerToInteger(from, to, fromtype, totype)
 	} else if isIntegerOp(fromtype) && isFloatOp(totype) {
@@ -1337,7 +1293,6 @@ func ConvertOp(from *register, fromtype OpDataType, to *register, totype OpDataT
 
 func IntegerToInteger(from, to *register, ftype, totype OpDataType) string {
 	if ftype.size < totype.size {
-
 		if ftype.signed {
 			// From Go Spec:
 			// If the value is a signed integer, it is sign extended to implicit infinite precision;
@@ -1346,7 +1301,6 @@ func IntegerToInteger(from, to *register, ftype, totype OpDataType) string {
 		} else {
 			return MovZeroExtend(from, to, ftype.size, totype.size)
 		}
-
 	}
 	return MovRegReg(totype, from, to)
 }

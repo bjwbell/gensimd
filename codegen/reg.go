@@ -1,5 +1,7 @@
 package codegen
 
+import "fmt"
+
 type register struct {
 	// register name e.g. ax, eax, rax, r15,...
 	name  string
@@ -21,10 +23,11 @@ func (r *register) size() uint {
 	return r.width / 8
 }
 
-func (r *register) modified() {
+func (r *register) modified() string {
 	inUse := r.inUse
-	r.spill()
+	a := r.spill()
 	r.inUse = inUse
+	return a
 }
 
 func (r *register) isAlias(ident *identifier) bool {
@@ -69,23 +72,19 @@ func (r *register) removeAlias(alias *identifier) bool {
 	return removed
 }
 
-func (r *register) spill() (string, *Error) {
+func (r *register) spill() string {
 	asm := ""
 	for _, alias := range r.aliases {
 		f := alias.f
-		//	if r.name == "R15" {
-		//		fmt.Printf("REG:%v, ALIAS:(t: %v, v:%v)\n", r.name, alias.typ, alias)
-		//		}
 		if a, err := f.StoreReg(r, alias, 0, alias.size()); err != nil {
-			return a, err
+			panic(ice(fmt.Sprintf("msg: %v", err.Err)))
 		} else {
 			asm += a
 		}
 	}
-
 	r.aliases = nil
 	r.inUse = false
-	return asm, nil
+	return asm
 }
 
 func (r *register) spillAlias(alias *identifier) (string, *Error) {

@@ -34,3 +34,26 @@ rm -f *.s
 rm -f distsq_simd_proto.go
 go clean
 cd ../../
+
+
+echo "Running reg_spill1"
+cd examples/reg_spill1
+rm -f *.s
+go generate
+go build
+./reg_spill1
+rm -f *.s
+rm -f reg_spill1_simd_proto.go
+go clean
+cd ../../
+
+echo "Running reg_spill2"
+cd examples/reg_spill2
+rm -f *.s
+go generate
+go build
+./reg_spill2
+rm -f *.s
+rm -f reg_spill2_simd_proto.go
+go clean
+cd ../../

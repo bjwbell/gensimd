@@ -278,6 +278,10 @@ func (f *Function) GoProto() (string, string, string) {
 	pkgname := "package " + f.ssa.Package().Pkg.Name() + "\n"
 	imports := "import " + "\"github.com/bjwbell/gensimd/simd\"\n"
 	sig := strings.TrimPrefix(f.ssa.Signature.String(), "func(")
+	// TODO: HACK!
+	if !strings.Contains(sig, "github.com/bjwbell/gensimd") {
+		imports = ""
+	}
 	sig = strings.Replace(sig, "github.com/bjwbell/gensimd/", "", -1)
 	fnproto := "func " + f.outfname() + "(" + sig
 	return pkgname, imports, fnproto
@@ -1886,12 +1890,7 @@ func (f *Function) spillRegisters() (string, *Error) {
 		if f.excludeReg(r) {
 			continue
 		}
-		if a, e := r.spill(); e != nil {
-			return a, e
-		} else {
-			asm += a
-		}
-
+		asm += r.spill()
 	}
 	return asm, nil
 }
@@ -1909,18 +1908,17 @@ func (f *Function) allocReg(node ssa.Node, t RegType, size uint) (string, *regis
 		}
 		if !f.regDead(node, reg) {
 			alias := reg.aliases[0]
-			if a, e := reg.spill(); e != nil {
-				ice(fmt.Sprintf("can't alloc register (t: %v, size: %v), inner msg: %v", t, size, e.Err))
-			} else {
-				if a != "" {
-					if f.PrintSpills {
-						fmt.Printf("Spilling %v\n", reg.name)
-					}
-					asm = fmt.Sprintf("// BEGIN RegSpill %v, ident %v\n", reg.name, alias.name)
-					asm += a
-					asm += fmt.Sprintf("// END RegSpill %v, ident %v\n", reg.name, alias.name)
+			num := len(reg.aliases)
+			a := reg.spill()
+			if a != "" {
+				if f.PrintSpills {
+					fmt.Printf("Spilling %v\n", reg.name)
 				}
+				asm = fmt.Sprintf("// BEGIN RegSpill %v, ident %v, #aliases %v\n ", reg.name, alias.name, num)
+				asm += a
+				asm += fmt.Sprintf("// END RegSpill %v, ident %v, #aliases %v\n", reg.name, alias.name, num)
 			}
+
 		}
 
 	}

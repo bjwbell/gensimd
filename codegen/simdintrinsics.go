@@ -137,24 +137,26 @@ func packedOp(f *Function, node ssa.Node, instrtype InstructionType, optypes Xmm
 
 func instrImm8Reg(f *Function, instr Instr, imm8 uint8, dst *register) string {
 	info := instrTable[instr]
+	asm := ""
 	if info.Flags&RightRdwr != 0 || info.Flags&RightWrite != 0 {
-		dst.modified()
+		asm += dst.modified()
 	} else {
 		fmt.Println("Instr:", instr)
 		ice("dst modify flag should be set")
 	}
-	return fmt.Sprintf("%-9v    $%v, %v\n", instr, imm8, dst.name)
+	return asm + fmt.Sprintf("%-9v    $%v, %v\n", instr, imm8, dst.name)
 }
 
 func instrImm8RegReg(f *Function, instr Instr, imm8 uint8, src, dst *register) string {
 	info := instrTable[instr]
+	asm := ""
 	if info.Flags&RightRdwr != 0 || info.Flags&RightWrite != 0 {
-		dst.modified()
+		asm += dst.modified()
 	} else {
 		fmt.Println("Instr:", instr)
 		ice("dst modify flag should be set")
 	}
-	return fmt.Sprintf("%-9v    $%v, %v, %v\n", instr, imm8, src.name, dst.name)
+	return asm + fmt.Sprintf("%-9v    $%v, %v, %v\n", instr, imm8, src.name, dst.name)
 }
 
 // implementations of SIMD functions:
@@ -183,7 +185,9 @@ func mulI32x4(f *Function, node ssa.Node, x, y, result *identifier) (string, *Er
 	asm += instrRegReg(PMULULQ, regx, tmp1) // mul dwords 2, 0
 
 	asm += instrImm8Reg(f, PSRLO, 4, regx) // shift logical right by 4 bytes
-	asm += instrImm8Reg(f, PSRLO, 4, regy) // shift logical right by 4 bytes
+	if regy.name != regx.name {
+		asm += instrImm8Reg(f, PSRLO, 4, regy) // shift logical right by 4 bytes
+	}
 
 	a2, tmp2 := f.allocReg(node, XMM_REG, 16)
 	asm += a2

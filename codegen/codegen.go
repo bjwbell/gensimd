@@ -1914,7 +1914,7 @@ func (f *Function) allocReg(node ssa.Node, t RegType, size uint) (string, *regis
 				if f.PrintSpills {
 					fmt.Printf("Spilling %v\n", reg.name)
 				}
-				asm = fmt.Sprintf("// BEGIN RegSpill %v, ident %v, #aliases %v\n ", reg.name, alias.name, num)
+				asm = fmt.Sprintf("// BEGIN RegSpill %v, ident %v, #aliases %v\n", reg.name, alias.name, num)
 				asm += a
 				asm += fmt.Sprintf("// END RegSpill %v, ident %v, #aliases %v\n", reg.name, alias.name, num)
 			}

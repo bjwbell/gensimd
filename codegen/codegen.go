@@ -526,7 +526,7 @@ func (f *Function) Len(call *ssa.Call) (string, *Error) {
 		}
 
 	} else if isSlice(arg.Type()) {
-		a, err := f.SliceLen(arg, ident)
+		a, err := f.SliceLen(call, arg, ident)
 		asm += a
 		if err != nil {
 			return asm, err
@@ -677,7 +677,7 @@ func (f *Function) ConvertFromTo(instr *ssa.Convert, fromOpType, toOpType InstrO
 
 	asm := ""
 
-	a, from, err := f.LoadValueSimple(instr.X)
+	a, from, err := f.LoadValueSimple(instr, instr.X)
 	if err != nil {
 		return "", err
 	} else {
@@ -729,10 +729,10 @@ func (f *Function) ConvertFromTo(instr *ssa.Convert, fromOpType, toOpType InstrO
 	return asm, nil
 }
 
-func (f *Function) ConvertUint64ToFloat(node ssa.Node, tmp, regU64, regFloat *register, floatSize uint) string {
+func (f *Function) ConvertUint64ToFloat(loc ssa.Instruction, tmp, regU64, regFloat *register, floatSize uint) string {
 
 	asm := ""
-	a, regI64 := f.allocReg(node, DATA_REG, 8)
+	a, regI64 := f.allocReg(loc, DATA_REG, 8)
 	asm += a
 	round := f.newJmpLabel()
 	noround := f.newJmpLabel()
@@ -852,11 +852,11 @@ func (f *Function) If(instr *ssa.If) (string, *Error) {
 	return asm, nil
 }
 
-func (f *Function) JumpPreamble(node ssa.Node, blockIndex, jmpIndex int) (string, *Error) {
+func (f *Function) JumpPreamble(loc ssa.Instruction, blockIndex, jmpIndex int) (string, *Error) {
 	asm := ""
 	phiInfos := f.phiInfo[blockIndex][jmpIndex]
 	for _, phiInfo := range phiInfos {
-		if a, err := f.StoreValAddr(node, phiInfo.value, f.Ident(phiInfo.phi)); err != nil {
+		if a, err := f.StoreValAddr(loc, phiInfo.value, f.Ident(phiInfo.phi)); err != nil {
 			return a, err
 		} else {
 			asm += a
@@ -950,7 +950,7 @@ func (f *Function) Return(ret *ssa.Return) (string, *Error) {
 	asm := ResetStackPointer(dummySpSize)
 	asm = "// BEGIN ssa.Return\n" + asm
 
-	if a, err := f.CopyToRet(ret.Results); err != nil {
+	if a, err := f.CopyToRet(ret, ret.Results); err != nil {
 		return "", err
 	} else {
 		asm += a
@@ -985,7 +985,7 @@ func (f *Function) retIdent() *identifier {
 	}
 }
 
-func (f *Function) CopyToRet(val []ssa.Value) (string, *Error) {
+func (f *Function) CopyToRet(ret *ssa.Return, val []ssa.Value) (string, *Error) {
 	if len(val) == 0 {
 		return "", nil
 	}
@@ -994,7 +994,7 @@ func (f *Function) CopyToRet(val []ssa.Value) (string, *Error) {
 		e.Pos = val[1].Pos()
 		return "", e
 	}
-	return f.StoreValAddr(WrappedVal{val[0]}, val[0], f.retIdent())
+	return f.StoreValAddr(ret, val[0], f.retIdent())
 }
 
 func ResetStackPointer(size uint32) string {
@@ -1016,7 +1016,7 @@ func (f *Function) SetStackPointer() string {
 	return ""
 }
 
-func (f *Function) StoreValAddr(node ssa.Node, val ssa.Value, addr *identifier) (string, *Error) {
+func (f *Function) StoreValAddr(loc ssa.Instruction, val ssa.Value, addr *identifier) (string, *Error) {
 
 	if ident := f.Ident(val); ident == nil {
 		ice("error in allocating local")
@@ -1032,13 +1032,13 @@ func (f *Function) StoreValAddr(node ssa.Node, val ssa.Value, addr *identifier) 
 		return ErrorMsg("complex32/64 unsupported")
 	} else if isFloat(val.Type()) {
 
-		a, valReg, err := f.LoadValue(val, 0, f.sizeof(val))
+		a, valReg, err := f.LoadValue(loc, val, 0, f.sizeof(val))
 		if err != nil {
 			return a, err
 		}
 		asm += a
 
-		a, err = f.StoreValue(node, addr, valReg)
+		a, err = f.StoreValue(loc, addr, valReg)
 		if err != nil {
 			return a, err
 		}
@@ -1047,12 +1047,12 @@ func (f *Function) StoreValAddr(node ssa.Node, val ssa.Value, addr *identifier) 
 
 	} else if isSimd(val.Type()) || isSSE2(val.Type()) {
 
-		a, valReg, err := f.LoadSimdValue(val)
+		a, valReg, err := f.LoadSimdValue(loc, val)
 		if err != nil {
 			return a, err
 		}
 		asm += a
-		a, err = f.StoreSimd(node, valReg, addr)
+		a, err = f.StoreSimd(loc, valReg, addr)
 		if err != nil {
 			return a, err
 		}
@@ -1084,7 +1084,7 @@ func (f *Function) StoreValAddr(node ssa.Node, val ssa.Value, addr *identifier) 
 
 		for i := int(0); i < int(iterations); i++ {
 			offset := i * datasize
-			a, valReg, err := f.LoadValue(val, offset, uint(datasize))
+			a, valReg, err := f.LoadValue(loc, val, offset, uint(datasize))
 			if err != nil {
 				return a, err
 			}
@@ -1198,14 +1198,14 @@ func (f *Function) BinOpLoadXY(instr *ssa.BinOp) (asm string, x *register, y *re
 
 	asm = "// BEGIN BinOpLoadXY\n"
 
-	a, x, err = f.LoadValue(instr.X, 0, f.sizeof(instr.X))
+	a, x, err = f.LoadValue(instr, instr.X, 0, f.sizeof(instr.X))
 	if err != nil {
 		return "", nil, nil, err
 	} else {
 		asm += a
 	}
 
-	a, y, err = f.LoadValue(instr.Y, 0, f.sizeof(instr.Y))
+	a, y, err = f.LoadValue(instr, instr.Y, 0, f.sizeof(instr.Y))
 	if err != nil {
 		return "", nil, nil, err
 	} else {
@@ -1232,20 +1232,20 @@ func (f *Function) sizeofConst(cnst *ssa.Const) uint {
 	return sizeof(cnst.Type())
 }
 
-func (f *Function) SliceLen(slice ssa.Value, ident *identifier) (string, *Error) {
+func (f *Function) SliceLen(loc ssa.Instruction, slice ssa.Value, ident *identifier) (string, *Error) {
 	if _, ok := slice.Type().(*types.Slice); !ok {
 		panic(ice(fmt.Sprintf("getting len of slice, type should slice not (%v)", slice.Type().String())))
 	}
 
 	asm := fmt.Sprintf("// BEGIN SliceLen: slice (%v), ident (%v)\n", slice, *ident)
 
-	a, reg, err := f.LoadValue(slice, sliceLenOffset(), sliceLenSize())
+	a, reg, err := f.LoadValue(loc, slice, sliceLenOffset(), sliceLenSize())
 	asm += a
 	if err != nil {
 		return asm, err
 	}
 
-	a, err = f.StoreValue(WrappedVal{slice}, ident, reg)
+	a, err = f.StoreValue(loc, ident, reg)
 	asm += a
 	if err != nil {
 		return asm, err
@@ -1254,20 +1254,20 @@ func (f *Function) SliceLen(slice ssa.Value, ident *identifier) (string, *Error)
 	return asm, nil
 }
 
-func (f *Function) LoadSimdValue(simdvalue ssa.Value) (string, *register, *Error) {
+func (f *Function) LoadSimdValue(loc ssa.Instruction, simdvalue ssa.Value) (string, *register, *Error) {
 	asm := fmt.Sprintf("// BEGIN LoadSimdValue, simdvalue: %v\n", simdvalue)
-	a, reg, err := f.LoadValue(simdvalue, 0, f.sizeof(simdvalue))
+	a, reg, err := f.LoadValue(loc, simdvalue, 0, f.sizeof(simdvalue))
 	asm += a
 	asm += fmt.Sprintf("// END LoadSimdValue, simdvalue: %v, reg %v\n", simdvalue, reg.name)
 	return asm, reg, err
 }
 
-func (f *Function) LoadSimd(node ssa.Node, ident *identifier) (string, *register, *Error) {
+func (f *Function) LoadSimd(loc ssa.Instruction, ident *identifier) (string, *register, *Error) {
 	asm := fmt.Sprintf("// BEGIN LoadSimd, ident: %v\n", ident.name)
-	a, reg, err := f.LoadIdentSimple(node, ident)
+	a, reg, err := f.LoadIdentSimple(loc, ident)
 	asm += a
 	if reg.typ != XMM_REG {
-		a, xmmReg := f.allocReg(node, XMM_REG, 16)
+		a, xmmReg := f.allocReg(loc, XMM_REG, 16)
 		asm += a
 		asm += MovRegReg(OpDataType{XMM_OP, InstrData{}, XMM_F128}, reg, xmmReg)
 		f.freeReg(reg)
@@ -1278,21 +1278,21 @@ func (f *Function) LoadSimd(node ssa.Node, ident *identifier) (string, *register
 	return asm, reg, err
 }
 
-func (f *Function) LoadSSE2(node ssa.Node, ident *identifier) (string, *register, *Error) {
-	return f.LoadSimd(node, ident)
+func (f *Function) LoadSSE2(loc ssa.Instruction, ident *identifier) (string, *register, *Error) {
+	return f.LoadSimd(loc, ident)
 }
 
-func (f *Function) LoadIdentSimple(node ssa.Node, ident *identifier) (string, *register, *Error) {
+func (f *Function) LoadIdentSimple(loc ssa.Instruction, ident *identifier) (string, *register, *Error) {
 	asm := fmt.Sprintf("// BEGIN LoadIdentSimple, ident: %v\n", ident.name)
-	a, reg, err := f.LoadIdent(node, ident, 0, sizeof(ident.typ))
+	a, reg, err := f.LoadIdent(loc, ident, 0, sizeof(ident.typ))
 	asm += a
 	asm += fmt.Sprintf("// END LoadIdentSimple, ident: %v, reg %v\n", ident.name, reg.name)
 	return asm, reg, err
 }
 
-func (f *Function) allocIdentReg(node ssa.Node, ident *identifier, size uint) (string, *register) {
+func (f *Function) allocIdentReg(loc ssa.Instruction, ident *identifier, size uint) (string, *register) {
 
-	asm, reg := f.allocReg(node, regType(ident.typ), size)
+	asm, reg := f.allocReg(loc, regType(ident.typ), size)
 	if size > 8 && ((!isSimd(ident.typ) && !isSSE2(ident.typ)) || reg.typ != XMM_REG) {
 		msg := "ident (%v), allocating more than 8 byte chunk"
 		ice(fmt.Sprintf(msg, ident.name))
@@ -1305,7 +1305,7 @@ func (f *Function) allocIdentReg(node ssa.Node, ident *identifier, size uint) (s
 
 }
 
-func (f *Function) LoadIdent(node ssa.Node, ident *identifier, offset int, size uint) (string, *register, *Error) {
+func (f *Function) LoadIdent(loc ssa.Instruction, ident *identifier, offset int, size uint) (string, *register, *Error) {
 
 	if offset == 0 && size == ident.size() {
 		if r := f.regAlias(ident); r != nil {
@@ -1315,7 +1315,7 @@ func (f *Function) LoadIdent(node ssa.Node, ident *identifier, offset int, size 
 	}
 
 	if ident.cnst != nil {
-		asm, r, err := f.LoadConstValue(ident.cnst)
+		asm, r, err := f.LoadConstValue(loc, ident.cnst)
 		return asm, r, err
 	}
 
@@ -1325,7 +1325,7 @@ func (f *Function) LoadIdent(node ssa.Node, ident *identifier, offset int, size 
 		ice(fmt.Sprintf(msg, ident.name, ident.size(), size))
 	}
 
-	a1, reg := f.allocIdentReg(node, ident, size)
+	a1, reg := f.allocIdentReg(loc, ident, size)
 
 	if size == ident.size() {
 		reg.addAlias(ident)
@@ -1365,20 +1365,20 @@ func (f *Function) LoadIdent(node ssa.Node, ident *identifier, offset int, size 
 	return asm, reg, nil
 }
 
-func (f *Function) LoadValueSimple(val ssa.Value) (string, *register, *Error) {
+func (f *Function) LoadValueSimple(loc ssa.Instruction, val ssa.Value) (string, *register, *Error) {
 	asm := fmt.Sprintf("// BEGIN LoadValueSimple, val: %v\n", val)
-	a, reg, err := f.LoadValue(val, 0, f.sizeof(val))
+	a, reg, err := f.LoadValue(loc, val, 0, f.sizeof(val))
 	asm += a
 	asm += fmt.Sprintf("// END LoadValueSimple, val: %v, reg %v\n", val, reg.name)
 	return asm, reg, err
 }
 
-func (f *Function) LoadValue(val ssa.Value, offset int, size uint) (string, *register, *Error) {
+func (f *Function) LoadValue(loc ssa.Instruction, val ssa.Value, offset int, size uint) (string, *register, *Error) {
 
 	ident := f.Ident(val)
 
 	asm := fmt.Sprintf("// BEGIN LoadValue, val %v (= %v), offset %v, size %v\n", val.Name(), val, offset, size)
-	a, reg, err := f.LoadIdent(WrappedVal{val}, ident, offset, size)
+	a, reg, err := f.LoadIdent(loc, ident, offset, size)
 	if err != nil {
 		return "", nil, err
 	}
@@ -1387,15 +1387,15 @@ func (f *Function) LoadValue(val ssa.Value, offset int, size uint) (string, *reg
 	return asm, reg, nil
 }
 
-func (f *Function) StoreSimd(node ssa.Node, reg *register, ident *identifier) (string, *Error) {
-	return f.StoreValue(node, ident, reg)
+func (f *Function) StoreSimd(loc ssa.Instruction, reg *register, ident *identifier) (string, *Error) {
+	return f.StoreValue(loc, ident, reg)
 }
 
-func (f *Function) StoreSSE2(node ssa.Node, reg *register, ident *identifier) (string, *Error) {
-	return f.StoreValue(node, ident, reg)
+func (f *Function) StoreSSE2(loc ssa.Instruction, reg *register, ident *identifier) (string, *Error) {
+	return f.StoreValue(loc, ident, reg)
 }
 
-func (f *Function) StoreValue(node ssa.Node, ident *identifier, reg *register) (string, *Error) {
+func (f *Function) StoreValue(loc ssa.Instruction, ident *identifier, reg *register) (string, *Error) {
 	if ident.size() > reg.size() {
 		msgstr := "identifier, %v, size (%v) is greater than register size (%v)"
 		ice(fmt.Sprintf(msgstr, ident.name, ident.size(), reg.size()))
@@ -1461,10 +1461,10 @@ func (f *Function) StoreReg(reg *register, ident *identifier, offset int, size u
 	return asm, nil
 }
 
-func (f *Function) LoadConstValue(cnst *ssa.Const) (string, *register, *Error) {
+func (f *Function) LoadConstValue(loc ssa.Instruction, cnst *ssa.Const) (string, *register, *Error) {
 
 	if isBool(cnst.Type()) {
-		a, r := f.allocReg(cnst, regType(cnst.Type()), 1)
+		a, r := f.allocReg(loc, regType(cnst.Type()), 1)
 		var val int8
 		if cnst.Value.String() == "true" {
 			val = 1
@@ -1472,11 +1472,11 @@ func (f *Function) LoadConstValue(cnst *ssa.Const) (string, *register, *Error) {
 		return a + MovImm8Reg(val, r), r, nil
 	}
 	if isFloat(cnst.Type()) {
-		a, r := f.allocReg(cnst, regType(cnst.Type()), 1)
+		a, r := f.allocReg(loc, regType(cnst.Type()), 1)
 		if r.typ != XMM_REG {
 			ice("can't load float const into non xmm register")
 		}
-		a2, tmp := f.allocReg(cnst, DATA_REG, 8)
+		a2, tmp := f.allocReg(loc, DATA_REG, 8)
 		asm := a + a2
 		if isFloat32(cnst.Type()) {
 			asm = MovImmf32Reg(float32(cnst.Float64()), tmp, r)
@@ -1493,7 +1493,7 @@ func (f *Function) LoadConstValue(cnst *ssa.Const) (string, *register, *Error) {
 
 	size := sizeof(cnst.Type())
 	signed := signed(cnst.Type())
-	a, r := f.allocReg(cnst, regType(cnst.Type()), size)
+	a, r := f.allocReg(loc, regType(cnst.Type()), size)
 	var val int64
 	if signed {
 		val = cnst.Int64()
@@ -1537,7 +1537,7 @@ func (f *Function) UnOpXor(instr *ssa.UnOp, xorVal int32) (string, *Error) {
 		msg := fmt.Sprintf("unknown name (%v), instr (%v)\n", instr.Name(), instr)
 		ice(msg)
 	}
-	asm, reg, err := f.LoadValueSimple(instr.X)
+	asm, reg, err := f.LoadValueSimple(instr, instr.X)
 
 	if err != nil {
 		return asm, err
@@ -1580,7 +1580,7 @@ func (f *Function) UnOpSub(instr *ssa.UnOp) (string, *Error) {
 		ice(msg)
 	}
 
-	a3, regX, err := f.LoadValueSimple(instr.X)
+	a3, regX, err := f.LoadValueSimple(instr, instr.X)
 	asm := a1 + a2 + a3
 	if err != nil {
 		return asm, err
@@ -1724,7 +1724,7 @@ func (f *Function) Index(instr *ssa.Index) (string, *Error) {
 	xReg, xOffset, _ := xInfo.Addr()
 	a1, addr := f.allocIdentReg(instr, assignment, assignment.size())
 	asm += a1
-	a, idx, err := f.LoadValueSimple(instr.Index)
+	a, idx, err := f.LoadValueSimple(instr, instr.Index)
 	if err != nil {
 		return "", err
 	}
@@ -1770,7 +1770,7 @@ func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 	a1, addr := f.allocIdentReg(instr, assignment, assignment.size())
 	asm += a1
 
-	a, idx, err := f.LoadValueSimple(instr.Index)
+	a, idx, err := f.LoadValueSimple(instr, instr.Index)
 	if err != nil {
 		return "", err
 	}
@@ -1895,18 +1895,18 @@ func (f *Function) spillRegisters() (string, *Error) {
 	return asm, nil
 }
 
-// allocReg allocates a register, if none are available a victim register is spilled, node is the instr location,
+// allocReg allocates a register, if none are available a victim register is spilled, loc is the instr location,
 // where the allocation is taking place (this is used to choose the victim register when spilling),
 // t is the register type eg XMM_REG, size is bytes.
-func (f *Function) allocReg(node ssa.Node, t RegType, size uint) (string, *register) {
+func (f *Function) allocReg(loc ssa.Instruction, t RegType, size uint) (string, *register) {
 	asm := ""
 	reg := f.allocReg2(t, size)
 	if reg == nil {
-		reg = f.chooseVictim(node, t, size)
+		reg = f.chooseVictim(loc, t, size)
 		if reg == nil {
 			ice(fmt.Sprintf("can't alloc register (t: %v, size: %v)", t, size))
 		}
-		if !f.regDead(node, reg) {
+		if !f.regDead(loc, reg) {
 			alias := reg.aliases[0]
 			num := len(reg.aliases)
 			a := reg.spill()
@@ -1947,7 +1947,7 @@ func (f *Function) allocReg2(t RegType, size uint) *register {
 	return reg
 }
 
-func (f *Function) chooseVictim(node ssa.Node, t RegType, size uint) *register {
+func (f *Function) chooseVictim(loc ssa.Instruction, t RegType, size uint) *register {
 	var victim *register
 	for i := 0; i < len(f.registers); i++ {
 		r := &f.registers[i]
@@ -1987,7 +1987,7 @@ func (f *Function) compareVictims(vic1, vic2 *register) int {
 	return len(vic2.aliases) - len(vic1.aliases)
 }
 
-func (f *Function) regDead(node ssa.Node, r *register) bool {
+func (f *Function) regDead(loc ssa.Instruction, r *register) bool {
 	return !r.inUse && len(r.aliases) == 0
 }
 
@@ -1995,6 +1995,37 @@ func (f *Function) excludeReg(reg *register) bool {
 	for _, r := range excludedRegisters {
 		if r.name == reg.name {
 			return true
+		}
+	}
+	return false
+}
+
+func (f *Function) instrIdxInBlock(instr ssa.Instruction) int {
+	block := instr.Block()
+	for i := 0; i < len(block.Instrs); i++ {
+		if block.Instrs[i] == instr {
+			return i
+		}
+	}
+	panic(ice("couldn't find instruction location in basic block"))
+}
+
+func (f *Function) isAlive(loc ssa.Instruction, val ssa.Value) bool {
+	block := loc.Block()
+	instrIdx := f.instrIdxInBlock(loc)
+	if val.Referrers() == nil {
+		return false
+	}
+
+	for _, ref := range *val.Referrers() {
+		bk := ref.Block()
+		if bk.Index != block.Index {
+			continue
+		}
+		for i, _ := range bk.Instrs {
+			if i > instrIdx {
+				return true
+			}
 		}
 	}
 	return false

@@ -54,7 +54,7 @@ func main() {
 	var f = flag.String("f", "", "input file with function definitions")
 	var flagFn = flag.String("fn", "", "comma separated list of function names")
 	var flagOutFn = flag.String("outfn", "", "comma separated list of output function names")
-	var goprotofile = flag.String("goprotofile", "", "output file for function prototype")
+	var goprotofile = flag.String("goprotofile", "", "output file for SIMD function prototype(s)")
 
 	flag.Parse()
 	file := os.ExpandEnv("$GOFILE")

@@ -24,7 +24,7 @@ go install https://github.com/bjwbell/gensimd/simd/sse
 - [Cross platform - SIMD](examples/simd_example/README.md)
 - [Platform specific - SSE2](examples/sse2_example/README.md)
 
-To build and run both examples execute `./run_examples.sh`.
+To build and run all examples execute `./run_examples.sh`.
 
 ## Tests
 To build and run the reference tests execute `./run_tests.sh`.
@@ -34,17 +34,20 @@ To build and run the reference tests execute `./run_tests.sh`.
 
 ```
 [bjwbell]$ gensimd --help
-Usage of gensimd:
   -debug
     	include debug comments in assembly
   -f string
     	input file with function definitions
   -fn string
     	comma separated list of function names
+  -goprotofile string
+    	output file for SIMD function prototype(s)
   -o string
     	Go assembly output file
   -outfn string
     	comma separated list of output function names
+  -spills
+    	print each register spill
   -ssa
     	dump ssa representation
 ```

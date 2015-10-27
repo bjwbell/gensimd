@@ -49,6 +49,7 @@ func fileName(pathName string) string {
 func main() {
 	var ssaDump = flag.Bool("ssa", false, "dump ssa representation")
 	var debug = flag.Bool("debug", false, "include debug comments in assembly")
+	var printSpills = flag.Bool("spills", false, "print each register spill")
 	var output = flag.String("o", "", "Go assembly output file")
 	var f = flag.String("f", "", "input file with function definitions")
 	var flagFn = flag.String("fn", "", "comma separated list of function names")
@@ -63,6 +64,10 @@ func main() {
 	}
 	if *flagFn == "" {
 		log.Fatalf("Error no function name(s) provided")
+	}
+	spills := os.ExpandEnv("$GENSIMDSPILLS")
+	if spills != "" {
+		*printSpills = spills == "1"
 	}
 	fnnames := strings.Split(*flagFn, ",")
 	outFns := []string{}
@@ -142,7 +147,9 @@ func main() {
 					msg := "Func \"%v\" not found in package \"%v\""
 					log.Fatalf(msg, fnname, filePkgName)
 				} else {
-					fn, err := codegen.CreateFunction(fn, outfn, *debug)
+					dbg := *debug
+					fn, err := codegen.CreateFunction(fn, outfn, dbg)
+					fn.PrintSpills = *printSpills
 					if err != nil {
 						msg := "codegen error msg \"%v\""
 						log.Fatalf(msg, err)

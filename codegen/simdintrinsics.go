@@ -2,7 +2,8 @@ package codegen
 
 import (
 	"fmt"
-	"go/token"
+
+	"golang.org/x/tools/go/ssa"
 )
 
 var simdToGoAsm = map[SimdInstr]InstructionType{
@@ -98,7 +99,7 @@ func getSimdInstr(name string) (InstructionType, bool) {
 	return I_INVALID, false
 }
 
-type intrinsic func(f *Function, x, y, result *identifier, pos token.Pos) (string, *Error)
+type intrinsic func(f *Function, node ssa.Node, x, y, result *identifier) (string, *Error)
 
 var intrinsics = map[string]intrinsic{
 	"MulI32x4":     mulI32x4,
@@ -108,21 +109,21 @@ var intrinsics = map[string]intrinsic{
 	"ShuffleU32x4": shufU32x4,
 }
 
-func packedOp(f *Function, instrtype InstructionType, optypes XmmData, x, y, result *identifier, pos token.Pos) (string, *Error) {
+func packedOp(f *Function, node ssa.Node, instrtype InstructionType, optypes XmmData, x, y, result *identifier) (string, *Error) {
 	asm := ""
 	instr := GetXmmInstruction(instrtype).Select(optypes)
-	a, regx, err := f.LoadSimd(x, pos)
+	a, regx, err := f.LoadSimd(node, x)
 	if err != nil {
 		return "", err
 	}
 	asm += a
-	b, regy, err := f.LoadSimd(y, pos)
+	b, regy, err := f.LoadSimd(node, y)
 	if err != nil {
 		return "", err
 	}
 	asm += b
 	asm += instrRegReg(instr, regx, regy)
-	c, err := f.StoreSimd(regy, result, pos)
+	c, err := f.StoreSimd(node, regy, result)
 	if err != nil {
 		return "", err
 	}
@@ -159,20 +160,20 @@ func instrImm8RegReg(f *Function, instr Instr, imm8 uint8, src, dst *register) s
 // implementations of SIMD functions:
 // add, sub, mul, div, <<, >> for each type
 
-func mulI32x4(f *Function, x, y, result *identifier, pos token.Pos) (string, *Error) {
+func mulI32x4(f *Function, node ssa.Node, x, y, result *identifier) (string, *Error) {
 	// native x64 SSE4.1 instruction "PMULLD"
 	// emulate on SSE2 with below
 
 	asm := ""
-	a1, tmp1 := f.allocReg(XMM_REG, 16)
+	a1, tmp1 := f.allocReg(node, XMM_REG, 16)
 	asm += a1
 
-	a, regx, err := f.LoadSimd(x, pos)
+	a, regx, err := f.LoadSimd(node, x)
 	if err != nil {
 		return "", err
 	}
 	asm += a
-	b, regy, err := f.LoadSimd(y, pos)
+	b, regy, err := f.LoadSimd(node, y)
 	if err != nil {
 		return "", err
 	}
@@ -184,20 +185,20 @@ func mulI32x4(f *Function, x, y, result *identifier, pos token.Pos) (string, *Er
 	asm += instrImm8Reg(f, PSRLO, 4, regx) // shift logical right by 4 bytes
 	asm += instrImm8Reg(f, PSRLO, 4, regy) // shift logical right by 4 bytes
 
-	a2, tmp2 := f.allocReg(XMM_REG, 16)
+	a2, tmp2 := f.allocReg(node, XMM_REG, 16)
 	asm += a2
 
 	asm += MovRegReg(OpDataType{op: XMM_OP, xmmvariant: XMM_F128}, regy, tmp2)
 	asm += instrRegReg(PMULULQ, regx, tmp2) // mul dwords 3, 1
 
 	// shuffle into first 64 bits of shufflet1
-	a3, shufflet1 := f.allocReg(XMM_REG, 16)
+	a3, shufflet1 := f.allocReg(node, XMM_REG, 16)
 	asm += a3
 
 	asm += instrImm8RegReg(f, PSHUFD, 0x8, tmp1, shufflet1)
 
 	// shuffle into first 64 bits of shufflet2
-	a4, shufflet2 := f.allocReg(XMM_REG, 16)
+	a4, shufflet2 := f.allocReg(node, XMM_REG, 16)
 	asm += a4
 
 	asm += instrImm8RegReg(f, PSHUFD, 0x8, tmp2, shufflet2)
@@ -207,7 +208,7 @@ func mulI32x4(f *Function, x, y, result *identifier, pos token.Pos) (string, *Er
 	// Unpack and interleave 32-bit integers from the low half of shuffletmp1 and shuffletmp2, and store the results in shufflet2.
 	asm += instrRegReg(punpckllq, shufflet2, shufflet1)
 
-	if a, err := f.StoreSimd(shufflet1, result, pos); err != nil {
+	if a, err := f.StoreSimd(node, shufflet1, result); err != nil {
 		return "", err
 	} else {
 		asm += a
@@ -235,20 +236,20 @@ func mulI32x4(f *Function, x, y, result *identifier, pos token.Pos) (string, *Er
 // func shrI64x2(f *Function, x, shift, result *identifier) (string, *Error) {
 // }
 
-func shrU16x8(f *Function, x, count, result *identifier, pos token.Pos) (string, *Error) {
+func shrU16x8(f *Function, node ssa.Node, x, count, result *identifier) (string, *Error) {
 
 	// PSRL isn't used before go1.5.2 (https://github.com/golang/go/issues/13010)
 	v152 := goversion{1, 5, 2}
 	if v, e := goVersion(); e == nil && cmpGoVersion(v, v152) > 0 {
-		return packedOp(f, I_PSRL, XMM_U16X8, count, x, result, pos)
+		return packedOp(f, node, I_PSRL, XMM_U16X8, count, x, result)
 	} else {
 
-		asm, reg, err := f.LoadSimd(x, pos)
+		asm, reg, err := f.LoadSimd(node, x)
 		if err != nil {
 			panic(ice("couldn't load SIMD value"))
 		}
 
-		a, countReg, e := f.LoadIdentSimple(count, pos)
+		a, countReg, e := f.LoadIdentSimple(node, count)
 		if e != nil {
 			panic(ice("couldn't load shift count for SIMD shift right "))
 		}
@@ -257,10 +258,10 @@ func shrU16x8(f *Function, x, count, result *identifier, pos token.Pos) (string,
 		}
 		asm += a
 
-		a1, wordReg := f.allocReg(DATA_REG, 8)
+		a1, wordReg := f.allocReg(node, DATA_REG, 8)
 		asm += a1
 
-		a2, tmp := f.allocReg(DATA_REG, 8)
+		a2, tmp := f.allocReg(node, DATA_REG, 8)
 		asm += a2
 
 		for i := uint8(0); i < 8; i++ {
@@ -279,7 +280,7 @@ func shrU16x8(f *Function, x, count, result *identifier, pos token.Pos) (string,
 
 		}
 
-		a, e = f.StoreSimd(reg, result, pos)
+		a, e = f.StoreSimd(node, reg, result)
 		if e != nil {
 			panic(ice("couldn't store SIMD register"))
 		}
@@ -302,9 +303,9 @@ func shrU16x8(f *Function, x, count, result *identifier, pos token.Pos) (string,
 // func shrU64x2(f *Function, x, shift, result *identifier) (string, *Error) {
 // }
 
-func shufU32x4(f *Function, x, result, order *identifier, pos token.Pos) (string, *Error) {
+func shufU32x4(f *Function, node ssa.Node, x, result, order *identifier) (string, *Error) {
 
-	asm, src, err := f.LoadSimd(x, pos)
+	asm, src, err := f.LoadSimd(node, x)
 	if err != nil {
 		panic(ice("couldn't load SIMD value"))
 	}
@@ -319,12 +320,12 @@ func shufU32x4(f *Function, x, result, order *identifier, pos token.Pos) (string
 		return ErrorMsg(fmt.Sprintf(msgstr, order.cnst.Uint64()))
 	}
 
-	a1, dst := f.allocReg(XMM_REG, XmmRegSize)
+	a1, dst := f.allocReg(node, XMM_REG, XmmRegSize)
 	asm += a1
 
 	asm += instrImm8RegReg(f, PSHUFL, orderImm8, src, dst)
 
-	a, e := f.StoreSimd(dst, result, pos)
+	a, e := f.StoreSimd(node, dst, result)
 	if e != nil {
 		panic(ice("couldn't store SIMD register"))
 	}

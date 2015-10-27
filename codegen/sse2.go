@@ -2,7 +2,8 @@ package codegen
 
 import (
 	"fmt"
-	"go/token"
+
+	"golang.org/x/tools/go/ssa"
 
 	"github.com/bjwbell/gensimd/codegen/sse2"
 )
@@ -40,21 +41,21 @@ func getSSE2(name string) (sse2.SSE2Instr, bool) {
 	return sse2.INVALID, false
 }
 
-func sse2Op(f *Function, instr sse2.SSE2Instr, x, y, result *identifier, pos token.Pos) (string, *Error) {
+func sse2Op(f *Function, node ssa.Node, instr sse2.SSE2Instr, x, y, result *identifier) (string, *Error) {
 	asm := ""
 	goInstr := sse2ToGoAsm[instr]
-	a, regx, err := f.LoadSSE2(x, pos)
+	a, regx, err := f.LoadSSE2(node, x)
 	if err != nil {
 		return "", err
 	}
 	asm += a
-	b, regy, err := f.LoadSSE2(y, pos)
+	b, regy, err := f.LoadSSE2(node, y)
 	if err != nil {
 		return "", err
 	}
 	asm += b
 	asm += instrRegReg(goInstr, regx, regy)
-	c, err := f.StoreSSE2(regy, result, pos)
+	c, err := f.StoreSSE2(node, regy, result)
 	if err != nil {
 		return "", err
 	}

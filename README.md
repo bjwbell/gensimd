@@ -11,7 +11,7 @@ go install https://github.com/bjwbell/gensimd
 go install https://github.com/bjwbell/gensimd/simd
 ```
 
-### Optional - SSE2
+## Optional - SSE2
 
 To install and use the SSE2 intrinsics execute:
 ```
@@ -30,7 +30,7 @@ To build and run all examples execute `./run_examples.sh`.
 To build and run the reference tests execute `./run_tests.sh`.
 
 
-# Gensimd Command
+## Gensimd Command
 
 ```
 [bjwbell]$ gensimd --help
@@ -55,12 +55,12 @@ To build and run the reference tests execute `./run_tests.sh`.
 ## Go Language Subset
 For functions `gensimd` translates from Go to assembly it supports only a small subset of Go.
 
-### Go - Supported
+#### Go - Supported
 - Integers and floats - `uint8/int8`, `uint16/int16`, `uint32/int32`, `uint64/int64`, `float32/float64`
 - `if` statements, `for` loops (except with `range`)
 - Arrays and slices
 
-### Go - Unsupported
+#### Go - Unsupported
 - Heap allocated local variables
 - Multiple and named return values
 - Builtins except `len`
@@ -70,23 +70,24 @@ For functions `gensimd` translates from Go to assembly it supports only a small 
 - Keywords `range`,  `map`, `select`, `chan`, `defer`
 - Slice creation e.g. `newslice := slice[1:len(slice) - 2]`
 
-### TODO
+#### TODO
 - Slice access bounds checking
 
-# SIMD
+## SIMD
+SIMD intrinsics are availabe if `simd.Available()` returns true.
 The common vs platform specific functionality is inspired from Huon Wilson's SIMD [work](http://huonw.github.io/blog/2015/08/simd-in-rust/#common-vs-platform-specific).
 
-## Integer Overflow
+#### Integer Overflow
 For unsigned integer values, the SIMD functions `Add*`, `Sub*`, `Mul*`, and `Shl*` are computed modulo 2^n, where n is the bit width of the unsigned integer's type. These unsigned integer operations discard high bits upon overflow.
 
 For signed integers, the SIMD functions `Add*`, `Sub*`, `Mul*`, and `Shl*`  may overflow and the resulting value is defined by the signed integer representation, the operation, and its operands. The behavior is guaranteed to be identical to the Go versions in `gensimd/simd/simd.go`.
 
 For both unsigned and signed integer values, the SIMD function `Shr*` is guaranteed to have the same behavior as the Go version in `gensimd/simd/simd.go`
 
-## Floating Point
+#### Floating Point
 The behavior of the floating point SIMD functions `Add*`, `Sub*`, `Mul*`, and `Div*` is guaranteed to be identical to the Go versions in `gensimd/simd/simd.go`.
 
-## SIMD types
+#### SIMD types
 
     type I8x16 [16]int8
     type I16x8 [8]int16
@@ -99,7 +100,7 @@ The behavior of the floating point SIMD functions `Add*`, `Sub*`, `Mul*`, and `D
     type F32x4 [4]float32
     type F64x2 [2]float64
 
-## SIMD functions
+#### SIMD functions
 
     func AddI8x16(x, y I8x16) I8x16
     func SubI8x16(x, y I8x16) I8x16
@@ -145,28 +146,41 @@ The behavior of the floating point SIMD functions `Add*`, `Sub*`, `Mul*`, and `D
     func MulF64x2(x, y F64x2) F64x2
     func DivF64x2(x, y F64x2) F64x2
 
-## Gotchas
+#### Gotchas
+There are no SIMD functions for 64 bit integer multiplication because there's no equivalent SSE2 instruction.
+
 Until Go 1.5.2, `ShrU16x8` is slow because of [golang/go#13010](https://github.com/golang/go/issues/13010) "cmd/asm: x86, incorrect Optab entry - PSRLW".
 
-There are no SIMD functions for 64 bit integer multiplication since there's no equivalent SSE instruction.
+`MulI32x4` is slow because the instruction "PMULLD" wasn't added until SSE4.1.
+It's emulated using SSE2 instructions, [SSE multiplication of 4 32-bit integers](http://stackoverflow.com/questions/10500766/sse-multiplication-of-4-32-bit-integers).
 
-## TODO
+The shuffle order operand in `ShuffleI32x4/ShuffleU32x4` MUST be a constant not a variable. Example:
 
-The below functions aren't implemented because they have no directly equivalent SSE instructions.
+    const order uint8 = 8
+    simd.SuffleU32x4(x, order)
+
+
+#### TODO
+
+The below functions aren't implemented because they have no directly equivalent SSE2 instructions.
 
     func ShlI64x2(x, shift uint8) I64x2
     func ShrI64x2(x, shift uint8) I64x2
     func ShlU64x2(x, shift uint8) U64x2
     func ShrU64x2(x, shift uint8) U64x2
 
+Change `MulU32x4`, to not forward to `MulI32x4`.
+
 ## Platform Specific - SSE2
-### SSE2 types
+SSE2 intrinsics are availabe if `simd.SSE2()` returns true.
+
+#### SSE2 types
 
     type M128i [16]byte
     type M128 [4]float32
     type M128d [2]float64
 
-### SSE2 intrinsics
+#### SSE2 intrinsics
 
     func AddEpi64(x, y simd.M128i) simd.M128i
     func SubEpi64(x, y simd.M128i) simd.M128i
@@ -184,10 +198,24 @@ The below functions aren't implemented because they have no directly equivalent 
     func CmpeqPd(x, y simd.M128d) simd.M128d
     func CmpeqSd(x, y simd.M128d) simd.M128d
 
-### TODO
+#### Gotcha's
+    
+    
+#### TODO
+Other SSE2 intrinsics.
 
 Are these needed?
 
     func LoadSi128(memaddr *simd.M128i) simd.M128i
     func LoaduSi128(memaddr *simd.M128i) simd.M128i
     func StoreuSi128(memaddr *simd.M128i, a simd.M128i)
+    
+## Platform Specific - SSE3/SSSE3
+TODO
+
+Use `simd.SSSE2()` to check SSSE3 support.
+
+
+## Platform Specific - SSE4/SSE4a/4.1/4.2/
+TODO
+

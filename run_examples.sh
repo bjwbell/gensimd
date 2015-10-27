@@ -57,3 +57,15 @@ rm -f *.s
 rm -f reg_spill2_simd_proto.go
 go clean
 cd ../../
+
+
+echo "Running reg_spill3"
+cd examples/reg_spill3
+rm -f *.s
+go generate
+go build
+./reg_spill3
+rm -f *.s
+rm -f reg_spill3_simd_proto.go
+go clean
+cd ../../

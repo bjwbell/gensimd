@@ -9,7 +9,7 @@ import (
 	"github.com/bjwbell/gensimd/simd"
 )
 
-//go:generate gensimd -spills -debug -fn "regspill1" -outfn "regspill1" -f "reg_spill1_simd.go" -o "reg_spill1_amd64.s" -goprotofile "reg_spill1_simd_proto.go"
+//go:generate gensimd -fn "regspill1" -outfn "regspill1" -f "reg_spill1_simd.go" -o "reg_spill1_amd64.s" -goprotofile "reg_spill1_simd_proto.go"
 
 func regspillsRef(x, y int32) int32 {
 	dist := int32(0)

@@ -7,17 +7,14 @@ packages and convert them to Go assembly with the `gensimd` command.
 ## Install
 
 ```
-go install https://github.com/bjwbell/gensimd
-go install https://github.com/bjwbell/gensimd/simd
+go get github.com/bjwbell/gensimd
+go install github.com/bjwbell/gensimd
+go get github.com/bjwbell/gensimd/simd
 ```
 
 ## Optional - SSE2
 
-To install and use the SSE2 intrinsics execute:
-```
-go install https://github.com/bjwbell/gensimd/simd/sse
-```
-
+The SSE2 intrinsics package is `github.com/bjwbell/gensimd/simd/sse`
 
 ## Examples
 - [Distance calculation](examples/distsq/)

@@ -15,9 +15,9 @@ func (i Instr) String() string {
 	return _Instr_name[_Instr_index[i]:_Instr_index[i+1]]
 }
 
-const _InstrOpType_name = "INVALID_OPINTEGER_OPXMM_OP"
+const _InstrOpType_name = "OP_INVALIDOP_DATAOP_XMMOP_PACKED"
 
-var _InstrOpType_index = [...]uint8{0, 10, 20, 26}
+var _InstrOpType_index = [...]uint8{0, 10, 17, 23, 32}
 
 func (i InstrOpType) String() string {
 	if i < 0 || i >= InstrOpType(len(_InstrOpType_index)-1) {

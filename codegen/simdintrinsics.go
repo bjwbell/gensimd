@@ -181,7 +181,7 @@ func mulI32x4(f *Function, loc ssa.Instruction, x, y, result *identifier) (strin
 	}
 	asm += b
 
-	asm += MovRegReg(OpDataType{op: XMM_OP, xmmvariant: XMM_F128}, regy, tmp1)
+	asm += MovRegReg(OpDataType{op: OP_PACKED, xmmvariant: XMM_F128}, regy, tmp1)
 	asm += instrRegReg(PMULULQ, regx, tmp1) // mul dwords 2, 0
 
 	asm += instrImm8Reg(f, PSRLO, 4, regx) // shift logical right by 4 bytes
@@ -192,7 +192,7 @@ func mulI32x4(f *Function, loc ssa.Instruction, x, y, result *identifier) (strin
 	a2, tmp2 := f.allocReg(loc, XMM_REG, 16)
 	asm += a2
 
-	asm += MovRegReg(OpDataType{op: XMM_OP, xmmvariant: XMM_F128}, regy, tmp2)
+	asm += MovRegReg(OpDataType{op: OP_PACKED, xmmvariant: XMM_F128}, regy, tmp2)
 	asm += instrRegReg(PMULULQ, regx, tmp2) // mul dwords 3, 1
 
 	// shuffle into first 64 bits of shufflet1

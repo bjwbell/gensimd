@@ -135,7 +135,7 @@ func packedOp(f *Function, loc ssa.Instruction, instrtype InstructionType, optyp
 	return asm, err
 }
 
-func instrImm8Reg(f *Function, instr Instr, imm8 uint8, dst *register) string {
+func instrImm8Reg(f *Function, instr Instruction, imm8 uint8, dst *register) string {
 	info := instrTable[instr]
 	asm := ""
 	if info.Flags&RightRdwr != 0 || info.Flags&RightWrite != 0 {
@@ -147,7 +147,7 @@ func instrImm8Reg(f *Function, instr Instr, imm8 uint8, dst *register) string {
 	return asm + fmt.Sprintf("%-9v    $%v, %v\n", instr, imm8, dst.name)
 }
 
-func instrImm8RegReg(f *Function, instr Instr, imm8 uint8, src, dst *register) string {
+func instrImm8RegReg(f *Function, instr Instruction, imm8 uint8, src, dst *register) string {
 	info := instrTable[instr]
 	asm := ""
 	if info.Flags&RightRdwr != 0 || info.Flags&RightWrite != 0 {

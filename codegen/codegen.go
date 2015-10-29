@@ -9,8 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bjwbell/gensimd/codegen/sse2"
-
 	"golang.org/x/tools/go/types"
 
 	"golang.org/x/tools/go/ssa"
@@ -526,24 +524,17 @@ func isSimdIntrinsic(call *ssa.Call) bool {
 	}
 }
 
-func isSSE2Intrinsic(call *ssa.Call) (sse2.SSE2Instr, bool) {
+func isSSE2Intrinsic(call *ssa.Call) (Intrinsic, bool) {
 	if call.Common() == nil || call.Common().StaticCallee() == nil {
-		return sse2.INVALID, false
+		return Intrinsic{}, false
 	}
 	name := call.Common().StaticCallee().Name()
 	return getSSE2(name)
 }
 
-func (f *Function) SSE2Intrinsic(call *ssa.Call, sse2Instr sse2.SSE2Instr) (string, *Error) {
-	var a string
-	var e *Error
-
+func (f *Function) SSE2Intrinsic(call *ssa.Call, sse2intrinsic Intrinsic) (string, *Error) {
 	args := call.Common().Args
-	x := f.Ident(args[0])
-	y := f.Ident(args[1])
-	result := f.Ident(call)
-	a, e = sse2Op(f, call, sse2Instr, x, y, result)
-	return a, e
+	return sse2Intrinsic(f, call, call, sse2intrinsic, args), nil
 }
 
 func (f *Function) Slice(instr *ssa.Slice) (string, *Error) {

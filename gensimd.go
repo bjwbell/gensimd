@@ -1,7 +1,6 @@
 package main
 
-//go:generate stringer -type=Instr,InstrOpType,InstructionType,SimdInstr,XmmData codegen
-//go:generate stringer -type=SSE2Instr codegen/sse2
+//go:generate stringer -type=Instruction,InstrOpType,InstructionType,SimdInstr,XmmData codegen
 
 import (
 	"flag"

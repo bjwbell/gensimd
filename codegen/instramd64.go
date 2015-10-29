@@ -57,16 +57,16 @@ const (
 	XMM_U64X2 = XMM_I64X2
 )
 
-type Instr int
-type Instruction struct {
+type Instruction int
+type DataInstruction struct {
 	TInstr InstructionType
 
 	// integer forms
-	ByteSized Instr
-	WordSized Instr
-	LongSized Instr
-	QuadSized Instr
-	OctSized  Instr
+	ByteSized Instruction
+	WordSized Instruction
+	LongSized Instruction
+	QuadSized Instruction
+	OctSized  Instruction
 
 	// xmm forms
 	/*SingleF32 Instr
@@ -78,14 +78,14 @@ type Instruction struct {
 
 type XmmInstruction struct {
 	XmmInstr InstructionType
-	F32      Instr // operates on single f32
-	F64      Instr // operates on single f64
-	F32x4    Instr // operates on four packed f32
-	F64x2    Instr // operate on two packed f64
+	F32      Instruction // operates on single f32
+	F64      Instruction // operates on single f64
+	F32x4    Instruction // operates on four packed f32
+	F64x2    Instruction // operate on two packed f64
 }
 
-func (inst Instruction) GetSized(size uint) Instr {
-	var instr Instr
+func (inst DataInstruction) GetSized(size uint) Instruction {
+	var instr Instruction
 	switch size {
 	case 1:
 		instr = inst.ByteSized
@@ -172,7 +172,7 @@ const (
 	I_XOR
 )
 
-var Insts = []Instruction{
+var Insts = []DataInstruction{
 	{I_ADD, ADDB, ADDW, ADDL, ADDQ, NONE},
 	{I_SUB, SUBB, SUBW, SUBL, SUBQ, NONE},
 	{I_MOV, MOVB, MOVW, MOVL, MOVQ, MOVOU},
@@ -287,14 +287,14 @@ var XmmInsts = []XmmInstruction{
 	{I_PXOR, NONE, NONE, NONE, PXOR},
 }
 
-func GetInstruction(tinst InstructionType) Instruction {
+func GetInstruction(tinst InstructionType) DataInstruction {
 	for _, inst := range Insts {
 		if inst.TInstr == tinst {
 			return inst
 		}
 	}
 	ice("couldn't get instruction")
-	return Instruction{}
+	return DataInstruction{}
 }
 
 func GetXmmInstruction(tinst InstructionType) XmmInstruction {
@@ -307,8 +307,8 @@ func GetXmmInstruction(tinst InstructionType) XmmInstruction {
 	return XmmInstruction{}
 }
 
-func (xinstr XmmInstruction) Select(variant XmmData) Instr {
-	var instr Instr
+func (xinstr XmmInstruction) Select(variant XmmData) Instruction {
+	var instr Instruction
 	switch variant {
 	case XMM_F32:
 		instr = xinstr.F32
@@ -326,7 +326,7 @@ func (xinstr XmmInstruction) Select(variant XmmData) Instr {
 	return instr
 }
 
-func GetConvertInstruction(tinst InstructionType, fromsize, tosize uint) Instr {
+func GetConvertInstruction(tinst InstructionType, fromsize, tosize uint) Instruction {
 	if tinst == I_CVT_FLOAT2INT {
 		if fromsize == 4 && tosize <= 4 {
 			// f32 to int32 with truncation
@@ -367,7 +367,7 @@ func GetConvertInstruction(tinst InstructionType, fromsize, tosize uint) Instr {
 }
 
 // GetInstr, the size is in bytes
-func GetInstr(tinst InstructionType, datatype OpDataType) Instr {
+func GetInstr(tinst InstructionType, datatype OpDataType) Instruction {
 	if datatype.op == OP_XMM || datatype.op == OP_PACKED {
 		return GetXmmInstruction(tinst).Select(datatype.xmmvariant)
 	} else {
@@ -404,7 +404,7 @@ func ZeroMemory(name string, offset int, size uint, reg *register) string {
 	return asm
 }
 
-func instrReg(instr Instr, reg *register) string {
+func instrReg(instr Instruction, reg *register) string {
 	if _, ok := instrTable[instr]; !ok {
 		ice(fmt.Sprintf("couldn't look up instruction (%v) information", instr))
 	}
@@ -417,7 +417,7 @@ func instrReg(instr Instr, reg *register) string {
 	return asm
 }
 
-func instrRegReg(instr Instr, src, dst *register) string {
+func instrRegReg(instr Instruction, src, dst *register) string {
 	info, ok := instrTable[instr]
 	if !ok {
 		ice(fmt.Sprintf("couldn't look up instruction (%v) information", instr))
@@ -434,7 +434,7 @@ func instrRegReg(instr Instr, src, dst *register) string {
 	return asm
 }
 
-func instrRegMem(instr Instr, src, dst *register, dstName string, dstOffset int) string {
+func instrRegMem(instr Instruction, src, dst *register, dstName string, dstOffset int) string {
 	var asm string
 	if dstName != "" || dstOffset != 0 {
 		asm = fmt.Sprintf("%-9v    %v, %v+%v(%v)\n", instr, src.name, dstName, dstOffset, dst.name)
@@ -444,7 +444,7 @@ func instrRegMem(instr Instr, src, dst *register, dstName string, dstOffset int)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
-func instrMemReg(instr Instr, srcName string, srcOffset int, src, dst *register) string {
+func instrMemReg(instr Instruction, srcName string, srcOffset int, src, dst *register) string {
 	var asm string
 	if srcName != "" || srcOffset != 0 {
 		asm = fmt.Sprintf("%-9v    %v+%v(%v), %v\n", instr, srcName, srcOffset, src.name, dst.name)
@@ -455,7 +455,7 @@ func instrMemReg(instr Instr, srcName string, srcOffset int, src, dst *register)
 }
 
 // instrImmReg outputs instr with imm, reg after converting imm to int8/16/32/64 if size=1/2/4/8.
-func instrImmReg(instr Instr, imm int64, size uint, dst *register) string {
+func instrImmReg(instr Instruction, imm int64, size uint, dst *register) string {
 	if dst.width < 8*size {
 		ice("Invalid register width")
 	}
@@ -472,20 +472,20 @@ func instrImmReg(instr Instr, imm int64, size uint, dst *register) string {
 }
 
 // instrImmReg outputs instr with imm, reg after converting imm to int8/16/32/64 if size=1/2/4/8.
-func instrImmMem(instr Instr, imm int64, dst *register, dstName string, dstOffset int) string {
+func instrImmMem(instr Instruction, imm int64, dst *register, dstName string, dstOffset int) string {
 	asm := fmt.Sprintf("%-9v    $0, %v+%v(%v)\n", instr, dstName, dstOffset, dst.name)
 	return strings.Replace(asm, "+-", "-", -1)
 }
 
 // instrImmUnsignedReg outputs instr with imm64, reg
-func instrImmUnsignedReg(instr Instr, imm64 uint64, size uint, reg *register) string {
+func instrImmUnsignedReg(instr Instruction, imm64 uint64, size uint, reg *register) string {
 	if reg.width < 8*size {
 		ice("Invalid register width")
 	}
 	return fmt.Sprintf("%-9v    $%v, %v\n", instr, imm64, reg.name)
 }
 
-func instrMemImm32(instr Instr, name string, offset int32, r *register, imm32 uint32, size uint) string {
+func instrMemImm32(instr Instruction, name string, offset int32, r *register, imm32 uint32, size uint) string {
 	if r.width != 64 {
 		ice("Invalid register width")
 	}
@@ -494,7 +494,7 @@ func instrMemImm32(instr Instr, name string, offset int32, r *register, imm32 ui
 
 }
 
-func instrRegImm32(instr Instr, r *register, imm32 uint32, size uint) string {
+func instrRegImm32(instr Instruction, r *register, imm32 uint32, size uint) string {
 	if r.width < 8*size {
 		ice("Invalid register width")
 	}
@@ -502,7 +502,7 @@ func instrRegImm32(instr Instr, r *register, imm32 uint32, size uint) string {
 }
 
 // instrImmRegReg outputs instr with imm, reg, reg after converting imm to int8/16/32 if size=1/2/4.
-func instrImmRegReg(instr Instr, imm int64, size uint, src, dst *register) string {
+func instrImmRegReg(instr Instruction, imm int64, size uint, src, dst *register) string {
 	if dst.width < 8*size {
 		ice("Invalid register width")
 	}
@@ -518,7 +518,7 @@ func instrImmRegReg(instr Instr, imm int64, size uint, src, dst *register) strin
 	return fmt.Sprintf("%-9v    $%v, %v, %v\n", instr, imm, src.name, dst.name)
 }
 
-func instrImmFloatReg(instr Instr, f64 float64, isf32 bool, dst, tmp *register) string {
+func instrImmFloatReg(instr Instruction, f64 float64, isf32 bool, dst, tmp *register) string {
 	if dst.typ != XMM_REG {
 		ice("Unexpected non xmm register")
 	}
@@ -561,7 +561,7 @@ func MovRegReg(datatype OpDataType, src, dst *register) string {
 		ice(fmt.Sprintf(msg, src.name, src.width, dst.width, dst.name))
 	}
 	dst.modified()
-	var mov Instr
+	var mov Instruction
 	if src.typ == XMM_REG && dst.typ == XMM_REG {
 		mov = MOVO
 	} else if src.typ == XMM_REG || dst.typ == XMM_REG {
@@ -573,7 +573,7 @@ func MovRegReg(datatype OpDataType, src, dst *register) string {
 }
 
 func MovRegMem(datatype OpDataType, src *register, dstName string, dst *register, dstOffset int) string {
-	var mov Instr
+	var mov Instruction
 	if datatype.op == OP_PACKED {
 		mov = GetInstr(I_PMOV, datatype)
 	} else {
@@ -626,7 +626,7 @@ func MovMemMem(optype InstrOpType, srcName string, srcOffset int, src *register,
 	if size%8 != 0 {
 		ice("Invalid size")
 	}
-	var mov Instr
+	var mov Instruction
 	if optype == OP_PACKED {
 		mov = GetInstr(I_PMOV, OpDataType{OP_PACKED, InstrData{16, false}, XMM_F64})
 	} else {
@@ -639,7 +639,7 @@ func MovMemMem(optype InstrOpType, srcName string, srcOffset int, src *register,
 }
 
 func MovMemReg(datatype OpDataType, srcName string, srcOffset int, src, dst *register) string {
-	var mov Instr
+	var mov Instruction
 	if datatype.op == OP_PACKED {
 		mov = GetInstr(I_PMOV, datatype)
 	} else {
@@ -789,7 +789,7 @@ func MovImm64Reg(imm64 int64, dst *register) string {
 // CMovCCRegReg conditionally moves the src reg to the dst reg if the carry
 // flag is clear (ie the previous compare had its src greater than its sub reg).
 func CMovCCRegReg(src, dst *register, size uint) string {
-	var cmov Instr
+	var cmov Instruction
 	if size == 1 {
 		// there is conditional byte move
 		cmov = CMOVWCC

@@ -4,7 +4,7 @@ package codegen
 
 // https://github.com/golang/go/blob/master/src/cmd/internal/obj/x86/a.out.go
 const (
-	NONE Instr = iota
+	NONE Instruction = iota
 	AAD
 	AAM
 	AAS
@@ -769,7 +769,7 @@ type InstrInfo struct {
 	Set   Reg
 }
 
-var instrTable = map[Instr]InstrInfo{
+var instrTable = map[Instruction]InstrInfo{
 	ADCL:  {Flags: SizeL | LeftRead | RightRdwr | SetCarry | UseCarry},
 	ADCW:  {Flags: SizeW | LeftRead | RightRdwr | SetCarry | UseCarry},
 	ADDB:  {Flags: SizeB | LeftRead | RightRdwr | SetCarry},

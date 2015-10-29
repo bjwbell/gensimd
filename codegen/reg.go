@@ -70,8 +70,9 @@ func (r *register) spill() string {
 type RegType int
 
 const (
+	INVALID_REG = RegType(iota)
 	// integer register
-	DATA_REG = RegType(iota)
+	DATA_REG
 	// Stack pointer pseudo register
 	SpReg
 	// Frame pointer pseudo register

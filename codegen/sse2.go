@@ -267,11 +267,21 @@ func sse2Intrinsic(f *Function, loc ssa.Instruction, call *ssa.Call, intrinsic I
 	argIdx := 0
 	assembly := fmt.Sprintf("%-9v    ", intrinsic.InstructionName)
 	for i, varop := range intrinsic.VarOps {
+
+		ident := idents[argIdx]
+		reg := argRegs[argIdx]
 		flags := varop.Op.Flags
-		if flags&Implicit == 1 {
+
+		if flags&Out != 0 {
+			if i == intrinsic.ResultIdxOp {
+				regResult = reg
+			} else {
+				reg.dirty = true
+			}
+		}
+		if flags&Implicit != 0 {
 			continue
 		}
-
 		if flags&Const != 0 {
 			if flags&Imm8 != 0 || flags&Imm32 != 0 {
 				asm += "$" + strconv.Itoa(varop.Const)
@@ -285,8 +295,6 @@ func sse2Intrinsic(f *Function, loc ssa.Instruction, call *ssa.Call, intrinsic I
 		if flags&In == 0 && flags&Out == 0 {
 			continue
 		}
-		ident := idents[argIdx]
-		reg := argRegs[argIdx]
 		if reflectType(args[argIdx].Type()).String() != varop.Var.VarType.String() {
 			got := reflectType(args[argIdx].Type()).String()
 			expected := varop.Var.VarType.String()
@@ -304,16 +312,8 @@ func sse2Intrinsic(f *Function, loc ssa.Instruction, call *ssa.Call, intrinsic I
 				ice("unimplemented case")
 			}
 			assembly += reg.name + ", "
-
+			argIdx++
 		}
-		if flags&Out != 0 {
-			if i == intrinsic.ResultIdxOp {
-				regResult = reg
-			} else if flags&Out != 0 {
-				reg.dirty = true
-			}
-		}
-		argIdx++
 
 	}
 	assembly = strings.TrimSuffix(assembly, ", ") + "\n"

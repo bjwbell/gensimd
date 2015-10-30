@@ -66,8 +66,13 @@ func addIndent(assembly, indent string) string {
 	lines := strings.Split(assembly, "\n")
 	indented := ""
 	for _, line := range lines {
-		// skip debug comments
-		indented += indent + line + "\n"
+		line = strings.TrimSpace(line)
+		// dont indent labels or empty lines
+		if strings.HasSuffix(line, ":") || line == "" {
+			indented += line + "\n"
+		} else {
+			indented += indent + line + "\n"
+		}
 	}
 	return indented
 }
@@ -84,5 +89,6 @@ func stripDebug(assembly, indent string) string {
 		}
 		stripped += line + "\n"
 	}
-	return stripped
+	// trim extra \n
+	return strings.TrimSuffix(stripped, "\n")
 }

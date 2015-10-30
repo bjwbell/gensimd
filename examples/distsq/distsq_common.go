@@ -10,7 +10,7 @@ import (
 	"github.com/bjwbell/gensimd/simd"
 )
 
-//go:generate gensimd -debug -fn "distsq" -outfn "distsq" -f "distsq_simd.go" -o "distsq_amd64.s" -goprotofile "distsq_simd_proto.go"
+//go:generate gensimd -fn "distsq" -outfn "distsq" -f "distsq_simd.go" -o "distsq_amd64.s" -goprotofile "distsq_simd_proto.go"
 
 func distsqRef(x, y []simd.I32x4) int32 {
 	if len(x) != len(y) {

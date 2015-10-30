@@ -8,9 +8,17 @@ echo "Running simd_example"
 cd examples/simd_example
 rm -f *.s
 go generate
+if [ $? != 0 ]
+then exit 1
+fi
 go build
+if [ $? != 0 ]
+then exit 1
+fi
 ./simd_example
-rm -f *.s
+if [ $? != 0 ]
+then exit 1
+fi
 go clean
 cd ../..
 
@@ -18,9 +26,17 @@ echo "Running sse2_example"
 cd examples/sse2_example
 rm -f *.s
 go generate
+if [ $? != 0 ]
+then exit 1
+fi
 go build
+if [ $? != 0 ]
+then exit 1
+fi
 ./sse2_example
-rm -f *.s
+if [ $? != 0 ]
+then exit 1
+fi
 go clean
 cd ../..
 
@@ -28,10 +44,17 @@ echo "Running distsq"
 cd examples/distsq
 rm -f *.s
 go generate
+if [ $? != 0 ]
+then exit 1
+fi
 go build
+if [ $? != 0 ]
+then exit 1
+fi
 ./distsq
-rm -f *.s
-rm -f distsq_simd_proto.go
+if [ $? != 0 ]
+then exit 1
+fi
 go clean
 cd ../../
 
@@ -40,10 +63,17 @@ echo "Running reg_spill1"
 cd examples/reg_spill1
 rm -f *.s
 go generate
+if [ $? != 0 ]
+then exit 1
+fi
 go build
+if [ $? != 0 ]
+then exit 1
+fi
 ./reg_spill1
-rm -f *.s
-rm -f reg_spill1_simd_proto.go
+if [ $? != 0 ]
+then exit 1
+fi
 go clean
 cd ../../
 
@@ -51,10 +81,17 @@ echo "Running reg_spill2"
 cd examples/reg_spill2
 rm -f *.s
 go generate
+if [ $? != 0 ]
+then exit 1
+fi
 go build
+if [ $? != 0 ]
+then exit 1
+fi
 ./reg_spill2
-rm -f *.s
-rm -f reg_spill2_simd_proto.go
+if [ $? != 0 ]
+then exit 1
+fi
 go clean
 cd ../../
 
@@ -63,9 +100,16 @@ echo "Running reg_spill3"
 cd examples/reg_spill3
 rm -f *.s
 go generate
+if [ $? != 0 ]
+then exit 1
+fi
 go build
+if [ $? != 0 ]
+then exit 1
+fi
 ./reg_spill3
-rm -f *.s
-rm -f reg_spill3_simd_proto.go
+if [ $? != 0 ]
+then exit 1
+fi
 go clean
 cd ../../

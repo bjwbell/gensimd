@@ -11,7 +11,7 @@ import (
 	"github.com/bjwbell/gensimd/simd/sse2"
 )
 
-//go:generate gensimd -debug -fn "addpd_go" -outfn "addpd" -f "$GOFILE" -o "sse2_test_amd64.s"
+//go:generate gensimd -fn "addpd_go" -outfn "addpd" -f "$GOFILE" -o "sse2_test_amd64.s"
 
 func addpd(x, y simd.M128d) simd.M128d
 func addpd_go(x, y simd.M128d) simd.M128d { return sse2.AddPd(x, y) }

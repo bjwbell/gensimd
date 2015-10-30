@@ -10,5 +10,6 @@ echo "Generating tests assembly"
 go generate
 echo "Running tests"
 go test -v
-rm *.s
+STATUS=$?
 go clean
+exit $STATUS

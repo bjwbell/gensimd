@@ -4,6 +4,9 @@ Gensimd is a collection of packages and a command, `gensimd`, for using SIMD in 
 Write functions in a subset of Go, using the `gensimd/simd`, `gensimd/simd/sse2`
 packages and convert them to Go assembly with the `gensimd` command.
 
+
+[![Build Status](https://travis-ci.org/bjwbell/gensimd.svg?branch=master)](https://travis-ci.org/bjwbell/gensimd)
+
 ## Install
 
 ```

@@ -1,0 +1,8 @@
+language: go
+
+go:
+  - 1.5
+
+script:
+ - ./run_tests.sh
+ - ./run_examples.sh

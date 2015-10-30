@@ -285,6 +285,7 @@ func sse2Intrinsic(f *Function, loc ssa.Instruction, call *ssa.Call, intrinsic I
 		if flags&In == 0 && flags&Out == 0 {
 			continue
 		}
+		ident := idents[argIdx]
 		reg := argRegs[argIdx]
 		if reflectType(args[argIdx].Type()).String() != varop.Var.VarType.String() {
 			got := reflectType(args[argIdx].Type()).String()
@@ -293,6 +294,15 @@ func sse2Intrinsic(f *Function, loc ssa.Instruction, call *ssa.Call, intrinsic I
 			ice(msg)
 		}
 		if flags&In != 0 {
+			if flags&Imm8 != 0 || flags&Imm32 != 0 {
+				if ident.cnst == nil {
+					panic("Provided argument must be a constant")
+				} else {
+					assembly += "$" + strconv.Itoa(int(ident.cnst.Uint64()))
+				}
+			} else if flags&ImmF32 != 0 || flags&ImmF64 != 0 {
+				ice("unimplemented case")
+			}
 			assembly += reg.name + ", "
 
 		}

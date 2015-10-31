@@ -1,16 +1,18 @@
-// +build amd64
+// +build amd64 !noasm !appengine
 
-TEXT ·regspill1(SB),NOSPLIT,$40-12
+#include "textflag.h"
+
+TEXT ·regspill1(SB),$40-12
         MOVL         $0, ret0+8(FP)
-        MOVL         $0, t8-36(SP)
         MOVL         $0, t0-4(SP)
-        MOVL         $0, t6-28(SP)
-        MOVL         $0, t1-8(SP)
         MOVL         $0, t2-12(SP)
-        MOVL         $0, t3-16(SP)
         MOVL         $0, t4-20(SP)
-        MOVL         $0, t5-24(SP)
         MOVL         $0, t7-32(SP)
+        MOVL         $0, t8-36(SP)
+        MOVL         $0, t1-8(SP)
+        MOVL         $0, t3-16(SP)
+        MOVL         $0, t5-24(SP)
+        MOVL         $0, t6-28(SP)
 block0:
         MOVL         x+0(FP), R14
         MOVL         x+0(FP), R13

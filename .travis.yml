@@ -2,6 +2,7 @@ language: go
 
 go:
   - 1.5
+  - tip
 
 script:
  - ./run_tests.sh

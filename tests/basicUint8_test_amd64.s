@@ -1,13 +1,15 @@
-// +build amd64
+// +build amd64 !noasm !appengine
 
-TEXT ·uint8_t0_simd(SB),NOSPLIT,$8-9
+#include "textflag.h"
+
+TEXT ·uint8_t0_simd(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
         MOVB         x+0(FP), R15
         MOVB         R15, ret0+8(FP)
         RET
 
-TEXT ·uint8_t1_simd(SB),NOSPLIT,$8-9
+TEXT ·uint8_t1_simd(SB),$8-9
         MOVB         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
 block0:
@@ -18,7 +20,7 @@ block0:
         MOVB         R15, ret0+8(FP)
         RET
 
-TEXT ·uint8_t2_simd(SB),NOSPLIT,$8-9
+TEXT ·uint8_t2_simd(SB),$8-9
         MOVB         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
 block0:
@@ -31,7 +33,7 @@ block0:
         MOVB         R15, ret0+8(FP)
         RET
 
-TEXT ·uint8_t3_simd(SB),NOSPLIT,$8-9
+TEXT ·uint8_t3_simd(SB),$8-9
         MOVB         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
 block0:
@@ -44,7 +46,7 @@ block0:
         MOVB         R15, ret0+8(FP)
         RET
 
-TEXT ·uint8_t4_simd(SB),NOSPLIT,$8-9
+TEXT ·uint8_t4_simd(SB),$8-9
         MOVB         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
 block0:

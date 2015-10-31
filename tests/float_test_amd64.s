@@ -1,6 +1,8 @@
-// +build amd64
+// +build amd64 !noasm !appengine
 
-TEXT ·ptrt0s(SB),NOSPLIT,$16-12
+#include "textflag.h"
+
+TEXT ·ptrt0s(SB),$16-12
         MOVL         $0, ret0+8(FP)
         MOVL         $0, t0-4(SP)
         MOVL         $0, t1-8(SP)
@@ -17,7 +19,7 @@ block0:
         MOVL         X15, ret0+8(FP)
         RET
 
-TEXT ·ptrt1s(SB),NOSPLIT,$40-16
+TEXT ·ptrt1s(SB),$40-16
         MOVQ         $0, ret0+8(FP)
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-16(SP)
@@ -42,7 +44,7 @@ block0:
         MOVQ         X14, ret0+8(FP)
         RET
 
-TEXT ·addf32s(SB),NOSPLIT,$8-12
+TEXT ·addf32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
         MOVL         $0, t0-4(SP)
 block0:
@@ -53,7 +55,7 @@ block0:
         MOVL         X15, ret0+8(FP)
         RET
 
-TEXT ·subf32s(SB),NOSPLIT,$8-12
+TEXT ·subf32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
         MOVL         $0, t0-4(SP)
 block0:
@@ -64,7 +66,7 @@ block0:
         MOVL         X15, ret0+8(FP)
         RET
 
-TEXT ·negf32s(SB),NOSPLIT,$8-12
+TEXT ·negf32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
         MOVL         $0, t0-4(SP)
 block0:
@@ -75,7 +77,7 @@ block0:
         MOVL         X15, ret0+8(FP)
         RET
 
-TEXT ·mulf32s(SB),NOSPLIT,$8-12
+TEXT ·mulf32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
         MOVL         $0, t0-4(SP)
 block0:
@@ -86,7 +88,7 @@ block0:
         MOVL         X15, ret0+8(FP)
         RET
 
-TEXT ·divf32s(SB),NOSPLIT,$8-12
+TEXT ·divf32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
         MOVL         $0, t0-4(SP)
 block0:
@@ -97,7 +99,7 @@ block0:
         MOVL         X15, ret0+8(FP)
         RET
 
-TEXT ·addf64s(SB),NOSPLIT,$16-24
+TEXT ·addf64s(SB),$16-24
         MOVQ         $0, ret0+16(FP)
         MOVQ         $0, t0-8(SP)
 block0:
@@ -108,7 +110,7 @@ block0:
         MOVQ         X15, ret0+16(FP)
         RET
 
-TEXT ·subf64s(SB),NOSPLIT,$16-24
+TEXT ·subf64s(SB),$16-24
         MOVQ         $0, ret0+16(FP)
         MOVQ         $0, t0-8(SP)
 block0:
@@ -119,7 +121,7 @@ block0:
         MOVQ         X15, ret0+16(FP)
         RET
 
-TEXT ·negf64s(SB),NOSPLIT,$16-16
+TEXT ·negf64s(SB),$16-16
         MOVQ         $0, ret0+8(FP)
         MOVQ         $0, t0-8(SP)
 block0:
@@ -130,7 +132,7 @@ block0:
         MOVQ         X15, ret0+8(FP)
         RET
 
-TEXT ·mulf64s(SB),NOSPLIT,$16-24
+TEXT ·mulf64s(SB),$16-24
         MOVQ         $0, ret0+16(FP)
         MOVQ         $0, t0-8(SP)
 block0:
@@ -141,7 +143,7 @@ block0:
         MOVQ         X15, ret0+16(FP)
         RET
 
-TEXT ·divf64s(SB),NOSPLIT,$16-24
+TEXT ·divf64s(SB),$16-24
         MOVQ         $0, ret0+16(FP)
         MOVQ         $0, t0-8(SP)
 block0:

@@ -65,7 +65,9 @@ func CreateFunction(fn *ssa.Function, outfn string, debug bool) (*Function, *Err
 }
 
 func AssemblyFilePreamble() string {
-	return "// +build amd64\n\n"
+	preamble := "// +build amd64 !noasm !appengine\n\n"
+	preamble += "#include \"textflag.h\"\n\n"
+	return preamble
 }
 
 func (f *Function) GoAssembly() (string, *Error) {
@@ -163,7 +165,7 @@ func (f *Function) Func() (string, *Error) {
 	asm += basicblocks
 	asm = f.fixupRets(asm)
 	asm = addIndent(asm, f.Indent)
-	a := fmt.Sprintf("TEXT ·%v(SB),NOSPLIT,$%v-%v\n%v", f.outfname(), frameSize, argsSize, asm)
+	a := fmt.Sprintf("TEXT ·%v(SB),$%v-%v\n%v", f.outfname(), frameSize, argsSize, asm)
 	return a, nil
 }
 
@@ -195,7 +197,7 @@ func (f *Function) GoProto() (string, string, string) {
 		imports = ""
 	}
 	sig = strings.Replace(sig, "github.com/bjwbell/gensimd/", "", -1)
-	fnproto := "func " + f.outfname() + "(" + sig
+	fnproto := "func " + f.outfname() + "(" + sig + "\n"
 	return pkgname, imports, fnproto
 }
 

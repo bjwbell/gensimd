@@ -1,6 +1,8 @@
-// +build amd64
+// +build amd64 !noasm !appengine
 
-TEXT ·lent0s(SB),NOSPLIT,$16-16
+#include "textflag.h"
+
+TEXT ·lent0s(SB),$16-16
         MOVQ         $0, ret0+8(FP)
         MOVQ         $0, t0-8(SP)
 block0:
@@ -9,7 +11,7 @@ block0:
         MOVQ         R14, ret0+8(FP)
         RET
 
-TEXT ·lent1s(SB),NOSPLIT,$24-24
+TEXT ·lent1s(SB),$24-24
         MOVQ         $0, ret0+16(FP)
         MOVQ         $0, t0-16(SP)
         MOVQ         $0, t0-8(SP)
@@ -20,7 +22,7 @@ block0:
         MOVQ         R13, ret0+16(FP)
         RET
 
-TEXT ·lent2s(SB),NOSPLIT,$16-32
+TEXT ·lent2s(SB),$16-32
         MOVQ         $0, ret0+24(FP)
         MOVQ         $0, t0-8(SP)
 block0:

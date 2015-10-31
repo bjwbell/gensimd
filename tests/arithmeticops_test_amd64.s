@@ -1,6 +1,8 @@
-// +build amd64
+// +build amd64 !noasm !appengine
 
-TEXT ·adds(SB),NOSPLIT,$8-12
+#include "textflag.h"
+
+TEXT ·adds(SB),$8-12
         MOVL         $0, ret0+8(FP)
         MOVL         $0, t0-4(SP)
 block0:
@@ -11,7 +13,7 @@ block0:
         MOVL         R15, ret0+8(FP)
         RET
 
-TEXT ·subs(SB),NOSPLIT,$8-12
+TEXT ·subs(SB),$8-12
         MOVL         $0, ret0+8(FP)
         MOVL         $0, t0-4(SP)
 block0:
@@ -22,7 +24,7 @@ block0:
         MOVL         R15, ret0+8(FP)
         RET
 
-TEXT ·negs(SB),NOSPLIT,$8-12
+TEXT ·negs(SB),$8-12
         MOVL         $0, ret0+8(FP)
         MOVL         $0, t0-4(SP)
 block0:
@@ -33,7 +35,7 @@ block0:
         MOVL         R15, ret0+8(FP)
         RET
 
-TEXT ·muls(SB),NOSPLIT,$8-12
+TEXT ·muls(SB),$8-12
         MOVL         $0, ret0+8(FP)
         MOVL         $0, t0-4(SP)
 block0:
@@ -46,7 +48,7 @@ block0:
         MOVL         R15, ret0+8(FP)
         RET
 
-TEXT ·divs(SB),NOSPLIT,$8-12
+TEXT ·divs(SB),$8-12
         MOVL         $0, ret0+8(FP)
         MOVL         $0, t0-4(SP)
 block0:
@@ -60,7 +62,7 @@ block0:
         MOVL         R15, ret0+8(FP)
         RET
 
-TEXT ·addint8s(SB),NOSPLIT,$8-9
+TEXT ·addint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
 block0:
@@ -71,7 +73,7 @@ block0:
         MOVB         R15, ret0+8(FP)
         RET
 
-TEXT ·subint8s(SB),NOSPLIT,$8-9
+TEXT ·subint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
 block0:
@@ -82,7 +84,7 @@ block0:
         MOVB         R15, ret0+8(FP)
         RET
 
-TEXT ·negint8s(SB),NOSPLIT,$8-9
+TEXT ·negint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
 block0:
@@ -93,7 +95,7 @@ block0:
         MOVB         R15, ret0+8(FP)
         RET
 
-TEXT ·mulint8s(SB),NOSPLIT,$8-9
+TEXT ·mulint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
 block0:
@@ -106,7 +108,7 @@ block0:
         MOVB         R15, ret0+8(FP)
         RET
 
-TEXT ·divint8s(SB),NOSPLIT,$8-9
+TEXT ·divint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
 block0:
@@ -119,7 +121,7 @@ block0:
         MOVB         R15, ret0+8(FP)
         RET
 
-TEXT ·addint16s(SB),NOSPLIT,$8-10
+TEXT ·addint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
         MOVW         $0, t0-2(SP)
 block0:
@@ -130,7 +132,7 @@ block0:
         MOVW         R15, ret0+8(FP)
         RET
 
-TEXT ·subint16s(SB),NOSPLIT,$8-10
+TEXT ·subint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
         MOVW         $0, t0-2(SP)
 block0:
@@ -141,7 +143,7 @@ block0:
         MOVW         R15, ret0+8(FP)
         RET
 
-TEXT ·negint16s(SB),NOSPLIT,$8-10
+TEXT ·negint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
         MOVW         $0, t0-2(SP)
 block0:
@@ -152,7 +154,7 @@ block0:
         MOVW         R15, ret0+8(FP)
         RET
 
-TEXT ·mulint16s(SB),NOSPLIT,$8-10
+TEXT ·mulint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
         MOVW         $0, t0-2(SP)
 block0:
@@ -165,7 +167,7 @@ block0:
         MOVW         R15, ret0+8(FP)
         RET
 
-TEXT ·divint16s(SB),NOSPLIT,$8-10
+TEXT ·divint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
         MOVW         $0, t0-2(SP)
 block0:
@@ -179,7 +181,7 @@ block0:
         MOVW         R15, ret0+8(FP)
         RET
 
-TEXT ·addint64s(SB),NOSPLIT,$16-24
+TEXT ·addint64s(SB),$16-24
         MOVQ         $0, ret0+16(FP)
         MOVQ         $0, t0-8(SP)
 block0:
@@ -190,7 +192,7 @@ block0:
         MOVQ         R15, ret0+16(FP)
         RET
 
-TEXT ·subint64s(SB),NOSPLIT,$16-24
+TEXT ·subint64s(SB),$16-24
         MOVQ         $0, ret0+16(FP)
         MOVQ         $0, t0-8(SP)
 block0:
@@ -201,7 +203,7 @@ block0:
         MOVQ         R15, ret0+16(FP)
         RET
 
-TEXT ·negint64s(SB),NOSPLIT,$16-16
+TEXT ·negint64s(SB),$16-16
         MOVQ         $0, ret0+8(FP)
         MOVQ         $0, t0-8(SP)
 block0:
@@ -212,7 +214,7 @@ block0:
         MOVQ         R15, ret0+8(FP)
         RET
 
-TEXT ·mulint64s(SB),NOSPLIT,$16-24
+TEXT ·mulint64s(SB),$16-24
         MOVQ         $0, ret0+16(FP)
         MOVQ         $0, t0-8(SP)
 block0:
@@ -225,7 +227,7 @@ block0:
         MOVQ         R15, ret0+16(FP)
         RET
 
-TEXT ·divint64s(SB),NOSPLIT,$16-24
+TEXT ·divint64s(SB),$16-24
         MOVQ         $0, ret0+16(FP)
         MOVQ         $0, t0-8(SP)
 block0:
@@ -239,7 +241,7 @@ block0:
         MOVQ         R15, ret0+16(FP)
         RET
 
-TEXT ·adduint8s(SB),NOSPLIT,$8-9
+TEXT ·adduint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
 block0:
@@ -250,7 +252,7 @@ block0:
         MOVB         R15, ret0+8(FP)
         RET
 
-TEXT ·subuint8s(SB),NOSPLIT,$8-9
+TEXT ·subuint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
 block0:
@@ -261,7 +263,7 @@ block0:
         MOVB         R15, ret0+8(FP)
         RET
 
-TEXT ·muluint8s(SB),NOSPLIT,$8-9
+TEXT ·muluint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
 block0:
@@ -274,7 +276,7 @@ block0:
         MOVB         R15, ret0+8(FP)
         RET
 
-TEXT ·divuint8s(SB),NOSPLIT,$8-9
+TEXT ·divuint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
 block0:
@@ -287,7 +289,7 @@ block0:
         MOVB         R15, ret0+8(FP)
         RET
 
-TEXT ·adduint16s(SB),NOSPLIT,$8-10
+TEXT ·adduint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
         MOVW         $0, t0-2(SP)
 block0:
@@ -298,7 +300,7 @@ block0:
         MOVW         R15, ret0+8(FP)
         RET
 
-TEXT ·subuint16s(SB),NOSPLIT,$8-10
+TEXT ·subuint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
         MOVW         $0, t0-2(SP)
 block0:
@@ -309,7 +311,7 @@ block0:
         MOVW         R15, ret0+8(FP)
         RET
 
-TEXT ·muluint16s(SB),NOSPLIT,$8-10
+TEXT ·muluint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
         MOVW         $0, t0-2(SP)
 block0:
@@ -322,7 +324,7 @@ block0:
         MOVW         R15, ret0+8(FP)
         RET
 
-TEXT ·divuint16s(SB),NOSPLIT,$8-10
+TEXT ·divuint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
         MOVW         $0, t0-2(SP)
 block0:
@@ -336,7 +338,7 @@ block0:
         MOVW         R15, ret0+8(FP)
         RET
 
-TEXT ·adduint32s(SB),NOSPLIT,$8-12
+TEXT ·adduint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
         MOVL         $0, t0-4(SP)
 block0:
@@ -347,7 +349,7 @@ block0:
         MOVL         R15, ret0+8(FP)
         RET
 
-TEXT ·subuint32s(SB),NOSPLIT,$8-12
+TEXT ·subuint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
         MOVL         $0, t0-4(SP)
 block0:
@@ -358,7 +360,7 @@ block0:
         MOVL         R15, ret0+8(FP)
         RET
 
-TEXT ·muluint32s(SB),NOSPLIT,$8-12
+TEXT ·muluint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
         MOVL         $0, t0-4(SP)
 block0:
@@ -371,7 +373,7 @@ block0:
         MOVL         R15, ret0+8(FP)
         RET
 
-TEXT ·divuint32s(SB),NOSPLIT,$8-12
+TEXT ·divuint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
         MOVL         $0, t0-4(SP)
 block0:
@@ -385,7 +387,7 @@ block0:
         MOVL         R15, ret0+8(FP)
         RET
 
-TEXT ·adduint64s(SB),NOSPLIT,$16-24
+TEXT ·adduint64s(SB),$16-24
         MOVQ         $0, ret0+16(FP)
         MOVQ         $0, t0-8(SP)
 block0:
@@ -396,7 +398,7 @@ block0:
         MOVQ         R15, ret0+16(FP)
         RET
 
-TEXT ·subuint64s(SB),NOSPLIT,$16-24
+TEXT ·subuint64s(SB),$16-24
         MOVQ         $0, ret0+16(FP)
         MOVQ         $0, t0-8(SP)
 block0:
@@ -407,7 +409,7 @@ block0:
         MOVQ         R15, ret0+16(FP)
         RET
 
-TEXT ·muluint64s(SB),NOSPLIT,$16-24
+TEXT ·muluint64s(SB),$16-24
         MOVQ         $0, ret0+16(FP)
         MOVQ         $0, t0-8(SP)
 block0:
@@ -420,7 +422,7 @@ block0:
         MOVQ         R15, ret0+16(FP)
         RET
 
-TEXT ·divuint64s(SB),NOSPLIT,$16-24
+TEXT ·divuint64s(SB),$16-24
         MOVQ         $0, ret0+16(FP)
         MOVQ         $0, t0-8(SP)
 block0:

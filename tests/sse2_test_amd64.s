@@ -1,6 +1,8 @@
-// +build amd64
+// +build amd64 !noasm !appengine
 
-TEXT ·addpd(SB),NOSPLIT,$88-48
+#include "textflag.h"
+
+TEXT ·addpd(SB),$88-48
         MOVQ         $0, ret0+32(FP)
         MOVQ         $0, ret0+40(FP)
         MOVQ         $0, t0-16(SP)

@@ -1,13 +1,15 @@
-// +build amd64
+// +build amd64 !noasm !appengine
 
-TEXT ·boolt0s(SB),NOSPLIT,$8-9
+#include "textflag.h"
+
+TEXT ·boolt0s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
         MOVB         x+0(FP), R15
         MOVB         R15, ret0+8(FP)
         RET
 
-TEXT ·boolt1s(SB),NOSPLIT,$8-9
+TEXT ·boolt1s(SB),$8-9
         MOVB         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
 block0:
@@ -16,7 +18,7 @@ block0:
         MOVB         R15, ret0+8(FP)
         RET
 
-TEXT ·boolt2s(SB),NOSPLIT,$8-9
+TEXT ·boolt2s(SB),$8-9
         MOVB         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
 block0:
@@ -35,7 +37,7 @@ block2:
         MOVB         R15, ret0+8(FP)
         RET
 
-TEXT ·boolt3s(SB),NOSPLIT,$8-9
+TEXT ·boolt3s(SB),$8-9
         MOVB         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
 block0:
@@ -54,7 +56,7 @@ block2:
         MOVB         R15, ret0+8(FP)
         RET
 
-TEXT ·boolt4s(SB),NOSPLIT,$8-9
+TEXT ·boolt4s(SB),$8-9
         MOVB         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
 block0:
@@ -73,7 +75,7 @@ block2:
         MOVB         R15, ret0+8(FP)
         RET
 
-TEXT ·boolt5s(SB),NOSPLIT,$8-9
+TEXT ·boolt5s(SB),$8-9
         MOVB         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
 block0:

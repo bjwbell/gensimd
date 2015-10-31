@@ -1,6 +1,8 @@
-// +build amd64
+// +build amd64 !noasm !appengine
 
-TEXT ·addi32x4(SB),NOSPLIT,$88-48
+#include "textflag.h"
+
+TEXT ·addi32x4(SB),$88-48
         MOVQ         $0, ret0+32(FP)
         MOVQ         $0, ret0+40(FP)
         MOVQ         $0, t0-16(SP)
@@ -24,19 +26,19 @@ block0:
         MOVOU        X12, ret0+32(FP)
         RET
 
-TEXT ·subi32x4(SB),NOSPLIT,$88-48
+TEXT ·subi32x4(SB),$88-48
         MOVQ         $0, ret0+32(FP)
         MOVQ         $0, ret0+40(FP)
         MOVQ         $0, t0-16(SP)
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
         MOVQ         $0, t3-64(SP)
         MOVQ         $0, t3-56(SP)
         MOVQ         $0, t4-80(SP)
         MOVQ         $0, t4-72(SP)
+        MOVQ         $0, t2-48(SP)
+        MOVQ         $0, t2-40(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        y+16(FP), X14
@@ -48,19 +50,19 @@ block0:
         MOVOU        X12, ret0+32(FP)
         RET
 
-TEXT ·muli32x4(SB),NOSPLIT,$88-48
+TEXT ·muli32x4(SB),$88-48
         MOVQ         $0, ret0+32(FP)
         MOVQ         $0, ret0+40(FP)
         MOVQ         $0, t0-16(SP)
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
+        MOVQ         $0, t4-80(SP)
+        MOVQ         $0, t4-72(SP)
         MOVQ         $0, t2-48(SP)
         MOVQ         $0, t2-40(SP)
         MOVQ         $0, t3-64(SP)
         MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        y+16(FP), X14
@@ -80,7 +82,7 @@ block0:
         MOVOU        X9, ret0+32(FP)
         RET
 
-TEXT ·shli32x4(SB),NOSPLIT,$56-40
+TEXT ·shli32x4(SB),$56-40
         MOVQ         $0, ret0+24(FP)
         MOVQ         $0, ret0+32(FP)
         MOVQ         $0, t0-16(SP)
@@ -99,7 +101,7 @@ block0:
         MOVOU        X13, ret0+24(FP)
         RET
 
-TEXT ·shri32x4(SB),NOSPLIT,$56-40
+TEXT ·shri32x4(SB),$56-40
         MOVQ         $0, ret0+24(FP)
         MOVQ         $0, ret0+32(FP)
         MOVQ         $0, t0-16(SP)
@@ -118,7 +120,7 @@ block0:
         MOVOU        X13, ret0+24(FP)
         RET
 
-TEXT ·addf32x4(SB),NOSPLIT,$88-48
+TEXT ·addf32x4(SB),$88-48
         MOVQ         $0, ret0+32(FP)
         MOVQ         $0, ret0+40(FP)
         MOVQ         $0, t0-16(SP)
@@ -142,19 +144,19 @@ block0:
         MOVUPS       X12, ret0+32(FP)
         RET
 
-TEXT ·subf32x4(SB),NOSPLIT,$88-48
+TEXT ·subf32x4(SB),$88-48
         MOVQ         $0, ret0+32(FP)
         MOVQ         $0, ret0+40(FP)
         MOVQ         $0, t0-16(SP)
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
         MOVQ         $0, t3-64(SP)
         MOVQ         $0, t3-56(SP)
         MOVQ         $0, t4-80(SP)
         MOVQ         $0, t4-72(SP)
+        MOVQ         $0, t2-48(SP)
+        MOVQ         $0, t2-40(SP)
 block0:
         MOVUPS       x+0(FP), X15
         MOVUPS       y+16(FP), X14
@@ -166,7 +168,7 @@ block0:
         MOVUPS       X12, ret0+32(FP)
         RET
 
-TEXT ·mulf32x4(SB),NOSPLIT,$88-48
+TEXT ·mulf32x4(SB),$88-48
         MOVQ         $0, ret0+32(FP)
         MOVQ         $0, ret0+40(FP)
         MOVQ         $0, t0-16(SP)
@@ -190,7 +192,7 @@ block0:
         MOVUPS       X12, ret0+32(FP)
         RET
 
-TEXT ·divf32x4(SB),NOSPLIT,$88-48
+TEXT ·divf32x4(SB),$88-48
         MOVQ         $0, ret0+32(FP)
         MOVQ         $0, ret0+40(FP)
         MOVQ         $0, t0-16(SP)

@@ -1,6 +1,8 @@
-// +build amd64
+// +build amd64 !noasm !appengine
 
-TEXT ·ift0s(SB),NOSPLIT,$8-9
+#include "textflag.h"
+
+TEXT ·ift0s(SB),$8-9
         MOVB         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
         MOVB         $0, t1-2(SP)
@@ -28,7 +30,7 @@ block2:
         MOVB         R15, ret0+8(FP)
         RET
 
-TEXT ·ift1s(SB),NOSPLIT,$8-10
+TEXT ·ift1s(SB),$8-10
         MOVW         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
         MOVW         $0, t1-3(SP)
@@ -52,7 +54,7 @@ block2:
         MOVW         R14, ret0+8(FP)
         RET
 
-TEXT ·ift2s(SB),NOSPLIT,$16-12
+TEXT ·ift2s(SB),$16-12
         MOVL         $0, ret0+8(FP)
         MOVL         $0, t2-9(SP)
         MOVB         $0, t0-1(SP)
@@ -82,7 +84,7 @@ block2:
         MOVL         R14, ret0+8(FP)
         RET
 
-TEXT ·ift3s(SB),NOSPLIT,$32-16
+TEXT ·ift3s(SB),$32-16
         MOVQ         $0, ret0+8(FP)
         MOVQ         $0, t2-17(SP)
         MOVQ         $0, t3-25(SP)
@@ -121,10 +123,10 @@ block2:
         MOVQ         R14, ret0+8(FP)
         RET
 
-TEXT ·ift4s(SB),NOSPLIT,$8-9
+TEXT ·ift4s(SB),$8-9
         MOVB         $0, ret0+8(FP)
-        MOVB         $0, t0-1(SP)
         MOVB         $0, t1-2(SP)
+        MOVB         $0, t0-1(SP)
 block0:
         MOVB         x+0(FP), R14
         MOVB         $0, R13
@@ -147,7 +149,7 @@ block2:
         MOVB         R14, ret0+8(FP)
         RET
 
-TEXT ·ift5s(SB),NOSPLIT,$8-10
+TEXT ·ift5s(SB),$8-10
         MOVW         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
         MOVW         $0, t1-3(SP)
@@ -181,7 +183,7 @@ block2:
         MOVW         R14, ret0+8(FP)
         RET
 
-TEXT ·ift6s(SB),NOSPLIT,$8-12
+TEXT ·ift6s(SB),$8-12
         MOVL         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
 block0:
@@ -203,11 +205,11 @@ block2:
         MOVL         R15, ret0+8(FP)
         RET
 
-TEXT ·ift7s(SB),NOSPLIT,$24-16
+TEXT ·ift7s(SB),$24-16
         MOVQ         $0, ret0+8(FP)
+        MOVQ         $0, t2-17(SP)
         MOVB         $0, t0-1(SP)
         MOVQ         $0, t1-9(SP)
-        MOVQ         $0, t2-17(SP)
 block0:
         MOVQ         x+0(FP), R14
         MOVQ         $-1, R13
@@ -233,7 +235,7 @@ block2:
         MOVQ         R14, ret0+8(FP)
         RET
 
-TEXT ·ift8s(SB),NOSPLIT,$16-12
+TEXT ·ift8s(SB),$16-12
         MOVL         $0, ret0+8(FP)
         MOVB         $0, t0-1(SP)
         MOVL         $0, t1-5(SP)
@@ -267,12 +269,12 @@ block2:
         MOVL         X14, ret0+8(FP)
         RET
 
-TEXT ·ift9s(SB),NOSPLIT,$32-16
+TEXT ·ift9s(SB),$32-16
         MOVQ         $0, ret0+8(FP)
-        MOVB         $0, t1-9(SP)
-        MOVQ         $0, t2-17(SP)
         MOVQ         $0, t3-25(SP)
         MOVQ         $0, t0-8(SP)
+        MOVB         $0, t1-9(SP)
+        MOVQ         $0, t2-17(SP)
 block0:
         MOVQ         x+0(FP), X14
         MOVQ         x+0(FP), X13

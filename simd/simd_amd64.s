@@ -1,6 +1,6 @@
 // (copied from Nigel Tao's shiny library, https://github.com/golang/exp/blob/master/shiny/driver/internal/swizzle/swizzle_amd64.s)
 // func haveSSSE3() bool
-TEXT ·SSSE3(SB),NOSPLIT,$0
+TEXT ·SSSE3(SB),$0
         MOVQ	$1, AX
         CPUID
         SHRQ	$9, CX

@@ -1,6 +1,6 @@
 # Distsq Example
 
-For a set of points in R^2, SIMD intrinsics are used to compute squared distances between them.
+SIMD intrinsics are used to compute squared distances between a set of points in R^2.
 The points are created using:
 
 ```
@@ -10,7 +10,7 @@ for i := 0; i < n; i++ {
 }
 ```
 
-And the squared distances are calculated using:
+The squared distances are calculated using:
 ```
 dx := simd.SubI32x4(x[j], x[i])
 dy := simd.SubI32x4(y[j], y[i])
@@ -19,7 +19,7 @@ sqY := simd.MulI32x4(dy, dy)
 sqDist := simd.AddI32x4(sqX, sqY)
 ```
 
-Not all distances are computed, for example the distance between `x[i][0], y[i][0]` and `x[j][1], y[j][1]` is not computed by the above code.
+Not all distances are computed, e.g. the distance between `x[i][0], y[i][0]` and `x[j][1], y[j][1]` is not computed.
 
 
 
@@ -38,4 +38,4 @@ go build
 ./distsq
 ```
 
-**This example only uses SIMD instructions on amd64/x86_64, it will have build errors on other platforms.**
+**This example only uses SIMD instructions on amd64/x86_64, it's untested on other platforms.**

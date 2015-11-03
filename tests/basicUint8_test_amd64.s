@@ -11,7 +11,6 @@ block0:
 
 TEXT ·uint8_t1_simd(SB),$8-9
         MOVB         $0, ret0+8(FP)
-        MOVB         $0, t0-1(SP)
 block0:
         MOVB         x+0(FP), R14
         MOVB         $1, R13
@@ -22,7 +21,6 @@ block0:
 
 TEXT ·uint8_t2_simd(SB),$8-9
         MOVB         $0, ret0+8(FP)
-        MOVB         $0, t0-1(SP)
 block0:
         MOVB         x+0(FP), R14
         MOVB         $2, R13
@@ -35,7 +33,6 @@ block0:
 
 TEXT ·uint8_t3_simd(SB),$8-9
         MOVB         $0, ret0+8(FP)
-        MOVB         $0, t0-1(SP)
 block0:
         MOVB         x+0(FP), R14
         MOVB         $3, R13
@@ -48,7 +45,6 @@ block0:
 
 TEXT ·uint8_t4_simd(SB),$8-9
         MOVB         $0, ret0+8(FP)
-        MOVB         $0, t0-1(SP)
 block0:
         MOVB         x+0(FP), R14
         MOVB         R14, R15

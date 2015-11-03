@@ -5,8 +5,6 @@
 TEXT ·arrayt0s(SB),$32-16
         MOVQ         $0, ret0+8(FP)
         MOVQ         $0, t0-8(SP)
-        MOVQ         $0, t1-16(SP)
-        MOVQ         $0, t2-24(SP)
 block0:
         MOVQ         x+0(FP), R15
         MOVQ         R15, t0-8(SP)
@@ -24,8 +22,6 @@ TEXT ·arrayt1s(SB),$40-24
         MOVQ         $0, ret0+16(FP)
         MOVQ         $0, t0-16(SP)
         MOVQ         $0, t0-8(SP)
-        MOVQ         $0, t2-32(SP)
-        MOVQ         $0, t1-24(SP)
 block0:
         MOVQ         x+0(FP), R15
         MOVQ         R15, t0-16(SP)
@@ -46,14 +42,6 @@ TEXT ·arrayt2s(SB),$96-32
         MOVQ         $0, t0-24(SP)
         MOVQ         $0, t0-16(SP)
         MOVQ         $0, t0-8(SP)
-        MOVQ         $0, t3-48(SP)
-        MOVQ         $0, t1-32(SP)
-        MOVQ         $0, t4-56(SP)
-        MOVQ         $0, t6-72(SP)
-        MOVQ         $0, t8-88(SP)
-        MOVQ         $0, t5-64(SP)
-        MOVQ         $0, t7-80(SP)
-        MOVQ         $0, t2-40(SP)
 block0:
         MOVQ         x+0(FP), R15
         MOVQ         R15, t0-24(SP)

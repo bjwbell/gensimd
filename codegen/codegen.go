@@ -285,12 +285,15 @@ func (f *Function) AllocLocal(name string, typ types.Type) (identifier, *Error) 
 func (f *Function) ZeroNonSsaLocals() (string, *Error) {
 	asm := "// BEGIN ZeroNonSsaLocals\n"
 	ctx := context{f, nil}
-	for _, name := range f.identifiers {
-		if name.local == nil || name.IsSsaLocal() {
+	for _, ident := range f.identifiers {
+		if ident.local == nil || ident.isSsaLocal() {
+			continue
+		}
+		if ident.isBlockLocal() {
 			continue
 		}
 		sp := getRegister(REG_SP)
-		asm += ZeroMemory(ctx, name.name, name.offset, name.size(), sp)
+		asm += ZeroMemory(ctx, ident.name, ident.offset, ident.size(), sp)
 	}
 	asm += "// END ZeroNonSsaLocals\n"
 	return asm, nil
@@ -327,7 +330,8 @@ func (f *Function) BasicBlock(block *ssa.BasicBlock) (string, *Error) {
 	}
 	lastInstr := block.Instrs[len(block.Instrs)-1]
 	ctx := context{f, lastInstr}
-	if _, err := f.spillRegisters(ctx); err != nil {
+
+	if _, err := f.spillNonBlockRegisters(ctx); err != nil {
 		return "", err
 	}
 	return asm, nil
@@ -1408,9 +1412,9 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 	}
 	xName := instr.X.Name()
 	xInfo, okX := f.identifiers[xName]
-	if !xInfo.IsSsaLocal() && xInfo.param == nil && xInfo.ptr == nil {
+	if !xInfo.isSsaLocal() && xInfo.param == nil && xInfo.ptr == nil {
 		panic("unexpected nil ptr")
-	} else if !xInfo.IsSsaLocal() && xInfo.param == nil {
+	} else if !xInfo.isSsaLocal() && xInfo.param == nil {
 		asm += xInfo.ptr.spillAllRegisters()
 	}
 	// TODO add complex64/128 support
@@ -1421,13 +1425,13 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 		msgstr := "Unknown name for UnOp X (%v), instr \"(%v)\""
 		ice(fmt.Sprintf(msgstr, instr.X, instr))
 	}
-	if xInfo.local == nil && xInfo.param == nil && !xInfo.IsPointer() {
+	if xInfo.local == nil && xInfo.param == nil && !xInfo.isPointer() {
 		fmtstr := "in UnOp, X (%v) isn't a pointer, X.type (%v), instr \"(%v)\""
 		msg := fmt.Sprintf(fmtstr, instr.X, instr.X.Type(), instr)
 		ice(msg)
 	}
 	_, _, size := assignment.Addr()
-	if xInfo.IsSsaLocal() {
+	if xInfo.isSsaLocal() {
 		a, reg := xInfo.load(context{f, instr})
 		asm += a
 		asm += assignment.newValue(reg, 0, xInfo.size())
@@ -1634,6 +1638,24 @@ func (f *Function) spillRegisters(ctx context) (string, *Error) {
 			continue
 		}
 		asm += r.spill(ctx)
+	}
+	return asm, nil
+}
+
+func (f *Function) spillNonBlockRegisters(ctx context) (string, *Error) {
+	asm := ""
+	for i := 0; i < len(f.registers); i++ {
+		r := &f.registers[i]
+		if f.excludeReg(r) {
+			continue
+		}
+		blockLocal := false
+		if r.parent != nil {
+			blockLocal = r.parent.owner().isBlockLocal()
+		}
+		if !blockLocal {
+			asm += r.spill(ctx)
+		}
 	}
 	return asm, nil
 }

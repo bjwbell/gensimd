@@ -148,24 +148,32 @@ func (ident *identifier) spillRegister(r *register, force bool) string {
 	return ident.storage.spillRegister(ctx, r, force)
 }
 
-func (name *identifier) IsSsaLocal() bool {
-	return name.local != nil && name.local.info != nil
+func (ident *identifier) isSsaLocal() bool {
+	return ident.local != nil && ident.local.info != nil
 }
 
-func (name *identifier) IsPointer() bool {
-	_, ok := name.typ.(*types.Pointer)
+func (ident *identifier) isParam() bool {
+	return ident.param != nil
+}
+
+func (ident *identifier) isBlockLocal() bool {
+	return !(ident.isSsaLocal() || ident.isParam())
+}
+
+func (ident *identifier) isPointer() bool {
+	_, ok := ident.typ.(*types.Pointer)
 	return ok
 }
 
-func (name *identifier) PointerUnderlyingType() types.Type {
-	if !name.IsPointer() {
-		ice(fmt.Sprintf("identifier (%v) not ptr type", name))
+func (ident *identifier) ptrUnderlyingType() types.Type {
+	if !ident.isPointer() {
+		ice(fmt.Sprintf("identifier (%v) not ptr type", ident))
 	}
-	ptrType := name.typ.(*types.Pointer)
+	ptrType := ident.typ.(*types.Pointer)
 	return ptrType.Elem()
 }
 
-func (name *identifier) IsInteger() bool {
+func (name *identifier) isInteger() bool {
 	if !isBasic(name.typ) {
 		return false
 	}

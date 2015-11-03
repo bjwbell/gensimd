@@ -9,12 +9,6 @@ TEXT ·addi8x16s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -39,12 +33,6 @@ TEXT ·subi8x16s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -69,12 +57,6 @@ TEXT ·addu8x16s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -99,12 +81,6 @@ TEXT ·subu8x16s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -129,12 +105,6 @@ TEXT ·addi16x8s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -159,12 +129,6 @@ TEXT ·subi16x8s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -189,12 +153,6 @@ TEXT ·muli16x8s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -217,10 +175,6 @@ TEXT ·shli16x8s(SB),$56-40
         MOVQ         $0, ret0+32(FP)
         MOVQ         $0, t0-16(SP)
         MOVQ         $0, t0-8(SP)
-        MOVQ         $0, t1-32(SP)
-        MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -240,10 +194,6 @@ TEXT ·shri16x8s(SB),$56-40
         MOVQ         $0, ret0+32(FP)
         MOVQ         $0, t0-16(SP)
         MOVQ         $0, t0-8(SP)
-        MOVQ         $0, t1-32(SP)
-        MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -265,12 +215,6 @@ TEXT ·addu16x8s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -295,12 +239,6 @@ TEXT ·subu16x8s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -325,12 +263,6 @@ TEXT ·mulu16x8s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -353,10 +285,6 @@ TEXT ·shlu16x8s(SB),$56-40
         MOVQ         $0, ret0+32(FP)
         MOVQ         $0, t0-16(SP)
         MOVQ         $0, t0-8(SP)
-        MOVQ         $0, t1-32(SP)
-        MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -376,10 +304,6 @@ TEXT ·shru16x8s(SB),$56-40
         MOVQ         $0, ret0+32(FP)
         MOVQ         $0, t0-16(SP)
         MOVQ         $0, t0-8(SP)
-        MOVQ         $0, t1-32(SP)
-        MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -509,12 +433,6 @@ TEXT ·addi32x4s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -539,12 +457,6 @@ TEXT ·subi32x4s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -569,12 +481,6 @@ TEXT ·muli32x4s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -603,10 +509,6 @@ TEXT ·shli32x4s(SB),$56-40
         MOVQ         $0, ret0+32(FP)
         MOVQ         $0, t0-16(SP)
         MOVQ         $0, t0-8(SP)
-        MOVQ         $0, t1-32(SP)
-        MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -626,10 +528,6 @@ TEXT ·shri32x4s(SB),$56-40
         MOVQ         $0, ret0+32(FP)
         MOVQ         $0, t0-16(SP)
         MOVQ         $0, t0-8(SP)
-        MOVQ         $0, t1-32(SP)
-        MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -651,12 +549,6 @@ TEXT ·addu32x4s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -681,12 +573,6 @@ TEXT ·subu32x4s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -711,12 +597,6 @@ TEXT ·mulu32x4s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -745,10 +625,6 @@ TEXT ·shlu32x4s(SB),$56-40
         MOVQ         $0, ret0+32(FP)
         MOVQ         $0, t0-16(SP)
         MOVQ         $0, t0-8(SP)
-        MOVQ         $0, t1-32(SP)
-        MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -768,10 +644,6 @@ TEXT ·shru32x4s(SB),$56-40
         MOVQ         $0, ret0+32(FP)
         MOVQ         $0, t0-16(SP)
         MOVQ         $0, t0-8(SP)
-        MOVQ         $0, t1-32(SP)
-        MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -793,12 +665,6 @@ TEXT ·addi64x2s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -823,12 +689,6 @@ TEXT ·subi64x2s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -853,12 +713,6 @@ TEXT ·addu64x2s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -883,12 +737,6 @@ TEXT ·subu64x2s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVOU        x+0(FP), X15
         MOVOU        X15, t0-16(SP)
@@ -913,12 +761,6 @@ TEXT ·addf32x4s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVUPS       x+0(FP), X15
         MOVUPS       X15, t0-16(SP)
@@ -943,12 +785,6 @@ TEXT ·subf32x4s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
 block0:
         MOVUPS       x+0(FP), X15
         MOVUPS       X15, t0-16(SP)
@@ -973,12 +809,6 @@ TEXT ·mulf32x4s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
 block0:
         MOVUPS       x+0(FP), X15
         MOVUPS       X15, t0-16(SP)
@@ -1003,12 +833,6 @@ TEXT ·divf32x4s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
 block0:
         MOVUPS       x+0(FP), X15
         MOVUPS       X15, t0-16(SP)
@@ -1033,12 +857,6 @@ TEXT ·addf64x2s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVUPD       x+0(FP), X15
         MOVUPD       X15, t0-16(SP)
@@ -1063,12 +881,6 @@ TEXT ·subf64x2s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
 block0:
         MOVUPD       x+0(FP), X15
         MOVUPD       X15, t0-16(SP)
@@ -1093,12 +905,6 @@ TEXT ·mulf64x2s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVUPD       x+0(FP), X15
         MOVUPD       X15, t0-16(SP)
@@ -1123,12 +929,6 @@ TEXT ·divf64x2s(SB),$88-48
         MOVQ         $0, t0-8(SP)
         MOVQ         $0, t1-32(SP)
         MOVQ         $0, t1-24(SP)
-        MOVQ         $0, t2-48(SP)
-        MOVQ         $0, t2-40(SP)
-        MOVQ         $0, t3-64(SP)
-        MOVQ         $0, t3-56(SP)
-        MOVQ         $0, t4-80(SP)
-        MOVQ         $0, t4-72(SP)
 block0:
         MOVUPD       x+0(FP), X15
         MOVUPD       X15, t0-16(SP)

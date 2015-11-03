@@ -11,7 +11,6 @@ block0:
 
 TEXT ·boolt1s(SB),$8-9
         MOVB         $0, ret0+8(FP)
-        MOVB         $0, t0-1(SP)
 block0:
         MOVB         x+0(FP), R15
         XORQ         $1, R15
@@ -20,7 +19,6 @@ block0:
 
 TEXT ·boolt2s(SB),$8-9
         MOVB         $0, ret0+8(FP)
-        MOVB         $0, t0-1(SP)
 block0:
         MOVB         $0, R15
         MOVB         R15, t0-1(SP)
@@ -39,7 +37,6 @@ block2:
 
 TEXT ·boolt3s(SB),$8-9
         MOVB         $0, ret0+8(FP)
-        MOVB         $0, t0-1(SP)
 block0:
         MOVB         x+0(FP), R15
         CMPB         R15, $0
@@ -58,7 +55,6 @@ block2:
 
 TEXT ·boolt4s(SB),$8-9
         MOVB         $0, ret0+8(FP)
-        MOVB         $0, t0-1(SP)
 block0:
         MOVB         x+0(FP), R15
         CMPB         R15, $0
@@ -77,7 +73,6 @@ block2:
 
 TEXT ·boolt5s(SB),$8-9
         MOVB         $0, ret0+8(FP)
-        MOVB         $0, t0-1(SP)
 block0:
         MOVB         x+0(FP), R15
         CMPB         R15, $0

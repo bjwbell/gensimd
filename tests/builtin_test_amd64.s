@@ -27,7 +27,6 @@ block0:
 
 TEXT ·lent2s(SB),$16-32
         MOVQ         $0, ret0+24(FP)
-        MOVQ         $0, t0-8(SP)
 block0:
         MOVQ         x+8(FP), R15
         MOVQ         R15, t0-8(SP)

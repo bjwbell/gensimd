@@ -4,8 +4,6 @@
 
 TEXT ·slicet0s(SB),$24-32
         MOVQ         $0, ret0+24(FP)
-        MOVQ         $0, t0-8(SP)
-        MOVQ         $0, t1-16(SP)
 block0:
         MOVQ         $0, R14
         IMUL3Q       $8, R14, R14
@@ -19,8 +17,6 @@ block0:
 
 TEXT ·slicet1s(SB),$24-32
         MOVQ         $0, ret0+24(FP)
-        MOVQ         $0, t0-8(SP)
-        MOVQ         $0, t1-16(SP)
 block0:
         MOVQ         $1, R14
         IMUL3Q       $8, R14, R14
@@ -34,14 +30,6 @@ block0:
 
 TEXT ·slicet2s(SB),$72-32
         MOVQ         $0, ret0+24(FP)
-        MOVQ         $0, t1-16(SP)
-        MOVQ         $0, t5-48(SP)
-        MOVQ         $0, t7-64(SP)
-        MOVQ         $0, t0-8(SP)
-        MOVQ         $0, t2-24(SP)
-        MOVQ         $0, t3-32(SP)
-        MOVQ         $0, t4-40(SP)
-        MOVQ         $0, t6-56(SP)
 block0:
         MOVQ         $0, R14
         IMUL3Q       $8, R14, R14

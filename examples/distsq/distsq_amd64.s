@@ -14,77 +14,6 @@ TEXT ·distsq(SB),$544-52
         MOVQ         $0, t30-56(SP)
         MOVQ         $0, t34-80(SP)
         MOVQ         $0, t34-72(SP)
-        MOVL         $0, t51-494(SP)
-        MOVQ         $0, t0-88(SP)
-        MOVQ         $0, t19-216(SP)
-        MOVQ         $0, t19-208(SP)
-        MOVQ         $0, t28-312(SP)
-        MOVQ         $0, t28-304(SP)
-        MOVL         $0, t39-436(SP)
-        MOVL         $0, t48-482(SP)
-        MOVQ         $0, t23-248(SP)
-        MOVQ         $0, t24-264(SP)
-        MOVQ         $0, t24-256(SP)
-        MOVQ         $0, t27-296(SP)
-        MOVQ         $0, t27-288(SP)
-        MOVB         $0, t2-97(SP)
-        MOVL         $0, t9-121(SP)
-        MOVQ         $0, t8-143(SP)
-        MOVB         $0, t11-144(SP)
-        MOVQ         $0, t16-176(SP)
-        MOVQ         $0, t16-168(SP)
-        MOVB         $0, t46-466(SP)
-        MOVL         $0, t57-523(SP)
-        MOVB         $0, t58-524(SP)
-        MOVQ         $0, t35-392(SP)
-        MOVQ         $0, t35-384(SP)
-        MOVL         $0, t54-511(SP)
-        MOVQ         $0, t56-519(SP)
-        MOVQ         $0, t10-129(SP)
-        MOVB         $0, t6-130(SP)
-        MOVB         $0, t7-131(SP)
-        MOVQ         $0, t21-224(SP)
-        MOVQ         $0, t25-280(SP)
-        MOVQ         $0, t25-272(SP)
-        MOVL         $0, t45-465(SP)
-        MOVB         $0, t40-437(SP)
-        MOVQ         $0, t50-490(SP)
-        MOVB         $0, t52-495(SP)
-        MOVQ         $0, t1-96(SP)
-        MOVL         $0, t4-109(SP)
-        MOVQ         $0, t13-152(SP)
-        MOVQ         $0, t59-532(SP)
-        MOVL         $0, t60-536(SP)
-        MOVQ         $0, t3-105(SP)
-        MOVQ         $0, t5-117(SP)
-        MOVQ         $0, t22-240(SP)
-        MOVQ         $0, t22-232(SP)
-        MOVQ         $0, t17-184(SP)
-        MOVQ         $0, t37-424(SP)
-        MOVQ         $0, t37-416(SP)
-        MOVL         $0, t49-470(SP)
-        MOVQ         $0, t32-360(SP)
-        MOVQ         $0, t32-352(SP)
-        MOVL         $0, t42-453(SP)
-        MOVL         $0, t12-135(SP)
-        MOVQ         $0, t33-376(SP)
-        MOVQ         $0, t33-368(SP)
-        MOVQ         $0, t41-449(SP)
-        MOVQ         $0, t44-461(SP)
-        MOVQ         $0, t36-408(SP)
-        MOVQ         $0, t36-400(SP)
-        MOVQ         $0, t38-432(SP)
-        MOVL         $0, t43-441(SP)
-        MOVQ         $0, t18-200(SP)
-        MOVQ         $0, t18-192(SP)
-        MOVQ         $0, t47-478(SP)
-        MOVL         $0, t55-499(SP)
-        MOVQ         $0, t53-507(SP)
-        MOVQ         $0, t15-160(SP)
-        MOVQ         $0, t29-328(SP)
-        MOVQ         $0, t29-320(SP)
-        MOVQ         $0, t31-344(SP)
-        MOVQ         $0, t31-336(SP)
 block0:
         MOVQ         x+8(FP), R15
         MOVQ         R15, t0-88(SP)
@@ -104,12 +33,12 @@ block1:
         MOVL         R15, ret0+48(FP)
         RET
 block2:
-        MOVQ         x+8(FP), R15
-        MOVQ         R15, t3-105(SP)
-        MOVL         $2147483647, R14
-        MOVL         R14, t4-109(SP)
-        MOVQ         $0, R13
-        MOVQ         R13, t5-117(SP)
+        MOVQ         x+8(FP), R14
+        MOVQ         R14, t3-105(SP)
+        MOVL         $2147483647, R13
+        MOVL         R13, t4-109(SP)
+        MOVQ         $0, R12
+        MOVQ         R12, t5-117(SP)
         JMP block5
 block3:
         MOVL         t4-109(SP), R15
@@ -122,11 +51,11 @@ block4:
         MOVL         R15, ret0+48(FP)
         RET
 block5:
-        MOVQ         t5-117(SP), R14
-        MOVQ         t3-105(SP), R13
-        CMPQ         R14, R13
-        SETLT        R15
-        MOVB         R15, t6-130(SP)
+        MOVQ         t5-117(SP), R13
+        MOVQ         t3-105(SP), R12
+        CMPQ         R13, R12
+        SETLT        R14
+        MOVB         R14, t6-130(SP)
         MOVB         t6-130(SP), R15
         CMPB         R15, $0
         JEQ          block4

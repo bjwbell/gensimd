@@ -34,191 +34,193 @@ TEXT ·regspill2(SB),$1440-52
         MOVQ         $0, t59-216(SP)
         MOVQ         $0, t63-240(SP)
         MOVQ         $0, t63-232(SP)
-        MOVQ         $0, t44-737(SP)
-        MOVQ         $0, t44-729(SP)
-        MOVL         $0, t86-1117(SP)
-        MOVL         $0, t111-1253(SP)
-        MOVL         $0, t123-1317(SP)
-        MOVQ         $0, t107-1233(SP)
-        MOVL         $0, t142-1417(SP)
-        MOVQ         $0, t119-1297(SP)
-        MOVL         $0, t126-1333(SP)
-        MOVQ         $0, t26-529(SP)
-        MOVQ         $0, t26-521(SP)
-        MOVQ         $0, t58-913(SP)
-        MOVQ         $0, t58-905(SP)
-        MOVL         $0, t82-1097(SP)
-        MOVQ         $0, t128-1345(SP)
-        MOVL         $0, t146-1437(SP)
+        MOVQ         $0, t0-248(SP)
         MOVQ         $0, t33-609(SP)
         MOVQ         $0, t33-601(SP)
-        MOVQ         $0, t53-849(SP)
-        MOVQ         $0, t53-841(SP)
-        MOVL         $0, t76-1065(SP)
-        MOVL         $0, t77-1069(SP)
-        MOVL         $0, t108-1237(SP)
-        MOVQ         $0, t5-281(SP)
-        MOVQ         $0, t5-273(SP)
-        MOVQ         $0, t16-401(SP)
-        MOVQ         $0, t16-393(SP)
-        MOVQ         $0, t61-945(SP)
-        MOVQ         $0, t61-937(SP)
-        MOVL         $0, t117-1285(SP)
-        MOVQ         $0, t125-1329(SP)
-        MOVQ         $0, t17-417(SP)
-        MOVQ         $0, t17-409(SP)
-        MOVQ         $0, t42-721(SP)
-        MOVQ         $0, t42-713(SP)
-        MOVQ         $0, t116-1281(SP)
-        MOVQ         $0, t54-865(SP)
-        MOVQ         $0, t54-857(SP)
-        MOVQ         $0, t64-977(SP)
-        MOVQ         $0, t64-969(SP)
-        MOVL         $0, t83-1101(SP)
-        MOVL         $0, t100-1193(SP)
-        MOVL         $0, t92-1149(SP)
-        MOVQ         $0, t134-1377(SP)
-        MOVQ         $0, t11-345(SP)
-        MOVQ         $0, t11-337(SP)
-        MOVQ         $0, t46-769(SP)
-        MOVQ         $0, t46-761(SP)
-        MOVQ         $0, t131-1361(SP)
-        MOVQ         $0, t25-513(SP)
-        MOVQ         $0, t25-505(SP)
-        MOVQ         $0, t81-1093(SP)
-        MOVL         $0, t132-1365(SP)
-        MOVL         $0, t136-1385(SP)
-        MOVQ         $0, t10-329(SP)
-        MOVQ         $0, t21-465(SP)
-        MOVQ         $0, t21-457(SP)
-        MOVQ         $0, t28-545(SP)
-        MOVQ         $0, t28-537(SP)
-        MOVL         $0, t115-1273(SP)
-        MOVL         $0, t101-1197(SP)
-        MOVQ         $0, t0-248(SP)
-        MOVQ         $0, t8-321(SP)
-        MOVQ         $0, t8-313(SP)
-        MOVQ         $0, t69-1029(SP)
-        MOVL         $0, t71-1037(SP)
-        MOVL         $0, t89-1133(SP)
-        MOVL         $0, t95-1165(SP)
-        MOVL         $0, t98-1181(SP)
-        MOVL         $0, t133-1369(SP)
-        MOVQ         $0, t138-1397(SP)
-        MOVQ         $0, t13-369(SP)
-        MOVQ         $0, t13-361(SP)
-        MOVQ         $0, t24-497(SP)
-        MOVQ         $0, t24-489(SP)
-        MOVL         $0, t103-1209(SP)
-        MOVQ         $0, t104-1217(SP)
-        MOVQ         $0, t144-1429(SP)
-        MOVQ         $0, t4-265(SP)
-        MOVQ         $0, t41-705(SP)
-        MOVQ         $0, t41-697(SP)
-        MOVQ         $0, t50-817(SP)
-        MOVQ         $0, t50-809(SP)
-        MOVL         $0, t85-1113(SP)
-        MOVL         $0, t94-1161(SP)
-        MOVQ         $0, t122-1313(SP)
-        MOVQ         $0, t57-897(SP)
-        MOVQ         $0, t57-889(SP)
-        MOVQ         $0, t102-1205(SP)
-        MOVL         $0, t145-1433(SP)
-        MOVQ         $0, t49-801(SP)
-        MOVQ         $0, t49-793(SP)
-        MOVL         $0, t70-1033(SP)
-        MOVQ         $0, t78-1077(SP)
-        MOVQ         $0, t99-1189(SP)
-        MOVL         $0, t105-1221(SP)
-        MOVL         $0, t114-1269(SP)
-        MOVQ         $0, t1-256(SP)
-        MOVQ         $0, t30-577(SP)
-        MOVQ         $0, t30-569(SP)
-        MOVQ         $0, t40-689(SP)
-        MOVQ         $0, t40-681(SP)
-        MOVL         $0, t88-1129(SP)
-        MOVL         $0, t120-1301(SP)
-        MOVQ         $0, t20-449(SP)
-        MOVQ         $0, t20-441(SP)
-        MOVQ         $0, t52-833(SP)
-        MOVQ         $0, t52-825(SP)
-        MOVQ         $0, t113-1265(SP)
-        MOVL         $0, t129-1349(SP)
-        MOVL         $0, t130-1353(SP)
-        MOVQ         $0, t7-305(SP)
-        MOVQ         $0, t7-297(SP)
-        MOVQ         $0, t72-1045(SP)
-        MOVL         $0, t106-1225(SP)
-        MOVL         $0, t139-1401(SP)
-        MOVQ         $0, t36-641(SP)
-        MOVQ         $0, t36-633(SP)
-        MOVL         $0, t73-1049(SP)
-        MOVQ         $0, t37-657(SP)
-        MOVQ         $0, t37-649(SP)
-        MOVQ         $0, t75-1061(SP)
-        MOVQ         $0, t84-1109(SP)
-        MOVL         $0, t135-1381(SP)
-        MOVL         $0, t143-1421(SP)
-        MOVQ         $0, t18-433(SP)
-        MOVQ         $0, t18-425(SP)
-        MOVQ         $0, t22-481(SP)
-        MOVQ         $0, t22-473(SP)
-        MOVQ         $0, t56-881(SP)
-        MOVQ         $0, t56-873(SP)
-        MOVQ         $0, t66-1009(SP)
-        MOVQ         $0, t66-1001(SP)
-        MOVL         $0, t74-1053(SP)
-        MOVQ         $0, t29-561(SP)
-        MOVQ         $0, t29-553(SP)
-        MOVQ         $0, t62-961(SP)
-        MOVQ         $0, t62-953(SP)
-        MOVQ         $0, t93-1157(SP)
-        MOVL         $0, t140-1405(SP)
-        MOVB         $0, t2-257(SP)
-        MOVQ         $0, t32-593(SP)
-        MOVQ         $0, t32-585(SP)
-        MOVL         $0, t80-1085(SP)
-        MOVL         $0, t118-1289(SP)
         MOVQ         $0, t48-785(SP)
         MOVQ         $0, t48-777(SP)
-        MOVL         $0, t68-1021(SP)
-        MOVQ         $0, t6-289(SP)
-        MOVL         $0, t127-1337(SP)
-        MOVQ         $0, t67-1017(SP)
-        MOVL         $0, t79-1081(SP)
-        MOVQ         $0, t87-1125(SP)
-        MOVL         $0, t112-1257(SP)
-        MOVQ         $0, t14-385(SP)
-        MOVQ         $0, t14-377(SP)
-        MOVQ         $0, t34-625(SP)
-        MOVQ         $0, t34-617(SP)
-        MOVQ         $0, t65-993(SP)
-        MOVQ         $0, t65-985(SP)
-        MOVQ         $0, t90-1141(SP)
-        MOVL         $0, t91-1145(SP)
-        MOVQ         $0, t141-1413(SP)
-        MOVQ         $0, t110-1249(SP)
-        MOVQ         $0, t12-353(SP)
+        MOVQ         $0, t102-1205(SP)
+        MOVL         $0, t114-1269(SP)
+        MOVQ         $0, t37-657(SP)
+        MOVQ         $0, t37-649(SP)
         MOVQ         $0, t38-673(SP)
         MOVQ         $0, t38-665(SP)
         MOVQ         $0, t45-753(SP)
         MOVQ         $0, t45-745(SP)
+        MOVQ         $0, t64-977(SP)
+        MOVQ         $0, t64-969(SP)
+        MOVL         $0, t86-1117(SP)
+        MOVL         $0, t94-1161(SP)
+        MOVL         $0, t95-1165(SP)
+        MOVB         $0, t2-257(SP)
+        MOVQ         $0, t65-993(SP)
+        MOVQ         $0, t65-985(SP)
+        MOVQ         $0, t8-321(SP)
+        MOVQ         $0, t8-313(SP)
+        MOVQ         $0, t110-1249(SP)
+        MOVQ         $0, t119-1297(SP)
+        MOVL         $0, t68-1021(SP)
+        MOVQ         $0, t104-1217(SP)
+        MOVQ         $0, t131-1361(SP)
+        MOVL         $0, t79-1081(SP)
+        MOVL         $0, t130-1353(SP)
+        MOVQ         $0, t144-1429(SP)
+        MOVQ         $0, t7-305(SP)
+        MOVQ         $0, t7-297(SP)
+        MOVL         $0, t74-1053(SP)
+        MOVL         $0, t121-1305(SP)
+        MOVQ         $0, t67-1017(SP)
+        MOVL         $0, t98-1181(SP)
+        MOVL         $0, t108-1237(SP)
+        MOVL         $0, t123-1317(SP)
+        MOVQ         $0, t134-1377(SP)
+        MOVQ         $0, t10-329(SP)
+        MOVQ         $0, t62-961(SP)
+        MOVQ         $0, t62-953(SP)
+        MOVL         $0, t91-1145(SP)
+        MOVL         $0, t117-1285(SP)
+        MOVQ         $0, t26-529(SP)
+        MOVQ         $0, t26-521(SP)
+        MOVQ         $0, t49-801(SP)
+        MOVQ         $0, t49-793(SP)
+        MOVQ         $0, t138-1397(SP)
+        MOVQ         $0, t61-945(SP)
+        MOVQ         $0, t61-937(SP)
+        MOVQ         $0, t81-1093(SP)
+        MOVL         $0, t142-1417(SP)
+        MOVQ         $0, t21-465(SP)
+        MOVQ         $0, t21-457(SP)
+        MOVL         $0, t89-1133(SP)
+        MOVQ         $0, t113-1265(SP)
+        MOVQ         $0, t1-256(SP)
+        MOVQ         $0, t46-769(SP)
+        MOVQ         $0, t46-761(SP)
+        MOVL         $0, t133-1369(SP)
+        MOVQ         $0, t24-497(SP)
+        MOVQ         $0, t24-489(SP)
+        MOVQ         $0, t34-625(SP)
+        MOVQ         $0, t34-617(SP)
+        MOVQ         $0, t40-689(SP)
+        MOVQ         $0, t40-681(SP)
+        MOVQ         $0, t20-449(SP)
+        MOVQ         $0, t20-441(SP)
+        MOVQ         $0, t69-1029(SP)
+        MOVL         $0, t85-1113(SP)
+        MOVQ         $0, t87-1125(SP)
+        MOVL         $0, t88-1129(SP)
+        MOVQ         $0, t4-265(SP)
+        MOVQ         $0, t96-1173(SP)
+        MOVL         $0, t105-1221(SP)
+        MOVL         $0, t136-1385(SP)
+        MOVQ         $0, t11-345(SP)
+        MOVQ         $0, t11-337(SP)
+        MOVL         $0, t70-1033(SP)
+        MOVL         $0, t111-1253(SP)
+        MOVQ         $0, t66-1009(SP)
+        MOVQ         $0, t66-1001(SP)
+        MOVQ         $0, t122-1313(SP)
+        MOVQ         $0, t128-1345(SP)
+        MOVL         $0, t132-1365(SP)
+        MOVQ         $0, t32-593(SP)
+        MOVQ         $0, t32-585(SP)
+        MOVQ         $0, t56-881(SP)
+        MOVQ         $0, t56-873(SP)
+        MOVQ         $0, t58-913(SP)
+        MOVQ         $0, t58-905(SP)
+        MOVQ         $0, t99-1189(SP)
+        MOVL         $0, t101-1197(SP)
+        MOVL         $0, t129-1349(SP)
+        MOVL         $0, t146-1437(SP)
+        MOVQ         $0, t57-897(SP)
+        MOVQ         $0, t57-889(SP)
+        MOVQ         $0, t12-353(SP)
+        MOVQ         $0, t25-513(SP)
+        MOVQ         $0, t25-505(SP)
+        MOVQ         $0, t30-577(SP)
+        MOVQ         $0, t30-569(SP)
+        MOVL         $0, t112-1257(SP)
+        MOVQ         $0, t125-1329(SP)
+        MOVQ         $0, t72-1045(SP)
+        MOVL         $0, t82-1097(SP)
+        MOVL         $0, t109-1241(SP)
+        MOVQ         $0, t44-737(SP)
+        MOVQ         $0, t44-729(SP)
+        MOVL         $0, t97-1177(SP)
+        MOVL         $0, t115-1273(SP)
+        MOVL         $0, t124-1321(SP)
+        MOVL         $0, t140-1405(SP)
+        MOVQ         $0, t28-545(SP)
+        MOVQ         $0, t28-537(SP)
+        MOVL         $0, t100-1193(SP)
+        MOVL         $0, t118-1289(SP)
+        MOVL         $0, t126-1333(SP)
+        MOVL         $0, t127-1337(SP)
+        MOVL         $0, t145-1433(SP)
+        MOVQ         $0, t17-417(SP)
+        MOVQ         $0, t17-409(SP)
+        MOVQ         $0, t42-721(SP)
+        MOVQ         $0, t42-713(SP)
+        MOVQ         $0, t53-849(SP)
+        MOVQ         $0, t53-841(SP)
+        MOVL         $0, t92-1149(SP)
+        MOVL         $0, t76-1065(SP)
+        MOVQ         $0, t78-1077(SP)
+        MOVL         $0, t120-1301(SP)
+        MOVL         $0, t73-1049(SP)
+        MOVQ         $0, t90-1141(SP)
+        MOVQ         $0, t36-641(SP)
+        MOVQ         $0, t36-633(SP)
+        MOVQ         $0, t116-1281(SP)
+        MOVQ         $0, t50-817(SP)
+        MOVQ         $0, t50-809(SP)
+        MOVQ         $0, t52-833(SP)
+        MOVQ         $0, t52-825(SP)
+        MOVQ         $0, t54-865(SP)
+        MOVQ         $0, t54-857(SP)
+        MOVL         $0, t103-1209(SP)
+        MOVQ         $0, t5-281(SP)
+        MOVQ         $0, t5-273(SP)
+        MOVQ         $0, t14-385(SP)
+        MOVQ         $0, t14-377(SP)
         MOVQ         $0, t60-929(SP)
         MOVQ         $0, t60-921(SP)
-        MOVL         $0, t109-1241(SP)
-        MOVL         $0, t121-1305(SP)
+        MOVL         $0, t80-1085(SP)
+        MOVL         $0, t139-1401(SP)
+        MOVQ         $0, t16-401(SP)
+        MOVQ         $0, t16-393(SP)
+        MOVQ         $0, t22-481(SP)
+        MOVQ         $0, t22-473(SP)
+        MOVQ         $0, t41-705(SP)
+        MOVQ         $0, t41-697(SP)
+        MOVL         $0, t71-1037(SP)
+        MOVQ         $0, t75-1061(SP)
+        MOVL         $0, t83-1101(SP)
+        MOVQ         $0, t18-433(SP)
+        MOVQ         $0, t18-425(SP)
+        MOVL         $0, t77-1069(SP)
+        MOVQ         $0, t84-1109(SP)
+        MOVQ         $0, t93-1157(SP)
+        MOVL         $0, t135-1381(SP)
+        MOVQ         $0, t6-289(SP)
+        MOVQ         $0, t13-369(SP)
+        MOVQ         $0, t13-361(SP)
+        MOVQ         $0, t141-1413(SP)
         MOVL         $0, t137-1389(SP)
-        MOVQ         $0, t96-1173(SP)
-        MOVL         $0, t97-1177(SP)
-        MOVL         $0, t124-1321(SP)
+        MOVL         $0, t143-1421(SP)
+        MOVQ         $0, t29-561(SP)
+        MOVQ         $0, t29-553(SP)
+        MOVL         $0, t106-1225(SP)
+        MOVQ         $0, t107-1233(SP)
 block0:
         MOVQ         x+8(FP), R15
+        MOVQ         R15, t0-248(SP)
         MOVQ         y+32(FP), R14
-        CMPQ         R15, R14
+        MOVQ         R14, t1-256(SP)
+        MOVQ         t0-248(SP), R12
+        MOVQ         t1-256(SP), R11
+        CMPQ         R12, R11
         SETNE        R13
         MOVB         R13, t2-257(SP)
-        MOVQ         R14, t1-256(SP)
-        MOVQ         R15, t0-248(SP)
         MOVB         t2-257(SP), R15
         CMPB         R15, $0
         JEQ          block2
@@ -245,453 +247,513 @@ block2:
         MOVOU        t7-305(SP), X15
         MOVOU        t5-281(SP), X14
         PSUBL        X15, X14
-        MOVOU        X14, t3-16(SP)
+        MOVOU        X14, t8-321(SP)
+        MOVOU        t8-321(SP), X13
+        MOVOU        X13, t3-16(SP)
         MOVQ         $1, R12
         IMUL3Q       $16, R12, R12
         MOVQ         y+24(FP), R13
         ADDQ         R12, R13
         MOVQ         R13, R12
-        MOVUPS       (R12), X15
-        MOVUPS       X15, t11-345(SP)
+        MOVUPS       (R12), X12
+        MOVUPS       X12, t11-345(SP)
         MOVQ         $0, R11
         IMUL3Q       $16, R11, R11
         MOVQ         y+24(FP), R12
         ADDQ         R11, R12
         MOVQ         R12, R11
-        MOVUPS       (R11), X15
-        MOVUPS       X15, t13-369(SP)
-        MOVOU        t13-369(SP), X15
-        MOVOU        t11-345(SP), X13
-        PSUBL        X15, X13
-        MOVOU        X13, t9-32(SP)
-        MOVOU        t3-16(SP), X15
-        MOVOU        t3-16(SP), X12
-        MOVO         X12, X11
-        PMULULQ      X15, X11
-        MOVOU        X15, t16-401(SP)
-        PSRLO        $4, X15
-        MOVOU        X12, t17-417(SP)
-        PSRLO        $4, X12
-        MOVO         X12, X10
-        PMULULQ      X15, X10
-        PSHUFD       $8, X11, X9
-        PSHUFD       $8, X10, X8
-        PUNPCKLLQ    X8, X9
-        MOVOU        X9, t15-48(SP)
-        MOVOU        t9-32(SP), X15
-        MOVOU        t9-32(SP), X12
-        MOVO         X12, X11
-        PMULULQ      X15, X11
-        MOVOU        X15, t20-449(SP)
-        PSRLO        $4, X15
-        MOVOU        X12, t21-465(SP)
-        PSRLO        $4, X12
-        MOVO         X12, X10
-        PMULULQ      X15, X10
-        PSHUFD       $8, X11, X8
-        PSHUFD       $8, X10, X7
-        PUNPCKLLQ    X7, X8
-        MOVOU        X8, t19-64(SP)
-        MOVOU        t15-48(SP), X15
-        MOVOU        t19-64(SP), X12
-        MOVOU        X15, t24-497(SP)
-        PADDL        X12, X15
-        MOVOU        X15, t23-80(SP)
-        MOVOU        t3-16(SP), X11
-        MOVOU        t9-32(SP), X10
-        MOVOU        X11, t28-545(SP)
-        PSUBL        X10, X11
-        MOVOU        X11, t27-96(SP)
-        MOVOU        t15-48(SP), X7
-        MOVOU        t19-64(SP), X6
-        MOVOU        X7, t32-593(SP)
-        PSUBL        X6, X7
-        MOVOU        X7, t31-112(SP)
-        MOVOU        t27-96(SP), X5
-        MOVOU        t27-96(SP), X4
-        MOVO         X4, X3
-        PMULULQ      X5, X3
-        MOVOU        X5, t36-641(SP)
+        MOVUPS       (R11), X12
+        MOVUPS       X12, t13-369(SP)
+        MOVOU        t13-369(SP), X12
+        MOVOU        t11-345(SP), X11
+        PSUBL        X12, X11
+        MOVOU        X11, t14-385(SP)
+        MOVOU        t14-385(SP), X10
+        MOVOU        X10, t9-32(SP)
+        MOVOU        t3-16(SP), X9
+        MOVOU        X9, t16-401(SP)
+        MOVOU        X9, t17-417(SP)
+        MOVOU        t16-401(SP), X7
+        MOVOU        t17-417(SP), X6
+        MOVO         X6, X8
+        PMULULQ      X7, X8
+        PSRLO        $4, X7
+        PSRLO        $4, X6
+        MOVO         X6, X5
+        PMULULQ      X7, X5
+        PSHUFD       $8, X8, X4
+        PSHUFD       $8, X5, X3
+        PUNPCKLLQ    X3, X4
+        MOVOU        X4, t15-48(SP)
+        MOVOU        t9-32(SP), X8
+        MOVOU        X8, t20-449(SP)
+        MOVOU        X8, t21-465(SP)
+        MOVOU        t20-449(SP), X6
+        MOVOU        t21-465(SP), X5
+        MOVO         X5, X7
+        PMULULQ      X6, X7
+        PSRLO        $4, X6
         PSRLO        $4, X5
-        MOVOU        X4, t37-657(SP)
-        PSRLO        $4, X4
-        MOVO         X4, X2
-        PMULULQ      X5, X2
+        MOVO         X5, X3
+        PMULULQ      X6, X3
+        PSHUFD       $8, X7, X2
         PSHUFD       $8, X3, X1
-        PSHUFD       $8, X2, X0
-        PUNPCKLLQ    X0, X1
-        MOVOU        X1, t35-128(SP)
-        MOVOU        t31-112(SP), X5
-        MOVOU        t31-112(SP), X4
-        MOVO         X4, X3
-        PMULULQ      X5, X3
-        MOVOU        X5, t40-689(SP)
-        PSRLO        $4, X5
-        MOVOU        X4, t41-705(SP)
-        PSRLO        $4, X4
-        MOVO         X4, X2
-        PMULULQ      X5, X2
-        PSHUFD       $8, X3, X0
-        MOVOU        X1, t38-673(SP)
-        PSHUFD       $8, X2, X1
-        PUNPCKLLQ    X1, X0
-        MOVOU        X0, t39-144(SP)
-        MOVOU        t35-128(SP), X5
-        MOVOU        t39-144(SP), X4
-        MOVOU        X5, t44-737(SP)
-        PADDL        X4, X5
-        MOVOU        X5, t43-160(SP)
-        MOVOU        t27-96(SP), X3
-        MOVOU        t31-112(SP), X2
-        MOVOU        X3, t48-785(SP)
-        PSUBL        X2, X3
-        MOVOU        X3, t47-176(SP)
-        MOVOU        t35-128(SP), X1
-        MOVOU        X0, t42-721(SP)
-        MOVOU        t39-144(SP), X0
-        MOVOU        X1, t52-833(SP)
+        PUNPCKLLQ    X1, X2
+        MOVOU        X2, t19-64(SP)
+        MOVOU        t15-48(SP), X7
+        MOVOU        X7, t24-497(SP)
+        MOVOU        t19-64(SP), X6
+        MOVOU        X6, t25-513(SP)
+        MOVOU        t25-513(SP), X5
+        MOVOU        t24-497(SP), X3
+        PADDL        X5, X3
+        MOVOU        X3, t26-529(SP)
+        MOVOU        t26-529(SP), X1
+        MOVOU        X1, t23-80(SP)
+        MOVOU        X9, t28-545(SP)
+        MOVOU        X8, t29-561(SP)
+        MOVOU        t29-561(SP), X0
+        MOVOU        t28-545(SP), X1
         PSUBL        X0, X1
-        MOVOU        X1, t51-192(SP)
-        MOVOU        X0, t53-849(SP)
-        MOVOU        t47-176(SP), X0
-        MOVOU        X1, t54-865(SP)
-        MOVOU        t47-176(SP), X1
-        MOVOU        X2, t49-801(SP)
-        MOVO         X1, X2
-        PMULULQ      X0, X2
-        MOVOU        X0, t56-881(SP)
-        PSRLO        $4, X0
-        MOVOU        X1, t57-897(SP)
-        PSRLO        $4, X1
-        MOVOU        X3, t50-817(SP)
-        MOVO         X1, X3
-        PMULULQ      X0, X3
+        MOVOU        X1, t30-577(SP)
+        MOVOU        t30-577(SP), X0
+        MOVOU        X0, t27-96(SP)
+        MOVOU        X7, t32-593(SP)
+        MOVOU        X6, t33-609(SP)
+        MOVOU        t33-609(SP), X0
+        MOVOU        X1, t28-545(SP)
+        MOVOU        t32-593(SP), X1
+        PSUBL        X0, X1
+        MOVOU        X1, t34-625(SP)
+        MOVOU        t34-625(SP), X0
+        MOVOU        X0, t31-112(SP)
+        MOVOU        t27-96(SP), X0
+        MOVOU        X0, t36-641(SP)
+        MOVOU        X0, t37-657(SP)
+        MOVOU        X1, t32-593(SP)
+        MOVOU        X2, t22-481(SP)
+        MOVOU        t36-641(SP), X2
+        MOVOU        X3, t24-497(SP)
+        MOVOU        t37-657(SP), X3
+        MOVO         X3, X1
+        PMULULQ      X2, X1
+        PSRLO        $4, X2
+        PSRLO        $4, X3
+        MOVOU        X4, t18-433(SP)
+        MOVO         X3, X4
+        PMULULQ      X2, X4
+        PSHUFD       $8, X1, X5
+        PSHUFD       $8, X4, X10
+        PUNPCKLLQ    X10, X5
+        MOVOU        X5, t35-128(SP)
+        MOVOU        t31-112(SP), X10
+        MOVOU        X10, t40-689(SP)
+        MOVOU        X10, t41-705(SP)
+        MOVOU        t40-689(SP), X3
+        MOVOU        t41-705(SP), X2
+        MOVO         X2, X4
+        PMULULQ      X3, X4
+        PSRLO        $4, X3
+        PSRLO        $4, X2
+        MOVO         X2, X1
+        PMULULQ      X3, X1
+        MOVOU        X5, t38-673(SP)
+        PSHUFD       $8, X4, X5
+        MOVOU        X11, t11-345(SP)
+        PSHUFD       $8, X1, X11
+        PUNPCKLLQ    X11, X5
+        MOVOU        X5, t39-144(SP)
+        MOVOU        t35-128(SP), X11
+        MOVOU        X11, t44-737(SP)
+        MOVOU        t39-144(SP), X4
         MOVOU        X4, t45-753(SP)
-        PSHUFD       $8, X2, X4
-        MOVOU        X5, t46-769(SP)
-        PSHUFD       $8, X3, X5
-        PUNPCKLLQ    X5, X4
-        MOVOU        X4, t55-208(SP)
-        MOVOU        t51-192(SP), X5
-        MOVOU        t51-192(SP), X3
+        MOVOU        t45-753(SP), X3
+        MOVOU        t44-737(SP), X2
+        PADDL        X3, X2
+        MOVOU        X2, t46-769(SP)
+        MOVOU        t46-769(SP), X1
+        MOVOU        X1, t43-160(SP)
+        MOVOU        X0, t48-785(SP)
+        MOVOU        X10, t49-801(SP)
+        MOVOU        t49-801(SP), X1
+        MOVOU        X2, t44-737(SP)
+        MOVOU        t48-785(SP), X2
+        PSUBL        X1, X2
+        MOVOU        X2, t50-817(SP)
+        MOVOU        t50-817(SP), X1
+        MOVOU        X1, t47-176(SP)
+        MOVOU        X11, t52-833(SP)
+        MOVOU        X4, t53-849(SP)
+        MOVOU        t53-849(SP), X1
+        MOVOU        X2, t48-785(SP)
+        MOVOU        t52-833(SP), X2
+        PSUBL        X1, X2
+        MOVOU        X2, t54-865(SP)
+        MOVOU        t54-865(SP), X1
+        MOVOU        X1, t51-192(SP)
+        MOVOU        t47-176(SP), X1
+        MOVOU        X1, t56-881(SP)
+        MOVOU        X1, t57-897(SP)
+        MOVOU        X2, t52-833(SP)
+        MOVOU        t56-881(SP), X3
+        MOVOU        X5, t42-721(SP)
+        MOVOU        t57-897(SP), X5
+        MOVO         X5, X2
+        PMULULQ      X3, X2
+        PSRLO        $4, X3
+        PSRLO        $4, X5
+        MOVO         X5, X12
+        PMULULQ      X3, X12
+        PSHUFD       $8, X2, X13
+        MOVOU        X14, t5-281(SP)
+        PSHUFD       $8, X12, X14
+        PUNPCKLLQ    X14, X13
+        MOVOU        X13, t55-208(SP)
+        MOVOU        t51-192(SP), X14
+        MOVOU        X14, t60-929(SP)
+        MOVOU        X14, t61-945(SP)
+        MOVOU        t60-929(SP), X5
+        MOVOU        t61-945(SP), X3
+        MOVO         X3, X12
+        PMULULQ      X5, X12
+        PSRLO        $4, X5
+        PSRLO        $4, X3
         MOVO         X3, X2
         PMULULQ      X5, X2
-        MOVOU        X5, t60-929(SP)
-        PSRLO        $4, X5
-        MOVOU        X3, t61-945(SP)
-        PSRLO        $4, X3
-        MOVO         X3, X1
-        PMULULQ      X5, X1
-        PSHUFD       $8, X2, X0
-        MOVOU        X4, t58-913(SP)
-        PSHUFD       $8, X1, X4
-        PUNPCKLLQ    X4, X0
-        MOVOU        X0, t59-224(SP)
-        MOVOU        t55-208(SP), X5
-        MOVOU        t59-224(SP), X4
-        MOVOU        X5, t64-977(SP)
-        PADDL        X4, X5
-        MOVOU        X5, t63-240(SP)
+        MOVOU        X13, t58-913(SP)
+        PSHUFD       $8, X12, X13
+        PSHUFD       $8, X2, X15
+        PUNPCKLLQ    X15, X13
+        MOVOU        X13, t59-224(SP)
+        MOVOU        t55-208(SP), X15
+        MOVOU        X15, t64-977(SP)
+        MOVOU        t59-224(SP), X12
+        MOVOU        X12, t65-993(SP)
+        MOVOU        t65-993(SP), X5
+        MOVOU        t64-977(SP), X3
+        PADDL        X5, X3
+        MOVOU        X3, t66-1009(SP)
+        MOVOU        t66-1009(SP), X2
+        MOVOU        X2, t63-240(SP)
+        MOVOU        X9, t3-16(SP)
         MOVQ         $0, R10
         IMUL3Q       $4, R10, R10
         LEAQ         t3-16(SP), R11
         ADDQ         R10, R11
-        MOVQ         R11, R9
-        MOVL         (R9), R10
+        MOVL         (R11), R10
         MOVL         R10, t68-1021(SP)
         MOVQ         $1, R9
         IMUL3Q       $4, R9, R9
         LEAQ         t3-16(SP), R10
         ADDQ         R9, R10
-        MOVQ         R10, R8
-        MOVL         (R8), R9
+        MOVL         (R10), R9
         MOVL         R9, t70-1033(SP)
         MOVL         t68-1021(SP), R8
+        MOVQ         R10, t69-1029(SP)
         MOVL         t70-1033(SP), R10
         MOVL         R8, R9
         ADDL         R10, R9
-        MOVQ         $2, R8
-        IMUL3Q       $4, R8, R8
-        LEAQ         t3-16(SP), R10
-        ADDQ         R8, R10
-        MOVQ         R10, BP
-        MOVL         (BP), R8
-        MOVL         R8, t73-1049(SP)
+        MOVQ         $2, BX
+        IMUL3Q       $4, BX, BX
+        LEAQ         t3-16(SP), BP
+        ADDQ         BX, BP
+        MOVL         (BP), BX
+        MOVL         BX, t73-1049(SP)
         MOVL         t73-1049(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
-        MOVQ         $3, BP
-        IMUL3Q       $4, BP, BP
-        LEAQ         t3-16(SP), R10
-        ADDQ         BP, R10
-        MOVQ         R10, BX
-        MOVL         (BX), BP
-        MOVL         BP, t76-1065(SP)
+        MOVQ         $3, DI
+        IMUL3Q       $4, DI, DI
+        LEAQ         t3-16(SP), BX
+        ADDQ         DI, BX
+        MOVL         (BX), DI
+        MOVL         DI, t76-1065(SP)
         MOVL         R8, t74-1053(SP)
         MOVL         R9, t71-1037(SP)
         MOVL         t74-1053(SP), R9
         MOVL         t76-1065(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
-        MOVQ         $0, R9
-        IMUL3Q       $4, R9, R9
-        LEAQ         t27-96(SP), R10
-        ADDQ         R9, R10
-        MOVQ         R10, BP
-        MOVL         (BP), R9
-        MOVL         R9, t79-1081(SP)
-        MOVL         t79-1081(SP), R10
-        MOVL         R8, R9
-        ADDL         R10, R9
-        MOVQ         $1, BP
-        IMUL3Q       $4, BP, BP
-        LEAQ         t27-96(SP), R10
-        ADDQ         BP, R10
-        MOVQ         R10, BX
-        MOVL         (BX), BP
-        MOVL         BP, t82-1097(SP)
+        MOVOU        X0, t27-96(SP)
+        MOVQ         $0, SI
+        IMUL3Q       $4, SI, SI
+        LEAQ         t27-96(SP), DI
+        ADDQ         SI, DI
+        MOVL         (DI), SI
+        MOVL         SI, t79-1081(SP)
         MOVL         R8, t77-1069(SP)
+        MOVL         t77-1069(SP), R9
+        MOVL         t79-1081(SP), R10
+        MOVL         R9, R8
+        ADDL         R10, R8
+        MOVQ         DI, t78-1077(SP)
+        MOVQ         $1, DI
+        IMUL3Q       $4, DI, DI
+        LEAQ         t27-96(SP), SI
+        ADDQ         DI, SI
+        MOVL         (SI), DI
+        MOVL         DI, t82-1097(SP)
+        MOVL         R8, t80-1085(SP)
+        MOVL         t80-1085(SP), R9
         MOVL         t82-1097(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
-        MOVQ         $2, BP
-        IMUL3Q       $4, BP, BP
-        LEAQ         t27-96(SP), R10
-        ADDQ         BP, R10
-        MOVQ         R10, BX
-        MOVL         (BX), BP
-        MOVL         BP, t85-1113(SP)
+        MOVQ         SI, t81-1093(SP)
+        MOVQ         $2, SI
+        IMUL3Q       $4, SI, SI
+        LEAQ         t27-96(SP), DI
+        ADDQ         SI, DI
+        MOVL         (DI), SI
+        MOVL         SI, t85-1113(SP)
         MOVL         R8, t83-1101(SP)
-        MOVL         R9, t80-1085(SP)
         MOVL         t83-1101(SP), R9
         MOVL         t85-1113(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
-        MOVQ         $3, R9
-        IMUL3Q       $4, R9, R9
-        LEAQ         t27-96(SP), R10
-        ADDQ         R9, R10
-        MOVQ         R10, BP
-        MOVL         (BP), R9
-        MOVL         R9, t88-1129(SP)
-        MOVL         t88-1129(SP), R10
-        MOVL         R8, R9
-        ADDL         R10, R9
-        MOVQ         $0, BP
-        IMUL3Q       $4, BP, BP
-        LEAQ         t47-176(SP), R10
-        ADDQ         BP, R10
-        MOVQ         R10, BX
-        MOVL         (BX), BP
-        MOVL         BP, t91-1145(SP)
+        MOVQ         DI, t84-1109(SP)
+        MOVQ         $3, DI
+        IMUL3Q       $4, DI, DI
+        LEAQ         t27-96(SP), SI
+        ADDQ         DI, SI
+        MOVL         (SI), DI
+        MOVL         DI, t88-1129(SP)
         MOVL         R8, t86-1117(SP)
+        MOVL         t86-1117(SP), R9
+        MOVL         t88-1129(SP), R10
+        MOVL         R9, R8
+        ADDL         R10, R8
+        MOVOU        X1, t47-176(SP)
+        MOVQ         SI, t87-1125(SP)
+        MOVQ         $0, SI
+        IMUL3Q       $4, SI, SI
+        LEAQ         t47-176(SP), DI
+        ADDQ         SI, DI
+        MOVL         (DI), SI
+        MOVL         SI, t91-1145(SP)
+        MOVL         R8, t89-1133(SP)
+        MOVL         t89-1133(SP), R9
         MOVL         t91-1145(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
-        MOVQ         $1, BP
-        IMUL3Q       $4, BP, BP
-        LEAQ         t47-176(SP), R10
-        ADDQ         BP, R10
-        MOVQ         R10, BX
-        MOVL         (BX), BP
-        MOVL         BP, t94-1161(SP)
+        MOVQ         DI, t90-1141(SP)
+        MOVQ         $1, DI
+        IMUL3Q       $4, DI, DI
+        LEAQ         t47-176(SP), SI
+        ADDQ         DI, SI
+        MOVL         (SI), DI
+        MOVL         DI, t94-1161(SP)
         MOVL         R8, t92-1149(SP)
-        MOVL         R9, t89-1133(SP)
         MOVL         t92-1149(SP), R9
         MOVL         t94-1161(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
-        MOVQ         $2, R9
-        IMUL3Q       $4, R9, R9
-        LEAQ         t47-176(SP), R10
-        ADDQ         R9, R10
-        MOVQ         R10, BP
-        MOVL         (BP), R9
-        MOVL         R9, t97-1177(SP)
-        MOVL         t97-1177(SP), R10
-        MOVL         R8, R9
-        ADDL         R10, R9
-        MOVQ         $3, BP
-        IMUL3Q       $4, BP, BP
-        LEAQ         t47-176(SP), R10
-        ADDQ         BP, R10
-        MOVQ         R10, BX
-        MOVL         (BX), BP
-        MOVL         BP, t100-1193(SP)
+        MOVQ         SI, t93-1157(SP)
+        MOVQ         $2, SI
+        IMUL3Q       $4, SI, SI
+        LEAQ         t47-176(SP), DI
+        ADDQ         SI, DI
+        MOVL         (DI), SI
+        MOVL         SI, t97-1177(SP)
         MOVL         R8, t95-1165(SP)
+        MOVL         t95-1165(SP), R9
+        MOVL         t97-1177(SP), R10
+        MOVL         R9, R8
+        ADDL         R10, R8
+        MOVQ         DI, t96-1173(SP)
+        MOVQ         $3, DI
+        IMUL3Q       $4, DI, DI
+        LEAQ         t47-176(SP), SI
+        ADDQ         DI, SI
+        MOVL         (SI), DI
+        MOVL         DI, t100-1193(SP)
+        MOVL         R8, t98-1181(SP)
+        MOVL         t98-1181(SP), R9
         MOVL         t100-1193(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
-        MOVQ         $0, BP
-        IMUL3Q       $4, BP, BP
-        LEAQ         t9-32(SP), R10
-        ADDQ         BP, R10
-        MOVQ         R10, BX
-        MOVL         (BX), BP
-        MOVL         BP, t103-1209(SP)
-        MOVQ         $1, BX
-        IMUL3Q       $4, BX, BX
-        LEAQ         t9-32(SP), BP
-        ADDQ         BX, BP
-        MOVQ         BP, DI
-        MOVL         (DI), BX
-        MOVL         BX, t105-1221(SP)
+        MOVOU        X8, t9-32(SP)
+        MOVQ         SI, t99-1189(SP)
+        MOVQ         $0, SI
+        IMUL3Q       $4, SI, SI
+        LEAQ         t9-32(SP), DI
+        ADDQ         SI, DI
+        MOVL         (DI), SI
+        MOVL         SI, t103-1209(SP)
+        MOVQ         DI, t102-1205(SP)
+        MOVQ         $1, DI
+        IMUL3Q       $4, DI, DI
+        LEAQ         t9-32(SP), SI
+        ADDQ         DI, SI
+        MOVL         (SI), DI
+        MOVL         DI, t105-1221(SP)
         MOVL         R8, t101-1197(SP)
-        MOVL         R9, t98-1181(SP)
         MOVL         t103-1209(SP), R9
         MOVL         t105-1221(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
-        MOVQ         $2, R9
-        IMUL3Q       $4, R9, R9
-        LEAQ         t9-32(SP), R10
-        ADDQ         R9, R10
-        MOVQ         R10, BX
-        MOVL         (BX), R9
-        MOVL         R9, t108-1237(SP)
-        MOVL         t108-1237(SP), R10
-        MOVL         R8, R9
-        ADDL         R10, R9
-        MOVQ         $3, BX
-        IMUL3Q       $4, BX, BX
-        LEAQ         t9-32(SP), R10
-        ADDQ         BX, R10
-        MOVQ         R10, DI
-        MOVL         (DI), BX
-        MOVL         BX, t111-1253(SP)
+        MOVQ         SI, t104-1217(SP)
+        MOVQ         $2, SI
+        IMUL3Q       $4, SI, SI
+        LEAQ         t9-32(SP), DI
+        ADDQ         SI, DI
+        MOVL         (DI), SI
+        MOVL         SI, t108-1237(SP)
         MOVL         R8, t106-1225(SP)
+        MOVL         t106-1225(SP), R9
+        MOVL         t108-1237(SP), R10
+        MOVL         R9, R8
+        ADDL         R10, R8
+        MOVQ         DI, t107-1233(SP)
+        MOVQ         $3, DI
+        IMUL3Q       $4, DI, DI
+        LEAQ         t9-32(SP), SI
+        ADDQ         DI, SI
+        MOVL         (SI), DI
+        MOVL         DI, t111-1253(SP)
+        MOVL         R8, t109-1241(SP)
+        MOVL         t109-1241(SP), R9
         MOVL         t111-1253(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
-        MOVQ         $0, BX
-        IMUL3Q       $4, BX, BX
-        LEAQ         t31-112(SP), R10
-        ADDQ         BX, R10
-        MOVQ         R10, DI
-        MOVL         (DI), BX
-        MOVL         BX, t114-1269(SP)
+        MOVOU        X10, t31-112(SP)
+        MOVQ         SI, t110-1249(SP)
+        MOVQ         $0, SI
+        IMUL3Q       $4, SI, SI
+        LEAQ         t31-112(SP), DI
+        ADDQ         SI, DI
+        MOVL         (DI), SI
+        MOVL         SI, t114-1269(SP)
         MOVL         R8, t112-1257(SP)
-        MOVL         R9, t109-1241(SP)
         MOVL         t112-1257(SP), R9
         MOVL         t114-1269(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
-        MOVQ         $1, R9
-        IMUL3Q       $4, R9, R9
-        LEAQ         t31-112(SP), R10
-        ADDQ         R9, R10
-        MOVQ         R10, BX
-        MOVL         (BX), R9
-        MOVL         R9, t117-1285(SP)
-        MOVL         t117-1285(SP), R10
-        MOVL         R8, R9
-        ADDL         R10, R9
-        MOVQ         $2, BX
-        IMUL3Q       $4, BX, BX
-        LEAQ         t31-112(SP), R10
-        ADDQ         BX, R10
-        MOVQ         R10, DI
-        MOVL         (DI), BX
-        MOVL         BX, t120-1301(SP)
+        MOVQ         DI, t113-1265(SP)
+        MOVQ         $1, DI
+        IMUL3Q       $4, DI, DI
+        LEAQ         t31-112(SP), SI
+        ADDQ         DI, SI
+        MOVL         (SI), DI
+        MOVL         DI, t117-1285(SP)
         MOVL         R8, t115-1273(SP)
+        MOVL         t115-1273(SP), R9
+        MOVL         t117-1285(SP), R10
+        MOVL         R9, R8
+        ADDL         R10, R8
+        MOVQ         SI, t116-1281(SP)
+        MOVQ         $2, SI
+        IMUL3Q       $4, SI, SI
+        LEAQ         t31-112(SP), DI
+        ADDQ         SI, DI
+        MOVL         (DI), SI
+        MOVL         SI, t120-1301(SP)
+        MOVL         R8, t118-1289(SP)
+        MOVL         t118-1289(SP), R9
         MOVL         t120-1301(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
-        MOVQ         $3, BX
-        IMUL3Q       $4, BX, BX
-        LEAQ         t31-112(SP), R10
-        ADDQ         BX, R10
-        MOVQ         R10, DI
-        MOVL         (DI), BX
-        MOVL         BX, t123-1317(SP)
+        MOVQ         DI, t119-1297(SP)
+        MOVQ         $3, DI
+        IMUL3Q       $4, DI, DI
+        LEAQ         t31-112(SP), SI
+        ADDQ         DI, SI
+        MOVL         (SI), DI
+        MOVL         DI, t123-1317(SP)
         MOVL         R8, t121-1305(SP)
-        MOVL         R9, t118-1289(SP)
         MOVL         t121-1305(SP), R9
         MOVL         t123-1317(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
-        MOVQ         $0, R9
-        IMUL3Q       $4, R9, R9
-        LEAQ         t51-192(SP), R10
-        ADDQ         R9, R10
-        MOVQ         R10, BX
-        MOVL         (BX), R9
-        MOVL         R9, t126-1333(SP)
-        MOVL         t126-1333(SP), R10
-        MOVL         R8, R9
-        ADDL         R10, R9
-        MOVQ         $1, BX
-        IMUL3Q       $4, BX, BX
-        LEAQ         t51-192(SP), R10
-        ADDQ         BX, R10
-        MOVQ         R10, DI
-        MOVL         (DI), BX
-        MOVL         BX, t129-1349(SP)
+        MOVOU        X14, t51-192(SP)
+        MOVQ         SI, t122-1313(SP)
+        MOVQ         $0, SI
+        IMUL3Q       $4, SI, SI
+        LEAQ         t51-192(SP), DI
+        ADDQ         SI, DI
+        MOVL         (DI), SI
+        MOVL         SI, t126-1333(SP)
         MOVL         R8, t124-1321(SP)
+        MOVL         t124-1321(SP), R9
+        MOVL         t126-1333(SP), R10
+        MOVL         R9, R8
+        ADDL         R10, R8
+        MOVQ         DI, t125-1329(SP)
+        MOVQ         $1, DI
+        IMUL3Q       $4, DI, DI
+        LEAQ         t51-192(SP), SI
+        ADDQ         DI, SI
+        MOVL         (SI), DI
+        MOVL         DI, t129-1349(SP)
+        MOVL         R8, t127-1337(SP)
+        MOVL         t127-1337(SP), R9
         MOVL         t129-1349(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
-        MOVQ         $2, BX
-        IMUL3Q       $4, BX, BX
-        LEAQ         t51-192(SP), R10
-        ADDQ         BX, R10
-        MOVQ         R10, DI
-        MOVL         (DI), BX
-        MOVL         BX, t132-1365(SP)
+        MOVQ         SI, t128-1345(SP)
+        MOVQ         $2, SI
+        IMUL3Q       $4, SI, SI
+        LEAQ         t51-192(SP), DI
+        ADDQ         SI, DI
+        MOVL         (DI), SI
+        MOVL         SI, t132-1365(SP)
         MOVL         R8, t130-1353(SP)
-        MOVL         R9, t127-1337(SP)
         MOVL         t130-1353(SP), R9
         MOVL         t132-1365(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
-        MOVQ         $3, R9
-        IMUL3Q       $4, R9, R9
-        LEAQ         t51-192(SP), R10
-        ADDQ         R9, R10
-        MOVQ         R10, BX
-        MOVL         (BX), R9
-        MOVL         R9, t135-1381(SP)
-        MOVL         t135-1381(SP), R10
-        MOVL         R8, R9
-        ADDL         R10, R9
+        MOVQ         DI, t131-1361(SP)
+        MOVQ         $3, DI
+        IMUL3Q       $4, DI, DI
+        LEAQ         t51-192(SP), SI
+        ADDQ         DI, SI
+        MOVL         (SI), DI
+        MOVL         DI, t135-1381(SP)
         MOVL         R8, t133-1369(SP)
-        MOVL         t101-1197(SP), R8
-        MOVL         R8, R10
-        ADDL         R9, R10
-        MOVQ         $0, BX
-        IMUL3Q       $4, BX, BX
-        LEAQ         t23-80(SP), R8
-        ADDQ         BX, R8
-        MOVQ         R8, DI
-        MOVL         (DI), BX
-        MOVL         BX, t139-1401(SP)
-        MOVL         R9, t136-1385(SP)
-        MOVL         t139-1401(SP), R9
-        MOVL         R10, R8
-        ADDL         R9, R8
-        MOVQ         $1, BX
-        IMUL3Q       $4, BX, BX
-        LEAQ         t43-160(SP), R9
-        ADDQ         BX, R9
-        MOVQ         R9, DI
-        MOVL         (DI), BX
-        MOVL         BX, t142-1417(SP)
+        MOVL         t133-1369(SP), R9
+        MOVL         t135-1381(SP), R10
+        MOVL         R9, R8
+        ADDL         R10, R8
+        MOVL         R8, t136-1385(SP)
+        MOVL         t101-1197(SP), R9
+        MOVL         t136-1385(SP), R10
+        MOVL         R9, R8
+        ADDL         R10, R8
+        MOVQ         SI, t134-1377(SP)
+        MOVQ         $0, SI
+        IMUL3Q       $4, SI, SI
+        LEAQ         t23-80(SP), DI
+        ADDQ         SI, DI
+        MOVL         (DI), SI
+        MOVL         SI, t139-1401(SP)
+        MOVL         R8, t137-1389(SP)
+        MOVL         t137-1389(SP), R9
+        MOVL         t139-1401(SP), R10
+        MOVL         R9, R8
+        ADDL         R10, R8
+        MOVQ         DI, t138-1397(SP)
+        MOVQ         $1, DI
+        IMUL3Q       $4, DI, DI
+        LEAQ         t43-160(SP), SI
+        ADDQ         DI, SI
+        MOVL         (SI), DI
+        MOVL         DI, t142-1417(SP)
         MOVL         R8, t140-1405(SP)
         MOVL         t140-1405(SP), R9
-        MOVL         R10, t137-1389(SP)
         MOVL         t142-1417(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
-        MOVQ         $2, R9
-        IMUL3Q       $4, R9, R9
-        LEAQ         t63-240(SP), R10
-        ADDQ         R9, R10
-        MOVQ         R10, BX
-        MOVL         (BX), R9
-        MOVL         R9, t145-1433(SP)
+        MOVQ         SI, t141-1413(SP)
+        MOVQ         $2, SI
+        IMUL3Q       $4, SI, SI
+        LEAQ         t63-240(SP), DI
+        ADDQ         SI, DI
+        MOVL         (DI), SI
+        MOVL         SI, t145-1433(SP)
+        MOVL         R8, t143-1421(SP)
+        MOVL         t143-1421(SP), R9
         MOVL         t145-1433(SP), R10
-        MOVL         R8, R9
-        ADDL         R10, R9
-        MOVL         R9, ret0+48(FP)
+        MOVL         R9, R8
+        ADDL         R10, R8
+        MOVL         R8, ret0+48(FP)
         RET
 

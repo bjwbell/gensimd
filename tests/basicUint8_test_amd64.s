@@ -51,10 +51,9 @@ TEXT ·uint8_t4_simd(SB),$8-9
         MOVB         $0, t0-1(SP)
 block0:
         MOVB         x+0(FP), R14
-        MOVB         x+0(FP), R13
         MOVB         R14, R15
         MOVB         R15, AX
-        MULB         R13
+        MULB         R14
         MOVB         AX, R15
         MOVB         R15, ret0+8(FP)
         RET

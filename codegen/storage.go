@@ -2,12 +2,15 @@ package codegen
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/types"
 )
 
 type storage interface {
+	String() string
 	owner() *identifier
 	newOwner(newOwner *identifier, newRegion region)
 	ownerRegion() region
@@ -30,9 +33,9 @@ type transfer struct {
 }
 
 type memory struct {
-	stale      bool
-	ownr       *identifier
-	ownrRegion region
+	stale   bool
+	ownedby *identifier
+	owns    region
 
 	reg    *register
 	offset int
@@ -40,9 +43,13 @@ type memory struct {
 }
 
 type constant struct {
-	ownr       *identifier
-	ownrRegion region
+	ownedby *identifier
+	owns    region
 	*ssa.Const
+}
+
+func (r region) String() string {
+	return fmt.Sprintf("{offset: %v, size: %v}", r.offset, r.size)
 }
 
 func (r region) min() uint {
@@ -75,6 +82,10 @@ func (r region) overlap(other region) region {
 	} else {
 		return region{offset: min, size: max - min}
 	}
+}
+
+func (r *register) String() string {
+	return fmt.Sprintf("register %v - %v (d=%v)", r.name, r.ownerRegion().String(), r.dirty)
 }
 
 func (r *register) OpDataType() OpDataType {
@@ -141,7 +152,10 @@ func (r *register) copyChunk(f *Function, chunk transfer, dst storage) string {
 	case *register:
 		optype := r.OpDataType()
 		optype.size = chunk.size
-		return MovRegReg(optype, r, dst)
+		//own := dst.owner()
+		//validAlias := dst.isValidAlias
+		//dst.ownr = nil
+		return MovRegReg(optype, r, dst, false)
 	case *memory:
 		return r.save(chunk, dst)
 	}
@@ -160,21 +174,30 @@ func (r *register) save(chunk transfer, dst *memory) string {
 	return MovRegMem(optype, r, dst.name(), dst.reg, dstOffset)
 }
 
+func (m *memory) String() string {
+	if m.ownedby == nil {
+		ice("Unowned memory")
+	}
+	name := "memory " + m.ownedby.name + "+" + strconv.Itoa(m.offset) + "(" + m.reg.name + ")"
+	name += " - " + m.ownerRegion().String()
+	return strings.Replace(name, "+-", "-", -1)
+}
+
 func (m *memory) owner() *identifier {
-	return m.ownr
+	return m.ownedby
 }
 
 func (m *memory) newOwner(owner *identifier, ownerRegion region) {
-	m.ownr = owner
-	m.ownrRegion = ownerRegion
+	m.ownedby = owner
+	m.owns = ownerRegion
 }
 
 func (m *memory) ownerRegion() region {
-	return m.ownrRegion
+	return m.owns
 }
 
 func (m *memory) newRegion(newregion region) {
-	m.ownrRegion = newregion
+	m.owns = newregion
 }
 
 func (m *memory) name() string {
@@ -190,6 +213,9 @@ func (m *memory) isValid() bool {
 }
 
 func (m *memory) setValid(valid bool) {
+	if m.owner().f.Trace {
+		fmt.Printf("%v (v=%v, old=%v)\n", m.String(), valid, !m.stale)
+	}
 	m.stale = !valid
 }
 
@@ -215,14 +241,14 @@ func (m *memory) copyChunk(f *Function, chunk transfer, dst storage) string {
 			optype := m.optype()
 			optype.size = chunk.size
 			offset := m.offset + int(chunk.srcOffset)
-			return MovMemReg(optype, m.name(), offset, m.reg, dst)
+			return MovMemReg(optype, m.name(), offset, m.reg, dst, false)
 		} else {
 			if chunk.size > DataRegSize {
 				ice("can't copy to register, size too large")
 			}
 			optype := GetIntegerOpDataType(false, chunk.size)
 			offset := m.offset + int(chunk.srcOffset)
-			return MovMemReg(optype, m.name(), offset, m.reg, dst)
+			return MovMemReg(optype, m.name(), offset, m.reg, dst, false)
 		}
 	case *memory:
 		return copyMemMem(m, dst, chunk)
@@ -288,22 +314,26 @@ func copySmallMemMem(chunk transfer, src, dst *memory, tmp *register) string {
 	return asm
 }
 
+func (cnst *constant) String() string {
+	return "constant " + cnst.Const.String()
+}
+
 func (cnst *constant) owner() *identifier {
-	return cnst.ownr
+	return cnst.ownedby
 }
 
 func (cnst *constant) newOwner(owner *identifier, ownerRegion region) {
-	if cnst.ownr != owner {
-		cnst.ownr = owner
+	if cnst.ownedby != owner {
+		cnst.ownedby = owner
 	}
 }
 
 func (cnst *constant) ownerRegion() region {
-	return cnst.ownrRegion
+	return cnst.owns
 }
 
 func (cnst *constant) newRegion(newregion region) {
-	cnst.ownrRegion = newregion
+	cnst.owns = newregion
 }
 
 func (cnst *constant) isValid() bool {
@@ -344,7 +374,7 @@ func (cnst *constant) copyChunk(f *Function, chunk transfer, dst storage) string
 		if cnst.Value.String() == "true" {
 			val = 1
 		}
-		return MovImm8Reg(val, r)
+		return MovImm8Reg(val, r, false)
 	}
 	if isFloat(cnst.Type()) {
 		if r.typ != XMM_REG {
@@ -352,9 +382,9 @@ func (cnst *constant) copyChunk(f *Function, chunk transfer, dst storage) string
 		}
 		asm, tmp := f.allocTempReg(DATA_REG, 8)
 		if isFloat32(cnst.Type()) {
-			asm = MovImmf32Reg(float32(cnst.Float64()), tmp, r)
+			asm = MovImmf32Reg(float32(cnst.Float64()), tmp, r, false)
 		} else {
-			asm = MovImmf64Reg(cnst.Float64(), tmp, r)
+			asm = MovImmf64Reg(cnst.Float64(), tmp, r, false)
 		}
 		f.freeReg(tmp)
 		return asm
@@ -372,5 +402,5 @@ func (cnst *constant) copyChunk(f *Function, chunk transfer, dst storage) string
 
 		val = int64(cnst.Uint64())
 	}
-	return MovImmReg(val, size, r)
+	return MovImmReg(val, size, r, false)
 }

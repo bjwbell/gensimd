@@ -122,7 +122,8 @@ func packedOp(f *Function, loc ssa.Instruction, instrtype InstructionType, optyp
 		return "", err
 	}
 	asm += b
-	asm += instrRegReg(instr, regx, regy)
+	spill := result == y
+	asm += instrRegReg(instr, regx, regy, spill)
 	c, err := f.StoreSimd(loc, regy, result)
 	if err != nil {
 		return "", err
@@ -135,11 +136,11 @@ func packedOp(f *Function, loc ssa.Instruction, instrtype InstructionType, optyp
 	return asm, err
 }
 
-func instrImm8Reg(f *Function, instr Instruction, imm8 uint8, dst *register) string {
+func instrImm8Reg(f *Function, instr Instruction, imm8 uint8, dst *register, spill bool) string {
 	info := instrTable[instr]
 	asm := ""
 	if info.Flags&RightRdwr != 0 || info.Flags&RightWrite != 0 {
-		asm += dst.modified()
+		asm += dst.modified(spill)
 	} else {
 		fmt.Println("Instr:", instr)
 		ice("dst modify flag should be set")
@@ -147,11 +148,11 @@ func instrImm8Reg(f *Function, instr Instruction, imm8 uint8, dst *register) str
 	return asm + fmt.Sprintf("%-9v    $%v, %v\n", instr, imm8, dst.name)
 }
 
-func instrImm8RegReg(f *Function, instr Instruction, imm8 uint8, src, dst *register) string {
+func instrImm8RegReg(f *Function, instr Instruction, imm8 uint8, src, dst *register, spill bool) string {
 	info := instrTable[instr]
 	asm := ""
 	if info.Flags&RightRdwr != 0 || info.Flags&RightWrite != 0 {
-		asm += dst.modified()
+		asm += dst.modified(spill)
 	} else {
 		fmt.Println("Instr:", instr)
 		ice("dst modify flag should be set")
@@ -181,36 +182,36 @@ func mulI32x4(f *Function, loc ssa.Instruction, x, y, result *identifier) (strin
 	}
 	asm += b
 
-	asm += MovRegReg(OpDataType{op: OP_PACKED, xmmvariant: XMM_F128}, regy, tmp1)
-	asm += instrRegReg(PMULULQ, regx, tmp1) // mul dwords 2, 0
+	asm += MovRegReg(OpDataType{op: OP_PACKED, xmmvariant: XMM_F128}, regy, tmp1, false)
+	asm += instrRegReg(PMULULQ, regx, tmp1, false) // mul dwords 2, 0
 
-	asm += instrImm8Reg(f, PSRLO, 4, regx) // shift logical right by 4 bytes
+	asm += instrImm8Reg(f, PSRLO, 4, regx, true) // shift logical right by 4 bytes
 	if regy.name != regx.name {
-		asm += instrImm8Reg(f, PSRLO, 4, regy) // shift logical right by 4 bytes
+		asm += instrImm8Reg(f, PSRLO, 4, regy, true) // shift logical right by 4 bytes
 	}
 
 	a2, tmp2 := f.allocReg(loc, XMM_REG, 16)
 	asm += a2
 
-	asm += MovRegReg(OpDataType{op: OP_PACKED, xmmvariant: XMM_F128}, regy, tmp2)
-	asm += instrRegReg(PMULULQ, regx, tmp2) // mul dwords 3, 1
+	asm += MovRegReg(OpDataType{op: OP_PACKED, xmmvariant: XMM_F128}, regy, tmp2, false)
+	asm += instrRegReg(PMULULQ, regx, tmp2, false) // mul dwords 3, 1
 
 	// shuffle into first 64 bits of shufflet1
 	a3, shufflet1 := f.allocReg(loc, XMM_REG, 16)
 	asm += a3
 
-	asm += instrImm8RegReg(f, PSHUFD, 0x8, tmp1, shufflet1)
+	asm += instrImm8RegReg(f, PSHUFD, 0x8, tmp1, shufflet1, false)
 
 	// shuffle into first 64 bits of shufflet2
 	a4, shufflet2 := f.allocReg(loc, XMM_REG, 16)
 	asm += a4
 
-	asm += instrImm8RegReg(f, PSHUFD, 0x8, tmp2, shufflet2)
+	asm += instrImm8RegReg(f, PSHUFD, 0x8, tmp2, shufflet2, false)
 
 	punpckllq := PUNPCKLLQ
 
 	// Unpack and interleave 32-bit integers from the low half of shuffletmp1 and shuffletmp2, and store the results in shufflet2.
-	asm += instrRegReg(punpckllq, shufflet2, shufflet1)
+	asm += instrRegReg(punpckllq, shufflet2, shufflet1, false)
 
 	if a, err := f.StoreSimd(loc, shufflet1, result); err != nil {
 		return "", err
@@ -270,7 +271,7 @@ func shrU16x8(f *Function, loc ssa.Instruction, x, count, result *identifier) (s
 
 		for i := uint8(0); i < 8; i++ {
 
-			asm += instrImm8RegReg(f, PEXTRW, i, reg, wordReg)
+			asm += instrImm8RegReg(f, PEXTRW, i, reg, wordReg, true)
 
 			asm += ShiftRegReg(
 				false,
@@ -278,9 +279,9 @@ func shrU16x8(f *Function, loc ssa.Instruction, x, count, result *identifier) (s
 				wordReg,
 				countReg,
 				tmp,
-				wordReg.size())
+				wordReg.size(), true)
 
-			asm += instrImm8RegReg(f, PINSRW, i, wordReg, reg)
+			asm += instrImm8RegReg(f, PINSRW, i, wordReg, reg, true)
 
 		}
 
@@ -327,7 +328,7 @@ func shufU32x4(f *Function, loc ssa.Instruction, x, result, order *identifier) (
 	a1, dst := f.allocReg(loc, XMM_REG, XmmRegSize)
 	asm += a1
 
-	asm += instrImm8RegReg(f, PSHUFL, orderImm8, src, dst)
+	asm += instrImm8RegReg(f, PSHUFL, orderImm8, src, dst, false)
 
 	a, e := f.StoreSimd(loc, dst, result)
 	if e != nil {

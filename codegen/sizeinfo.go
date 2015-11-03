@@ -353,8 +353,8 @@ func sliceLenSize() uint {
 	return sizeInt()
 }
 
-func sliceLenOffset() int {
-	return int(sizePtr())
+func sliceLenOffset() uint {
+	return uint(sizePtr())
 }
 
 func reflectType(t types.Type) reflect.Type {

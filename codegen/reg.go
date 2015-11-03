@@ -1,8 +1,11 @@
 package codegen
 
+import "fmt"
+
 type register struct {
 	// register name e.g. ax, eax, rax, r15,...
-	name  string
+	name string
+	// idicates register is being used in current SSA/assembly instruction
 	inUse bool
 
 	regconst Reg
@@ -40,12 +43,24 @@ func (r *register) aliases() []storage {
 	}
 }
 
-func (r *register) modified() string {
+func (r *register) modified(spill bool) string {
 	inUse := r.inUse
-	a := r.spill()
+	var asm string
+	if spill {
+		asm = r.spill()
+	}
 	r.inUse = inUse
-	r.isValidAlias = false
-	return a
+	if r.owner() != nil {
+		if r.owner().f.Trace {
+			fmt.Printf("Modified %v (inUse %v, isValidAlias %v, dirty %v)\n",
+				r.name, r.inUse, r.isValidAlias, r.dirty)
+		}
+	}
+	if spill {
+		r.isValidAlias = false
+	}
+	r.dirty = true
+	return asm
 }
 
 func (r *register) isAlias(ident *identifier) bool {
@@ -62,7 +77,7 @@ func (r *register) isAlias(ident *identifier) bool {
 func (r *register) spill() string {
 	owner := r.owner()
 	if owner != nil {
-		return owner.spillRegister(r)
+		return owner.spillRegister(r, false)
 	}
 	return ""
 }

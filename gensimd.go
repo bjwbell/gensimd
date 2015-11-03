@@ -48,6 +48,7 @@ func fileName(pathName string) string {
 func main() {
 	var ssaDump = flag.Bool("ssa", false, "dump ssa representation")
 	var debug = flag.Bool("debug", false, "include debug comments in assembly")
+	var trace = flag.Bool("trace", false, "trace of assembly generation to stdout")
 	var printSpills = flag.Bool("spills", false, "print each register spill")
 	var output = flag.String("o", "", "Go assembly output file")
 	var f = flag.String("f", "", "input file with function definitions")
@@ -147,7 +148,7 @@ func main() {
 					log.Fatalf(msg, fnname, filePkgName)
 				} else {
 					dbg := *debug
-					fn, err := codegen.CreateFunction(fn, outfn, dbg)
+					fn, err := codegen.CreateFunction(fn, outfn, dbg, *trace)
 					fn.PrintSpills = *printSpills
 					if err != nil {
 						msg := "codegen error msg \"%v\""

@@ -55,23 +55,43 @@ func (name *identifier) Addr() (reg register, offset int, size uint) {
 }
 
 func (ident *identifier) addAlias(newAlias storage) bool {
+	if ident.f.Trace {
+		fmt.Printf("Alias: %v -> %v\n", ident.name, newAlias.String())
+
+	}
+	new := true
 	for _, alias := range ident.aliases {
 		if alias == newAlias {
-			return false
+			new = false
+		}
+		if ident.f.Trace {
+			fmt.Printf("     : %v -> %v (v=%v)\n", ident.name, alias.String(), alias.isValid())
 		}
 	}
-	ident.aliases = append(ident.aliases, newAlias)
-	return true
+	if new {
+		ident.aliases = append(ident.aliases, newAlias)
+	}
+	return new
 }
 
 func (ident *identifier) removeAlias(oldAlias storage) bool {
 	aliases := []storage{}
 	removed := false
+	if ident.f.Trace {
+		if r, ok := oldAlias.(*register); ok {
+			fmt.Printf("Alias: %v -/ %v (d=%v)\n", ident.name, oldAlias.String(), r.dirty)
+		} else {
+			fmt.Printf("Alias: %v -/ %v\n", ident.name, oldAlias.String())
+		}
+	}
 	for _, alias := range ident.aliases {
 		if alias == oldAlias {
 			removed = true
 		} else {
 			aliases = append(aliases, alias)
+			if ident.f.Trace {
+				fmt.Printf("     : %v -> %v (v=%v)\n", ident.name, alias.String(), alias.isValid())
+			}
 		}
 	}
 	if !removed {
@@ -107,35 +127,39 @@ func compareStorage(x, y storage) int {
 	}
 }
 
-func (ident *identifier) initStorage() {
-	if ident.getBestStorage() != nil {
+func (ident *identifier) initStorage(valid bool) {
+	if ident.getBestStorage(0, ident.size()) != nil {
 		return
 	}
 
 	if ident.cnst != nil {
 		st := &constant{
-			ownr:       ident,
-			ownrRegion: region{offset: 0, size: ident.size()},
-			Const:      ident.cnst}
+			ownedby: ident,
+			owns:    region{offset: 0, size: ident.size()},
+			Const:   ident.cnst}
 		ident.addAlias(st)
 		return
 	}
 
 	r, roffset, rsize := ident.Addr()
 	st := &memory{
-		stale:      false,
-		ownr:       ident,
-		ownrRegion: region{offset: 0, size: ident.size()},
-		reg:        &r,
-		offset:     roffset,
-		size:       rsize}
+		stale:   !valid,
+		ownedby: ident,
+		owns:    region{offset: 0, size: ident.size()},
+		reg:     &r,
+		offset:  roffset,
+		size:    rsize}
 
 	ident.addAlias(st)
 }
 
-func (ident *identifier) getBestStorage() storage {
+func (ident *identifier) getBestStorage(offset uint, size uint) storage {
 	var st storage
+
 	for _, alias := range ident.aliases {
+		if alias.ownerRegion().overlap(region{offset, size}).size == 0 {
+			continue
+		}
 		if st == nil || compareStorage(st, alias) < 0 {
 			st = alias
 		}
@@ -147,20 +171,17 @@ func (ident *identifier) load(ctx context) (string, *register) {
 	return ident.loadChunk(ctx, 0, ident.size())
 }
 
-func (ident *identifier) loadChunk(ctx context, offset int, size uint) (string, *register) {
+func (ident *identifier) loadChunk(ctx context, offset uint, size uint) (string, *register) {
 	f := ctx.f
 	loc := ctx.loc
-	st := ident.getBestStorage()
+	st := ident.getBestStorage(offset, size)
 
 	if ident.cnst != nil && (st == nil || !st.isValid()) {
 		return ident.loadConst(ctx)
 	}
 	asm := ""
 	if st == nil || !st.isValid() {
-		ice(fmt.Sprintf("no backing storage for identifier (%v)", ident.name))
-	}
-	if offset < 0 {
-		ice("unexpected, offset < 0")
+		ice(fmt.Sprintf("nothing backing identifier (%v), offset %v, size %v, best found \"%v, valid %v\"", ident.name, offset, size, st.String(), st.isValid()))
 	}
 
 	chunk := transfer{srcOffset: uint(offset), dstOffset: 0, size: size}
@@ -188,6 +209,8 @@ func (ident *identifier) loadChunk(ctx context, offset int, size uint) (string, 
 		panic("unexpected, offset < 0")
 	}
 	reg.newOwner(ident, region{offset: uint(offset), size: size})
+	reg.dirty = false
+	reg.isValidAlias = true
 	ident.addAlias(reg)
 	return asm, reg
 }
@@ -202,7 +225,7 @@ func (ident *identifier) loadConst(ctx context) (string, *register) {
 		if cnst.Value.String() == "true" {
 			val = 1
 		}
-		return a + MovImm8Reg(val, r), r
+		return a + MovImm8Reg(val, r, false), r
 	}
 	if isFloat(cnst.Type()) {
 		a, r := f.allocReg(loc, regType(cnst.Type()), 1)
@@ -212,9 +235,9 @@ func (ident *identifier) loadConst(ctx context) (string, *register) {
 		a2, tmp := f.allocReg(loc, DATA_REG, 8)
 		asm := a + a2
 		if isFloat32(cnst.Type()) {
-			asm = MovImmf32Reg(float32(cnst.Float64()), tmp, r)
+			asm = MovImmf32Reg(float32(cnst.Float64()), tmp, r, false)
 		} else {
-			asm = MovImmf64Reg(cnst.Float64(), tmp, r)
+			asm = MovImmf64Reg(cnst.Float64(), tmp, r, false)
 		}
 		f.freeReg(tmp)
 		return asm, r
@@ -234,86 +257,97 @@ func (ident *identifier) loadConst(ctx context) (string, *register) {
 
 		val = int64(cnst.Uint64())
 	}
-	return a + MovImmReg(val, size, r), r
+	return a + MovImmReg(val, size, r, false), r
 }
 
-func (ident *identifier) newValue(reg *register, offset int, size uint) string {
-
-	if offset < 0 {
-		ice("unexpected, offset < 0")
-	}
-
-	// registers that are aliases of constants don't spill back to the constant,
-	// since obviously the constant can't be modified
+func (ident *identifier) newValue(reg *register, offset uint, size uint) string {
+	// constants can't be modified
 	if ident.cnst != nil {
-		return ""
+		ice("cannot modify constant")
 	}
 
 	asm := ""
-	if reg.owner() != nil && reg.isValidAlias {
-		st := ident.getBestStorage()
-		if offset < 0 {
-			ice("unexpect, offset < 0")
-		}
-		asm = reg.copyChunk(ident.f, transfer{srcOffset: 0, dstOffset: uint(offset), size: size}, st)
-		for _, alias := range ident.aliases {
-			if alias == reg || alias == st {
-				continue
-			}
-			if alias.ownerRegion().overlap(reg.ownerRegion()).size > 0 {
-				alias.setValid(false)
-			}
-		}
-		return asm
+	chunk := region{offset, size}
 
+	if ident.f.Trace {
+		fmt.Printf("NEW VALUE %v (offset=%v, size=%v) -> %v (d=%v, v=%v)\n", ident.name, offset, size, reg.name, reg.dirty, reg.isValidAlias)
 	}
-	reg.setValid(true)
-	if offset < 0 {
-		ice("unexpected, offset < 0")
-	}
-	if reg.owner() != nil {
-		owner := reg.owner()
-		owner.removeAlias(reg)
-	}
-	reg.newOwner(ident, region{uint(offset), size})
-	ident.addAlias(reg)
-	if reg.dirty {
+
+	if reg.owner() != nil && reg.owner() != ident {
+		dst := ident.getBestStorage(offset, size)
+		copyChunk := transfer{srcOffset: reg.ownerRegion().offset, dstOffset: uint(offset), size: size}
+		asm = reg.copyChunk(ident.f, copyChunk, dst)
+
+		// HACK!, should only set valid if entire dst written to
+		dst.setValid(true)
+
 		for _, alias := range ident.aliases {
-			if alias == reg {
+			if alias == reg || alias == dst {
 				continue
 			}
-			if alias.ownerRegion().overlap(reg.ownerRegion()).size > 0 {
+			if alias.ownerRegion().overlap(chunk).size > 0 {
 				alias.setValid(false)
 			}
 		}
+
+	} else {
+		reg.setValid(true)
+		if reg.owner() != ident {
+			if reg.owner() != nil {
+				owner := reg.owner()
+				owner.removeAlias(reg)
+			}
+			reg.newOwner(ident, region{uint(offset), size})
+			ident.addAlias(reg)
+		}
+		if reg.dirty {
+			for _, alias := range ident.aliases {
+				if alias == reg {
+					continue
+				}
+				if alias.ownerRegion().overlap(chunk).size > 0 {
+					alias.setValid(false)
+				}
+			}
+		}
+	}
+	if ident.f.Trace {
+		fmt.Printf("NEW VALUE %v (offset=%v, size=%v) -> %v (d=%v, v=%v)\n", ident.name, offset, size, reg.name, reg.dirty, reg.isValidAlias)
 	}
 	return asm
 }
 
-func (ident *identifier) dirtyRegions() []region {
+func (ident *identifier) dirtyRegions(exclude storage) []region {
 	regions := []region{}
-
 	for _, alias := range ident.aliases {
-		reg, ok := alias.(*register)
-		if !ok || !reg.dirty {
-			continue
+		if reg, ok := alias.(*register); ok {
+			if reg.dirty && alias != exclude {
+				regions = append(regions, reg.ownerRegion())
+			}
 		}
-		regions = append(regions, reg.ownerRegion())
 	}
 	return regions
 }
 
-func (ident *identifier) spillRegisters() string {
+func (ident *identifier) spillAllRegisters() string {
+	return ident.spillRegisters(true)
+}
+
+func (ident *identifier) spillDirtyRegisters() string {
+	return ident.spillRegisters(false)
+}
+
+func (ident *identifier) spillRegisters(all bool) string {
 	asm := ""
 	for _, alias := range ident.aliases {
 		if r, ok := alias.(*register); ok {
-			asm += ident.spillRegister(r)
+			asm += ident.spillRegister(r, all)
 		}
 	}
 	return asm
 }
 
-func (ident *identifier) spillRegister(r *register) string {
+func (ident *identifier) spillRegister(r *register, force bool) string {
 	if r.owner().name != ident.name {
 		ice("wrong owner for register")
 	}
@@ -322,17 +356,7 @@ func (ident *identifier) spillRegister(r *register) string {
 	f := ident.f
 	ident.removeAlias(r)
 
-	// HACK!
-	skip := false
-	if isPointer(ident.typ) {
-		skip = true
-	}
-
-	// HACK!!
-	r.dirty = true
-
-	if !skip && r.isValid() && r.dirty {
-		dirtyRegions := ident.dirtyRegions()
+	if r.isValid() && (r.dirty || force) {
 		for _, alias := range ident.aliases {
 			overlap := r.ownerRegion().overlap(alias.ownerRegion())
 			chunk := transfer{
@@ -342,6 +366,7 @@ func (ident *identifier) spillRegister(r *register) string {
 			if overlap.size != 0 {
 				asm += r.copyChunk(f, chunk, alias)
 			}
+			dirtyRegions := ident.dirtyRegions(alias)
 			dirtyOverlap := alias.ownerRegion()
 			if len(dirtyRegions) == 0 {
 				dirtyOverlap = region{}
@@ -350,6 +375,10 @@ func (ident *identifier) spillRegister(r *register) string {
 				dirtyOverlap = dirtyOverlap.overlap(dirtyRegion)
 			}
 			alias.setValid(dirtyOverlap.size == 0)
+			if ident.f.Trace {
+				fmt.Printf("Spill %v (d=%v) -> \"%v\" (valid %v), region %v\n", r.name, r.dirty, alias.String(), alias.isValid(), overlap)
+			}
+
 		}
 	}
 	r.newOwner(nil, region{})

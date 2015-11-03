@@ -891,6 +891,7 @@ var instrTable = map[Instruction]InstrInfo{
 	JPS:    {Flags: Cjmp | UseCarry},
 	//JMP:      {Flags: Jump | Break | KillCarry},
 	LEAL:    {Flags: LeftAddr | RightWrite},
+	LEAQ:    {Flags: LeftAddr | RightWrite},
 	MOVBLSX: {Flags: SizeL | LeftRead | RightWrite | Conv},
 	MOVBLZX: {Flags: SizeL | LeftRead | RightWrite | Conv},
 	MOVBQSX: {Flags: SizeL | LeftRead | RightWrite | Conv},

@@ -36,12 +36,12 @@ block0:
         MOVO         X14, X15
         MULSD        X13, X15
         MOVQ         x+0(FP), R15
-        MOVSD        (R15), X14
-        MOVSD        X14, t2-24(SP)
-        MOVQ         t2-24(SP), X13
-        MOVO         X15, X14
-        ADDSD        X13, X14
-        MOVQ         X14, ret0+8(FP)
+        MOVSD        (R15), X12
+        MOVSD        X12, t2-24(SP)
+        MOVQ         t2-24(SP), X11
+        MOVO         X15, X12
+        ADDSD        X11, X12
+        MOVQ         X12, ret0+8(FP)
         RET
 
 TEXT ·addf32s(SB),$8-12

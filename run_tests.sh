@@ -9,7 +9,7 @@ rm -f *.s
 echo "Generating tests assembly"
 go generate
 echo "Running tests"
-go test -v
+go test
 STATUS=$?
 go clean
 exit $STATUS

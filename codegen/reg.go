@@ -17,69 +17,38 @@ type register struct {
 	// allowed data sizes in bytes used in reg
 	datasizes []uint
 
-	dirty bool
-
-	ownr         *identifier
-	ownrRegion   region
-	isValidAlias bool
+	dirty  bool
+	parent storer
 }
 
 func (r *register) size() uint {
 	return r.width / 8
 }
 
-func (r *register) aliases() []storage {
-	if !r.isValidAlias || r.owner() == nil {
-		return nil
-	} else {
-		aliases := []storage{}
-		for _, alias := range r.owner().aliases {
-			if alias == r {
-				continue
-			}
-			aliases = append(aliases, alias)
+func (r *register) modified(ctx context, spill bool) string {
+	if r.parent != nil {
+		if r.parent.owner().f.Trace {
+			fmt.Printf(r.parent.owner().f.Indent+"Modified %v (inUse %v, spill %v, old dirty %v)\n",
+				r.name, r.inUse, spill, r.dirty)
 		}
-		return aliases
 	}
-}
 
-func (r *register) modified(spill bool) string {
-	inUse := r.inUse
 	var asm string
+	inUse := r.inUse
 	if spill {
-		asm = r.spill()
+		asm = r.spill(ctx)
 	}
 	r.inUse = inUse
-	if r.owner() != nil {
-		if r.owner().f.Trace {
-			fmt.Printf("Modified %v (inUse %v, isValidAlias %v, dirty %v)\n",
-				r.name, r.inUse, r.isValidAlias, r.dirty)
-		}
-	}
-	if spill {
-		r.isValidAlias = false
-	}
 	r.dirty = true
 	return asm
 }
 
-func (r *register) isAlias(ident *identifier) bool {
-	for _, alias := range r.aliases() {
-		if alias.owner() != nil {
-			if alias.owner().name == ident.name {
-				return true
-			}
-		}
+func (r *register) spill(ctx context) string {
+	if r.parent != nil {
+		return r.parent.spillRegister(ctx, r, false)
+	} else {
+		return ""
 	}
-	return false
-}
-
-func (r *register) spill() string {
-	owner := r.owner()
-	if owner != nil {
-		return owner.spillRegister(r, false)
-	}
-	return ""
 }
 
 type RegType int
@@ -164,59 +133,59 @@ var QuadSize = []uint{8}
 var XmmDataSizes = []uint{1, 2, 4, 8, 16}
 
 var registers = []register{
-	{"AL", false, REG_AL, DATA_REG, 32, LongSizes, false, nil, region{}, false},
-	{"CL", false, REG_CL, DATA_REG, 32, LongSizes, false, nil, region{}, false},
-	{"DL", false, REG_DL, DATA_REG, 32, LongSizes, false, nil, region{}, false},
-	{"BL", false, REG_BL, DATA_REG, 32, LongSizes, false, nil, region{}, false},
-	{"AX", false, REG_AX, DATA_REG, 64, QuadSizes, false, nil, region{}, false},
-	{"CX", false, REG_CX, DATA_REG, 64, QuadSizes, false, nil, region{}, false},
-	{"DX", false, REG_DX, DATA_REG, 64, QuadSizes, false, nil, region{}, false},
-	{"SI", false, REG_SI, DATA_REG, 64, QuadSize, false, nil, region{}, false},
-	{"DI", false, REG_DI, DATA_REG, 64, QuadSize, false, nil, region{}, false},
-	{"BX", false, REG_BX, DATA_REG, 64, QuadSize, false, nil, region{}, false},
-	{"BP", false, REG_BP, DATA_REG, 64, QuadSize, false, nil, region{}, false},
-	{"SP", false, REG_SP, SpReg, 64, QuadSize, false, nil, region{}, false},
-	{"FP", false, REG_FP, FpReg, 64, QuadSize, false, nil, region{}, false},
-	{"R8", false, REG_R8, DATA_REG, 64, QuadSizes, false, nil, region{}, false},
-	{"R9", false, REG_R9, DATA_REG, 64, QuadSizes, false, nil, region{}, false},
-	{"R10", false, REG_R10, DATA_REG, 64, QuadSizes, false, nil, region{}, false},
-	{"R11", false, REG_R11, DATA_REG, 64, QuadSizes, false, nil, region{}, false},
-	{"R12", false, REG_R12, DATA_REG, 64, QuadSizes, false, nil, region{}, false},
-	{"R13", false, REG_R13, DATA_REG, 64, QuadSizes, false, nil, region{}, false},
-	{"R14", false, REG_R14, DATA_REG, 64, QuadSizes, false, nil, region{}, false},
-	{"R15", false, REG_R15, DATA_REG, 64, QuadSizes, false, nil, region{}, false},
-	{"X0", false, REG_X0, XMM_REG, 128, XmmDataSizes, false, nil, region{}, false},
-	{"X1", false, REG_X1, XMM_REG, 128, XmmDataSizes, false, nil, region{}, false},
-	{"X2", false, REG_X2, XMM_REG, 128, XmmDataSizes, false, nil, region{}, false},
-	{"X3", false, REG_X3, XMM_REG, 128, XmmDataSizes, false, nil, region{}, false},
-	{"X4", false, REG_X4, XMM_REG, 128, XmmDataSizes, false, nil, region{}, false},
-	{"X5", false, REG_X5, XMM_REG, 128, XmmDataSizes, false, nil, region{}, false},
-	{"X6", false, REG_X6, XMM_REG, 128, XmmDataSizes, false, nil, region{}, false},
-	{"X7", false, REG_X7, XMM_REG, 128, XmmDataSizes, false, nil, region{}, false},
-	{"X8", false, REG_X8, XMM_REG, 128, XmmDataSizes, false, nil, region{}, false},
-	{"X9", false, REG_X9, XMM_REG, 128, XmmDataSizes, false, nil, region{}, false},
-	{"X10", false, REG_X10, XMM_REG, 128, XmmDataSizes, false, nil, region{}, false},
-	{"X11", false, REG_X11, XMM_REG, 128, XmmDataSizes, false, nil, region{}, false},
-	{"X12", false, REG_X12, XMM_REG, 128, XmmDataSizes, false, nil, region{}, false},
-	{"X13", false, REG_X13, XMM_REG, 128, XmmDataSizes, false, nil, region{}, false},
-	{"X14", false, REG_X14, XMM_REG, 128, XmmDataSizes, false, nil, region{}, false},
-	{"X15", false, REG_X15, XMM_REG, 128, XmmDataSizes, false, nil, region{}, false},
+	{"AL", false, REG_AL, DATA_REG, 32, LongSizes, false, nil},
+	{"CL", false, REG_CL, DATA_REG, 32, LongSizes, false, nil},
+	{"DL", false, REG_DL, DATA_REG, 32, LongSizes, false, nil},
+	{"BL", false, REG_BL, DATA_REG, 32, LongSizes, false, nil},
+	{"AX", false, REG_AX, DATA_REG, 64, QuadSizes, false, nil},
+	{"CX", false, REG_CX, DATA_REG, 64, QuadSizes, false, nil},
+	{"DX", false, REG_DX, DATA_REG, 64, QuadSizes, false, nil},
+	{"SI", false, REG_SI, DATA_REG, 64, QuadSize, false, nil},
+	{"DI", false, REG_DI, DATA_REG, 64, QuadSize, false, nil},
+	{"BX", false, REG_BX, DATA_REG, 64, QuadSize, false, nil},
+	{"BP", false, REG_BP, DATA_REG, 64, QuadSize, false, nil},
+	{"SP", false, REG_SP, SpReg, 64, QuadSize, false, nil},
+	{"FP", false, REG_FP, FpReg, 64, QuadSize, false, nil},
+	{"R8", false, REG_R8, DATA_REG, 64, QuadSizes, false, nil},
+	{"R9", false, REG_R9, DATA_REG, 64, QuadSizes, false, nil},
+	{"R10", false, REG_R10, DATA_REG, 64, QuadSizes, false, nil},
+	{"R11", false, REG_R11, DATA_REG, 64, QuadSizes, false, nil},
+	{"R12", false, REG_R12, DATA_REG, 64, QuadSizes, false, nil},
+	{"R13", false, REG_R13, DATA_REG, 64, QuadSizes, false, nil},
+	{"R14", false, REG_R14, DATA_REG, 64, QuadSizes, false, nil},
+	{"R15", false, REG_R15, DATA_REG, 64, QuadSizes, false, nil},
+	{"X0", false, REG_X0, XMM_REG, 128, XmmDataSizes, false, nil},
+	{"X1", false, REG_X1, XMM_REG, 128, XmmDataSizes, false, nil},
+	{"X2", false, REG_X2, XMM_REG, 128, XmmDataSizes, false, nil},
+	{"X3", false, REG_X3, XMM_REG, 128, XmmDataSizes, false, nil},
+	{"X4", false, REG_X4, XMM_REG, 128, XmmDataSizes, false, nil},
+	{"X5", false, REG_X5, XMM_REG, 128, XmmDataSizes, false, nil},
+	{"X6", false, REG_X6, XMM_REG, 128, XmmDataSizes, false, nil},
+	{"X7", false, REG_X7, XMM_REG, 128, XmmDataSizes, false, nil},
+	{"X8", false, REG_X8, XMM_REG, 128, XmmDataSizes, false, nil},
+	{"X9", false, REG_X9, XMM_REG, 128, XmmDataSizes, false, nil},
+	{"X10", false, REG_X10, XMM_REG, 128, XmmDataSizes, false, nil},
+	{"X11", false, REG_X11, XMM_REG, 128, XmmDataSizes, false, nil},
+	{"X12", false, REG_X12, XMM_REG, 128, XmmDataSizes, false, nil},
+	{"X13", false, REG_X13, XMM_REG, 128, XmmDataSizes, false, nil},
+	{"X14", false, REG_X14, XMM_REG, 128, XmmDataSizes, false, nil},
+	{"X15", false, REG_X15, XMM_REG, 128, XmmDataSizes, false, nil},
 }
 
 var excludedRegisters = []register{
 	// used as implicit operands in arithmetic instructions
-	{"AL", false, REG_AL, DATA_REG, 32, LongSizes, false, nil, region{}, false},
-	{"BL", false, REG_AL, DATA_REG, 32, LongSizes, false, nil, region{}, false},
-	{"CL", false, REG_CL, DATA_REG, 32, LongSizes, false, nil, region{}, false},
-	{"DL", false, REG_DL, DATA_REG, 32, LongSizes, false, nil, region{}, false},
-	{"AX", false, REG_AX, DATA_REG, 64, QuadSizes, false, nil, region{}, false},
-	{"CX", false, REG_CX, DATA_REG, 64, QuadSizes, false, nil, region{}, false},
-	{"DX", false, REG_DX, DATA_REG, 64, QuadSizes, false, nil, region{}, false},
+	{"AL", false, REG_AL, DATA_REG, 32, LongSizes, false, nil},
+	{"BL", false, REG_AL, DATA_REG, 32, LongSizes, false, nil},
+	{"CL", false, REG_CL, DATA_REG, 32, LongSizes, false, nil},
+	{"DL", false, REG_DL, DATA_REG, 32, LongSizes, false, nil},
+	{"AX", false, REG_AX, DATA_REG, 64, QuadSizes, false, nil},
+	{"CX", false, REG_CX, DATA_REG, 64, QuadSizes, false, nil},
+	{"DX", false, REG_DX, DATA_REG, 64, QuadSizes, false, nil},
 
 	// stack pointer pseudo register
-	{"SP", false, REG_SP, SpReg, 64, QuadSize, false, nil, region{}, false},
+	{"SP", false, REG_SP, SpReg, 64, QuadSize, false, nil},
 	// frame pointer pseudo register
-	{"FP", false, REG_FP, FpReg, 64, QuadSize, false, nil, region{}, false},
+	{"FP", false, REG_FP, FpReg, 64, QuadSize, false, nil},
 }
 
 func getRegister(reg Reg) *register {

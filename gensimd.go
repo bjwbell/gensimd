@@ -50,6 +50,7 @@ func main() {
 	var debug = flag.Bool("debug", false, "include debug comments in assembly")
 	var trace = flag.Bool("trace", false, "trace of assembly generation to stdout")
 	var printSpills = flag.Bool("spills", false, "print each register spill")
+	var disableOptimizations = flag.Bool("N", false, "disable optimizations")
 	var output = flag.String("o", "", "Go assembly output file")
 	var f = flag.String("f", "", "input file with function definitions")
 	var flagFn = flag.String("fn", "", "comma separated list of function names")
@@ -57,6 +58,9 @@ func main() {
 	var goprotofile = flag.String("goprotofile", "", "output file for SIMD function prototype(s)")
 
 	flag.Parse()
+
+	optimize := !*disableOptimizations
+
 	file := os.ExpandEnv("$GOFILE")
 	log.SetFlags(log.Lshortfile)
 	if *f != "" {
@@ -148,7 +152,7 @@ func main() {
 					log.Fatalf(msg, fnname, filePkgName)
 				} else {
 					dbg := *debug
-					fn, err := codegen.CreateFunction(fn, outfn, dbg, *trace)
+					fn, err := codegen.CreateFunction(fn, outfn, dbg, *trace, optimize)
 					fn.PrintSpills = *printSpills
 					if err != nil {
 						msg := "codegen error msg \"%v\""

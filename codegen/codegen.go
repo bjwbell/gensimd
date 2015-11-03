@@ -24,6 +24,7 @@ type Function struct {
 	Debug       bool
 	PrintSpills bool
 	Trace       bool
+	Optimize    bool
 	Indent      string
 	identifiers map[string]*identifier
 	jmpLabels   []string
@@ -55,11 +56,11 @@ func ErrorMsg2(msg string) *Error {
 	return &Error{Err: errors.New(msg), Pos: 0}
 }
 
-func CreateFunction(fn *ssa.Function, outfn string, debug bool, trace bool) (*Function, *Error) {
+func CreateFunction(fn *ssa.Function, outfn string, debug bool, trace bool, optimize bool) (*Function, *Error) {
 	if fn == nil {
 		return nil, ErrorMsg2("Nil function passed in")
 	}
-	f := Function{ssa: fn, outfn: outfn, Debug: debug, Trace: trace}
+	f := Function{ssa: fn, outfn: outfn, Debug: debug, Trace: trace, Optimize: optimize}
 	f.Indent = "        "
 	f.init()
 	return &f, nil

@@ -10,10 +10,14 @@ packages and convert them to Go assembly with the `gensimd` command.
 ## Install
 
 ```
+export GO15VENDOREXPERIMENT=1
 go get github.com/bjwbell/gensimd
 go install github.com/bjwbell/gensimd
 go get github.com/bjwbell/gensimd/simd
 ```
+
+Vendoring `golang.org/x/tools/go/ssa` and enabling `GO15VENDOREXPERIMENT` is a temporary
+hack.
 
 ## Optional - SSE2
 

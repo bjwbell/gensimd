@@ -3,7 +3,8 @@ language: go
 go:
   - 1.5
   - tip
-
+env:
+  - GO15VENDOREXPERIMENT=1
 script:
  - ./run_tests.sh
  - ./run_examples.sh

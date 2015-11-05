@@ -39,10 +39,6 @@ type Function struct {
 	ssa *ssa.Function
 }
 
-type paramSlice struct {
-	lenOffset int
-}
-
 type Error struct {
 	Err error
 	Pos token.Pos
@@ -89,11 +85,9 @@ func (f *Function) Params() (string, *Error) {
 	offset := int(0)
 	asm := ""
 	for _, p := range f.ssa.Params {
-		param := paramInfo{name: p.Name(), info: p}
+		param := p
 		// TODO alloc reg based on other param types
-		if _, ok := p.Type().(*types.Slice); ok {
-			param.extra = paramSlice{lenOffset: offset + int(sizePtr())}
-		} else if basic, ok := p.Type().(*types.Basic); ok {
+		if basic, ok := p.Type().(*types.Basic); ok {
 			switch basic.Kind() {
 			default:
 				err := ErrorMsg2(fmt.Sprintf("Unsupported param type (%v)", basic))
@@ -112,10 +106,10 @@ func (f *Function) Params() (string, *Error) {
 		} else {
 
 		}
-		ident := identifier{f: f, name: param.name, typ: param.info.Type(),
-			local: nil, param: &param, offset: offset, storage: nil}
+		ident := identifier{f: f, name: param.Name(), typ: param.Type(),
+			local: nil, param: param, offset: offset, storage: nil}
 		ident.initStorage(true)
-		f.identifiers[param.name] = &ident
+		f.identifiers[param.Name()] = &ident
 		if ident.align() > ident.size() {
 			offset += int(ident.align())
 		} else {
@@ -172,7 +166,7 @@ func (f *Function) Func() (string, *Error) {
 	if f.Trace {
 		fmt.Println("TRACE {ZeroNonSsaLocals}")
 	}
-	frameSize := f.localsSize()
+	frameSize := f.localIdentsSize()
 	frameSize = f.align(frameSize)
 	argsSize := f.retOffset() + int(f.retSize())
 	asm := params
@@ -247,10 +241,9 @@ func (f *Function) ZeroSsaLocals() (string, *Error) {
 		size := sizeof(typ)
 		localOffset := -(offset + int(size))
 		asm += ZeroMemory(ctx, local.Name(), localOffset, size, sp)
-		v := varInfo{name: local.Name(), info: local}
-		ident := identifier{f: f, name: v.name, typ: typ, local: &v, param: nil, offset: localOffset}
+		ident := identifier{f: f, name: local.Name(), typ: typ, local: local, param: nil, offset: localOffset}
 		ident.initStorage(false)
-		f.identifiers[v.name] = &ident
+		f.identifiers[local.Name()] = &ident
 		if ident.align() > ident.size() {
 			offset += int(ident.align())
 		} else {
@@ -262,22 +255,24 @@ func (f *Function) ZeroSsaLocals() (string, *Error) {
 	return asm, nil
 }
 
-func (f *Function) AllocLocal(name string, typ types.Type) (identifier, *Error) {
+func (f *Function) newIdent(v ssa.Value) (identifier, *Error) {
+	name := v.Name()
+	typ := v.Type()
 	size := sizeof(typ)
 	offset := int(size)
 	if align(typ) > size {
 		offset = int(align(typ))
 	}
-	v := varInfo{name: name, info: nil}
 	ident := identifier{
 		f:      f,
 		name:   name,
 		typ:    typ,
 		param:  nil,
-		local:  &v,
-		offset: -int(f.localsSize()) - offset}
+		local:  nil,
+		value:  v,
+		offset: -int(f.localIdentsSize()) - offset}
 	ident.initStorage(false)
-	f.identifiers[v.name] = &ident
+	f.identifiers[name] = &ident
 	// zeroing the memory is done at the beginning of the function
 	return ident, nil
 }
@@ -286,10 +281,10 @@ func (f *Function) ZeroNonSsaLocals() (string, *Error) {
 	asm := "// BEGIN ZeroNonSsaLocals\n"
 	ctx := context{f, nil}
 	for _, ident := range f.identifiers {
-		if ident.local == nil || ident.isSsaLocal() {
+		if ident.isSsaLocal() || ident.isParam() || ident.isConst() {
 			continue
 		}
-		if ident.isBlockLocal() {
+		if ident.isBlockLocal() || ident.isPhi() {
 			continue
 		}
 		sp := getRegister(REG_SP)
@@ -775,7 +770,7 @@ func (f *Function) If(instr *ssa.If) (string, *Error) {
 		if a, reg, err := f.LoadIdentSimple(instr, info); err != nil {
 			return "", err
 		} else {
-			if _, err := f.spillAllIdent(info); err != nil {
+			if _, err := f.spillAllIdent(info, instr); err != nil {
 				return "", err
 			}
 			asm += a
@@ -809,7 +804,7 @@ func (f *Function) JumpPreamble(loc ssa.Instruction, blockIndex, jmpIndex int) (
 		} else {
 			asm += a
 		}
-		if a, err := f.spillAllIdent(f.Ident(phiInfo.phi)); err != nil {
+		if a, err := f.spillAllIdent(f.Ident(phiInfo.phi), loc); err != nil {
 			return "", err
 		} else {
 			asm += a
@@ -911,7 +906,7 @@ func (f *Function) Return(ret *ssa.Return) (string, *Error) {
 	} else {
 		asm += a
 	}
-	if a, e := f.spillAllIdent(f.retIdent()); e != nil {
+	if a, e := f.spillAllIdent(f.retIdent(), ret); e != nil {
 		return a, e
 	} else {
 		asm += a
@@ -930,7 +925,8 @@ func (f *Function) retIdent() *identifier {
 				name:   retName(),
 				typ:    f.retType(),
 				local:  nil,
-				param:  f.retParam(),
+				param:  nil,
+				value:  nil,
 				offset: f.retOffset()}
 		retIdent.initStorage(true)
 		f.identifiers[retIdent.name] = &retIdent
@@ -961,7 +957,7 @@ func ResetStackPointer(size uint32) string {
 
 func (f *Function) fixupRets(asm string) string {
 	old := ResetStackPointer(dummySpSize)
-	new := ResetStackPointer(f.localsSize())
+	new := ResetStackPointer(f.localIdentsSize())
 	return strings.Replace(asm, old, new, -1)
 }
 
@@ -977,7 +973,7 @@ func (f *Function) StoreValAddr(loc ssa.Instruction, val ssa.Value, addr *identi
 	if ident := f.Ident(val); ident == nil {
 		ice("error in allocating local")
 	}
-	if addr.local == nil && addr.param == nil {
+	if addr.isConst() {
 		ice(fmt.Sprintf("invalid addr \"%v\"", addr))
 	}
 
@@ -1415,7 +1411,7 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 	if !xInfo.isSsaLocal() && xInfo.param == nil && xInfo.ptr == nil {
 		panic("unexpected nil ptr")
 	} else if !xInfo.isSsaLocal() && xInfo.param == nil {
-		asm += xInfo.ptr.spillAllRegisters()
+		asm += xInfo.ptr.spillAllRegisters(instr)
 	}
 	// TODO add complex64/128 support
 	if isComplex(instr.Type()) || isComplex(instr.X.Type()) {
@@ -1527,7 +1523,7 @@ func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 	xInfo := f.identifiers[instr.X.Name()]
 	assignment := f.Ident(instr)
 	assignment.ptr = xInfo
-	if a, e := f.spillAllIdent(xInfo); e != nil {
+	if a, e := f.spillAllIdent(xInfo, instr); e != nil {
 		return a, e
 	} else {
 		asm += a
@@ -1603,11 +1599,11 @@ func (f *Function) AllocInstr(instr *ssa.Alloc) (string, *Error) {
 	return asm, nil
 }
 
-func (f *Function) localsSize() uint32 {
+func (f *Function) localIdentsSize() uint32 {
 	size := uint32(0)
-	for _, name := range f.identifiers {
-		if name.local != nil {
-			size += uint32(name.size())
+	for _, ident := range f.identifiers {
+		if !ident.isConst() && !ident.isParam() && !ident.isRetIdent() {
+			size += uint32(ident.size())
 		}
 	}
 	return size
@@ -1622,12 +1618,12 @@ func (f *Function) init() *Error {
 	return nil
 }
 
-func (f *Function) spillDirtyIdent(ident *identifier) (string, *Error) {
-	return ident.spillDirtyRegisters(), nil
+func (f *Function) spillDirtyIdent(ident *identifier, loc ssa.Instruction) (string, *Error) {
+	return ident.spillDirtyRegisters(loc), nil
 }
 
-func (f *Function) spillAllIdent(ident *identifier) (string, *Error) {
-	return ident.spillAllRegisters(), nil
+func (f *Function) spillAllIdent(ident *identifier, loc ssa.Instruction) (string, *Error) {
+	return ident.spillAllRegisters(loc), nil
 }
 
 func (f *Function) spillRegisters(ctx context) (string, *Error) {
@@ -1887,10 +1883,6 @@ func (f *Function) retType() types.Type {
 	return results.At(0).Type()
 }
 
-func (f *Function) retParam() *paramInfo {
-	return &paramInfo{name: retName(), info: nil, extra: nil}
-}
-
 // retSize returns the size of the return value in bytes
 func (f *Function) retSize() uint {
 	size := sizeof(f.retType())
@@ -1939,7 +1931,7 @@ func (f *Function) Ident(v ssa.Value) *identifier {
 		return &ident
 	}
 
-	local, err := f.AllocLocal(v.Name(), v.Type())
+	local, err := f.newIdent(v)
 	if err != nil {
 		return nil
 	}

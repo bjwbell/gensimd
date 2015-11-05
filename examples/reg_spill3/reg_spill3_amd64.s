@@ -76,13 +76,13 @@ block4:
         MOVL         R15, ret0+48(FP)
         RET
 block5:
-        MOVQ         x+8(FP), R14
-        MOVQ         R14, t7-305(SP)
-        MOVQ         t4-269(SP), R12
-        MOVQ         t7-305(SP), R11
-        CMPQ         R12, R11
-        SETLT        R13
-        MOVB         R13, t8-306(SP)
+        MOVQ         x+8(FP), R15
+        MOVQ         R15, t7-305(SP)
+        MOVQ         t4-269(SP), R13
+        MOVQ         t7-305(SP), R12
+        CMPQ         R13, R12
+        SETLT        R14
+        MOVB         R14, t8-306(SP)
         MOVB         t8-306(SP), R15
         CMPB         R15, $0
         JEQ          block4
@@ -179,7 +179,6 @@ block6:
         MOVOU        X7, t38-642(SP)
         MOVOU        X6, t39-658(SP)
         MOVOU        t39-658(SP), X0
-        MOVOU        X1, t34-594(SP)
         MOVOU        t38-642(SP), X1
         PSUBL        X0, X1
         MOVOU        X1, t40-674(SP)
@@ -188,18 +187,14 @@ block6:
         MOVOU        t33-96(SP), X0
         MOVOU        X0, t42-690(SP)
         MOVOU        X0, t43-706(SP)
-        MOVOU        X1, t38-642(SP)
         MOVOU        t42-690(SP), X1
-        MOVOU        X2, t28-530(SP)
         MOVOU        t43-706(SP), X2
         MOVO         X2, X0
         PMULULQ      X1, X0
         PSRLO        $4, X1
         PSRLO        $4, X2
-        MOVOU        X3, t30-546(SP)
         MOVO         X2, X3
         PMULULQ      X1, X3
-        MOVOU        X4, t24-482(SP)
         PSHUFD       $8, X0, X4
         PSHUFD       $8, X3, X5
         PUNPCKLLQ    X5, X4
@@ -215,7 +210,6 @@ block6:
         PSRLO        $4, X1
         MOVO         X1, X0
         PMULULQ      X2, X0
-        MOVOU        X4, t44-722(SP)
         PSHUFD       $8, X3, X4
         PSHUFD       $8, X0, X5
         PUNPCKLLQ    X5, X4
@@ -235,7 +229,6 @@ block6:
         MOVOU        t37-112(SP), X0
         MOVOU        X0, t55-850(SP)
         MOVOU        t55-850(SP), X0
-        MOVOU        X1, t50-786(SP)
         MOVOU        t54-834(SP), X1
         PSUBL        X0, X1
         MOVOU        X1, t56-866(SP)
@@ -244,7 +237,6 @@ block6:
         MOVOU        X5, t58-882(SP)
         MOVOU        X3, t59-898(SP)
         MOVOU        t59-898(SP), X0
-        MOVOU        X1, t54-834(SP)
         MOVOU        t58-882(SP), X1
         PSUBL        X0, X1
         MOVOU        X1, t60-914(SP)
@@ -253,7 +245,6 @@ block6:
         MOVOU        t53-176(SP), X0
         MOVOU        X0, t62-930(SP)
         MOVOU        X0, t63-946(SP)
-        MOVOU        X1, t58-882(SP)
         MOVOU        t62-930(SP), X1
         MOVOU        t63-946(SP), X2
         MOVO         X2, X0
@@ -262,7 +253,6 @@ block6:
         PSRLO        $4, X2
         MOVO         X2, X3
         PMULULQ      X1, X3
-        MOVOU        X4, t48-770(SP)
         PSHUFD       $8, X0, X4
         PSHUFD       $8, X3, X5
         PUNPCKLLQ    X5, X4
@@ -278,7 +268,6 @@ block6:
         PSRLO        $4, X1
         MOVO         X1, X0
         PMULULQ      X2, X0
-        MOVOU        X4, t64-962(SP)
         PSHUFD       $8, X3, X4
         PSHUFD       $8, X0, X5
         PUNPCKLLQ    X5, X4
@@ -307,7 +296,6 @@ block6:
         MOVL         (R10), R9
         MOVL         R9, t76-1082(SP)
         MOVL         t74-1070(SP), R8
-        MOVQ         R10, t75-1078(SP)
         MOVL         t76-1082(SP), R10
         MOVL         R8, R9
         ADDL         R10, R9
@@ -327,7 +315,6 @@ block6:
         MOVL         (BX), DI
         MOVL         DI, t82-1114(SP)
         MOVL         R8, t80-1102(SP)
-        MOVL         R9, t77-1086(SP)
         MOVL         t80-1102(SP), R9
         MOVL         t82-1114(SP), R10
         MOVL         R9, R8
@@ -337,7 +324,6 @@ block6:
         LEAQ         t33-96(SP), DI
         ADDQ         SI, DI
         MOVQ         DI, t84-1126(SP)
-        MOVQ         BX, t81-1110(SP)
         MOVQ         t84-1126(SP), BX
         MOVL         (BX), SI
         MOVL         SI, t85-1130(SP)
@@ -648,20 +634,8 @@ block6:
         MOVQ         SI, t157-289(SP)
         MOVL         t107-1246(SP), R9
         MOVL         R9, t158-293(SP)
-        MOVL         R8, t153-1490(SP)
         MOVL         t142-1434(SP), R8
         MOVL         R8, t159-297(SP)
-        MOVQ         DI, t154-1498(SP)
-        MOVQ         BP, t78-1094(SP)
-        MOVQ         R11, t73-1066(SP)
-        MOVQ         R12, t18-402(SP)
-        MOVQ         R13, t16-378(SP)
-        MOVQ         R14, t12-338(SP)
-        MOVQ         R15, t10-314(SP)
-        MOVOU        X1, t70-1026(SP)
-        MOVOU        X4, t68-1010(SP)
-        MOVOU        X11, t17-394(SP)
-        MOVOU        X14, t11-330(SP)
         JMP block8
 block7:
         MOVQ         t4-269(SP), R14
@@ -676,7 +650,6 @@ block7:
         MOVL         R14, t5-273(SP)
         MOVL         t159-297(SP), R11
         MOVL         R11, t6-277(SP)
-        MOVQ         R15, t155-1506(SP)
         JMP block5
 block8:
         MOVQ         x+8(FP), R15

@@ -144,7 +144,6 @@ block2:
         MOVOU        X7, t32-593(SP)
         MOVOU        X6, t33-609(SP)
         MOVOU        t33-609(SP), X0
-        MOVOU        X1, t28-545(SP)
         MOVOU        t32-593(SP), X1
         PSUBL        X0, X1
         MOVOU        X1, t34-625(SP)
@@ -153,18 +152,14 @@ block2:
         MOVOU        t27-96(SP), X0
         MOVOU        X0, t36-641(SP)
         MOVOU        X0, t37-657(SP)
-        MOVOU        X1, t32-593(SP)
         MOVOU        t36-641(SP), X1
-        MOVOU        X2, t22-481(SP)
         MOVOU        t37-657(SP), X2
         MOVO         X2, X0
         PMULULQ      X1, X0
         PSRLO        $4, X1
         PSRLO        $4, X2
-        MOVOU        X3, t24-497(SP)
         MOVO         X2, X3
         PMULULQ      X1, X3
-        MOVOU        X4, t18-433(SP)
         PSHUFD       $8, X0, X4
         PSHUFD       $8, X3, X5
         PUNPCKLLQ    X5, X4
@@ -180,7 +175,6 @@ block2:
         PSRLO        $4, X1
         MOVO         X1, X0
         PMULULQ      X2, X0
-        MOVOU        X4, t38-673(SP)
         PSHUFD       $8, X3, X4
         PSHUFD       $8, X0, X5
         PUNPCKLLQ    X5, X4
@@ -200,7 +194,6 @@ block2:
         MOVOU        t31-112(SP), X0
         MOVOU        X0, t49-801(SP)
         MOVOU        t49-801(SP), X0
-        MOVOU        X1, t44-737(SP)
         MOVOU        t48-785(SP), X1
         PSUBL        X0, X1
         MOVOU        X1, t50-817(SP)
@@ -209,7 +202,6 @@ block2:
         MOVOU        X5, t52-833(SP)
         MOVOU        X3, t53-849(SP)
         MOVOU        t53-849(SP), X0
-        MOVOU        X1, t48-785(SP)
         MOVOU        t52-833(SP), X1
         PSUBL        X0, X1
         MOVOU        X1, t54-865(SP)
@@ -218,7 +210,6 @@ block2:
         MOVOU        t47-176(SP), X0
         MOVOU        X0, t56-881(SP)
         MOVOU        X0, t57-897(SP)
-        MOVOU        X1, t52-833(SP)
         MOVOU        t56-881(SP), X1
         MOVOU        t57-897(SP), X2
         MOVO         X2, X0
@@ -227,7 +218,6 @@ block2:
         PSRLO        $4, X2
         MOVO         X2, X3
         PMULULQ      X1, X3
-        MOVOU        X4, t42-721(SP)
         PSHUFD       $8, X0, X4
         PSHUFD       $8, X3, X5
         PUNPCKLLQ    X5, X4
@@ -243,7 +233,6 @@ block2:
         PSRLO        $4, X1
         MOVO         X1, X0
         PMULULQ      X2, X0
-        MOVOU        X4, t58-913(SP)
         PSHUFD       $8, X3, X4
         PSHUFD       $8, X0, X5
         PUNPCKLLQ    X5, X4
@@ -271,9 +260,7 @@ block2:
         ADDQ         R8, R9
         MOVL         (R9), R8
         MOVL         R8, t70-1033(SP)
-        MOVQ         R9, t69-1029(SP)
         MOVL         t68-1021(SP), R9
-        MOVQ         R10, t67-1017(SP)
         MOVL         t70-1033(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
@@ -304,7 +291,6 @@ block2:
         LEAQ         t27-96(SP), DI
         ADDQ         SI, DI
         MOVQ         DI, t78-1077(SP)
-        MOVQ         BX, t75-1061(SP)
         MOVQ         t78-1077(SP), BX
         MOVL         (BX), SI
         MOVL         SI, t79-1081(SP)

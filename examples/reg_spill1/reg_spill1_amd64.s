@@ -26,7 +26,6 @@ block0:
         MOVL         R8, t5-24(SP)
         MOVL         R9, t4-20(SP)
         MOVL         $2, R9
-        MOVL         R10, t3-16(SP)
         MOVL         t5-24(SP), R10
         MOVL         R9, R8
         MOVL         R8, AX

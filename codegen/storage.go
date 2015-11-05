@@ -483,17 +483,20 @@ func (m *memory) spillRegister(ctx context, r *register, force bool) string {
 	if regAlias == nil {
 		ice("cannot spill register")
 	}
-	// case 1 - dirty == true or force == true or memory isn't initialized
-	if r.dirty || force || !m.isInitialized(regAlias.region) {
-		asm := r.save(ctx, regAlias.region, m)
-		m.setInitialized(regAlias.region)
-		m.removeAlias(ctx, r)
-		return asm
+	asm := ""
 
-	} else { // case 2 - dirty == false and force == false => nothing to do
-		m.removeAlias(ctx, r)
-		return ""
+	if ctx.f.Optimize && !alive(m.owner(), ctx.loc) {
+		// case 0 - do nothing, ident is dead
+	} else if r.dirty || force || !m.isInitialized(regAlias.region) {
+		// case 1 - dirty == true or force == true or memory isn't initialized
+		asm = r.save(ctx, regAlias.region, m)
+		m.setInitialized(regAlias.region)
+
+	} else {
+		// case 2 - dirty == false and force == false, nothing to do
 	}
+	m.removeAlias(ctx, r)
+	return asm
 }
 
 func (m *memory) spillRegisters(ctx context, force bool) string {

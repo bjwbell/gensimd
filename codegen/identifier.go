@@ -11,12 +11,15 @@ type identifier struct {
 	f       *Function
 	name    string
 	typ     types.Type
-	local   *varInfo
-	param   *paramInfo
-	cnst    *ssa.Const
 	offset  int
 	storage storer
 	ptr     *identifier
+	// offset is from the stack pointer (SP)
+	local *ssa.Alloc
+	// offset is from the frame pointer (FP)
+	param *ssa.Parameter
+	cnst  *ssa.Const
+	value ssa.Value
 }
 
 type context struct {
@@ -37,19 +40,17 @@ func (ident *identifier) align() uint {
 	return align(ident.typ)
 }
 
-// Addr returns the register and offset to access the backing memory of name. It also
-// returns the size of name in bytes.
+// Addr returns the register and offset to access the backing memory of ident. It also
+// returns the size of ident in bytes.
 // For locals the register is the stack pointer (SP) and for params the register
 // is the frame pointer (FP).
-func (name *identifier) Addr() (reg register, offset int, size uint) {
-	offset = name.offset
-	size = name.size()
-	if name.local != nil {
-		reg = *getRegister(REG_SP)
-	} else if name.param != nil {
+func (ident *identifier) Addr() (reg register, offset int, size uint) {
+	offset = ident.offset
+	size = ident.size()
+	if ident.isParam() || ident.isRetIdent() {
 		reg = *getRegister(REG_FP)
 	} else {
-		ice(fmt.Sprintf("identifier (%v) is not a local or param", name))
+		reg = *getRegister(REG_SP)
 	}
 	return
 }
@@ -130,16 +131,16 @@ func (ident *identifier) newValue(reg *register, offset uint, size uint) string 
 	return asm
 }
 
-func (ident *identifier) spillAllRegisters() string {
-	return ident.spillRegisters(true)
+func (ident *identifier) spillAllRegisters(loc ssa.Instruction) string {
+	return ident.spillRegisters(loc, true)
 }
 
-func (ident *identifier) spillDirtyRegisters() string {
-	return ident.spillRegisters(false)
+func (ident *identifier) spillDirtyRegisters(loc ssa.Instruction) string {
+	return ident.spillRegisters(loc, false)
 }
 
-func (ident *identifier) spillRegisters(all bool) string {
-	ctx := context{ident.f, nil}
+func (ident *identifier) spillRegisters(loc ssa.Instruction, all bool) string {
+	ctx := context{ident.f, loc}
 	return ident.storage.spillRegisters(ctx, all)
 }
 
@@ -148,16 +149,52 @@ func (ident *identifier) spillRegister(r *register, force bool) string {
 	return ident.storage.spillRegister(ctx, r, force)
 }
 
+func (ident *identifier) ssaInstr() ssa.Instruction {
+	if ident.local != nil {
+		return ident.local
+	}
+	if instr, ok := ident.ssaValue().(ssa.Instruction); ok {
+		return instr
+	}
+	return nil
+}
+
+func (ident *identifier) ssaValue() ssa.Value {
+	if ident.cnst != nil {
+		return ident.cnst
+	}
+	if ident.local != nil {
+		return ident.local
+	}
+	if ident.param != nil {
+		return ident.param
+	}
+	return ident.value
+}
+
+func (ident *identifier) isPhi() bool {
+	_, ok := ident.ssaValue().(*ssa.Phi)
+	return ok
+}
+
 func (ident *identifier) isSsaLocal() bool {
-	return ident.local != nil && ident.local.info != nil
+	return ident.local != nil
 }
 
 func (ident *identifier) isParam() bool {
 	return ident.param != nil
 }
 
+func (ident *identifier) isConst() bool {
+	return ident.cnst != nil
+}
+
+func (ident *identifier) isRetIdent() bool {
+	return ident.name == retName()
+}
+
 func (ident *identifier) isBlockLocal() bool {
-	return !(ident.isSsaLocal() || ident.isParam())
+	return !(ident.isSsaLocal() || ident.isParam() || ident.isPhi())
 }
 
 func (ident *identifier) isPointer() bool {
@@ -179,25 +216,4 @@ func (name *identifier) isInteger() bool {
 	}
 	t := name.typ.(*types.Basic)
 	return t.Info()&types.IsInteger == types.IsInteger
-}
-
-type varInfo struct {
-	name string
-	// offset is from the stack pointer (SP)
-	info *ssa.Alloc
-}
-
-func (v *varInfo) ssaName() string {
-	return v.info.Name()
-}
-
-type paramInfo struct {
-	name string
-	// offset is from the frame pointer (FP)
-	info  *ssa.Parameter
-	extra interface{}
-}
-
-func (p *paramInfo) ssaName() string {
-	return p.info.Name()
 }

@@ -88,7 +88,6 @@ block0:
         CMPQ         R15, R12
         SETCS        R13
         MOVB         R13, t1-9(SP)
-        MOVQ         R15, t0-8(SP)
         MOVB         t1-9(SP), R15
         CMPB         R15, $0
         JEQ          block2
@@ -255,7 +254,6 @@ block0:
         UCOMISD      X15, X13
         SETHI        R15
         MOVB         R15, t1-9(SP)
-        MOVQ         X15, t0-8(SP)
         MOVB         t1-9(SP), R15
         CMPB         R15, $0
         JEQ          block2

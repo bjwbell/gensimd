@@ -327,7 +327,7 @@ func (r *register) OpDataType() OpDataType {
 	}
 	var optype OpDataType
 	typ := r.parent.owner().typ
-	if isIntegerSimd(typ) || isSimd(typ) || isSSE2(typ) {
+	if isXmm(typ) {
 		optype = GetOpDataType(typ)
 	} else {
 		optype = GetIntegerOpDataType(false, r.size())
@@ -386,7 +386,7 @@ func (m *memory) name() string {
 }
 
 func (m *memory) optype() OpDataType {
-	if isIntegerSimd(m.owner().typ) || isSimd(m.owner().typ) || isSSE2(m.owner().typ) || isFloat(m.owner().typ) {
+	if isXmm(m.owner().typ) {
 		return GetOpDataType(m.owner().typ)
 	} else {
 		size := m.owner().size()
@@ -444,7 +444,7 @@ func (m *memory) load(ctx context, chunk region) (string, *register) {
 func (m *memory) loadNew(ctx context, chunk region) (string, *register) {
 	asm, r := ctx.f.allocIdentReg(ctx.loc, m.owner(), chunk.size)
 	m.addAlias(ctx, alias{r, chunk})
-	if isIntegerSimd(m.owner().typ) || isSimd(m.owner().typ) || isSSE2(m.owner().typ) {
+	if isXmm(m.owner().typ) {
 		if chunk.size > XmmRegSize {
 			ice("can't copy to register, size too large")
 		}

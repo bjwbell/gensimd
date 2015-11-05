@@ -349,6 +349,10 @@ func isPointer(t types.Type) bool {
 	return ok
 }
 
+func isXmm(t types.Type) bool {
+	return isSSE2(t) || isSimd(t) || isFloat(t)
+}
+
 func sliceLenSize() uint {
 	return sizeInt()
 }
@@ -456,11 +460,9 @@ func GetOpDataType(t types.Type) OpDataType {
 }
 
 func regType(t types.Type) RegType {
-	if isSimd(t) || isSSE2(t) {
+	if isXmm(t) {
 		return XMM_REG
+	} else {
+		return DATA_REG
 	}
-	if isFloat(t) {
-		return XMM_REG
-	}
-	return DATA_REG
 }

@@ -14,7 +14,7 @@ block0:
         MOVSS        t0-4(SP), X13
         MOVO         X14, X15
         MULSS        X13, X15
-        MOVL         X15, ret0+8(FP)
+        MOVSS        X15, ret0+8(FP)
         RET
 
 TEXT ·ptrt1s(SB),$40-16
@@ -34,7 +34,7 @@ block0:
         MOVSD        t2-24(SP), X11
         MOVO         X15, X12
         ADDSD        X11, X12
-        MOVQ         X12, ret0+8(FP)
+        MOVSD        X12, ret0+8(FP)
         RET
 
 TEXT ·addf32s(SB),$8-12
@@ -44,7 +44,7 @@ block0:
         MOVSS        y+4(FP), X13
         MOVO         X14, X15
         ADDSS        X13, X15
-        MOVL         X15, ret0+8(FP)
+        MOVSS        X15, ret0+8(FP)
         RET
 
 TEXT ·subf32s(SB),$8-12
@@ -54,7 +54,7 @@ block0:
         MOVSS        y+4(FP), X13
         MOVO         X14, X15
         SUBSS        X13, X15
-        MOVL         X15, ret0+8(FP)
+        MOVSS        X15, ret0+8(FP)
         RET
 
 TEXT ·negf32s(SB),$8-12
@@ -64,7 +64,7 @@ block0:
         XORPD        X14, X14
         MOVO         X14, X15
         SUBSS        X13, X15
-        MOVL         X15, ret0+8(FP)
+        MOVSS        X15, ret0+8(FP)
         RET
 
 TEXT ·mulf32s(SB),$8-12
@@ -74,7 +74,7 @@ block0:
         MOVSS        y+4(FP), X13
         MOVO         X14, X15
         MULSS        X13, X15
-        MOVL         X15, ret0+8(FP)
+        MOVSS        X15, ret0+8(FP)
         RET
 
 TEXT ·divf32s(SB),$8-12
@@ -84,7 +84,7 @@ block0:
         MOVSS        y+4(FP), X13
         MOVO         X14, X15
         DIVSS        X13, X15
-        MOVL         X15, ret0+8(FP)
+        MOVSS        X15, ret0+8(FP)
         RET
 
 TEXT ·addf64s(SB),$16-24
@@ -94,7 +94,7 @@ block0:
         MOVSD        y+8(FP), X13
         MOVO         X14, X15
         ADDSD        X13, X15
-        MOVQ         X15, ret0+16(FP)
+        MOVSD        X15, ret0+16(FP)
         RET
 
 TEXT ·subf64s(SB),$16-24
@@ -104,7 +104,7 @@ block0:
         MOVSD        y+8(FP), X13
         MOVO         X14, X15
         SUBSD        X13, X15
-        MOVQ         X15, ret0+16(FP)
+        MOVSD        X15, ret0+16(FP)
         RET
 
 TEXT ·negf64s(SB),$16-16
@@ -114,7 +114,7 @@ block0:
         XORPD        X14, X14
         MOVO         X14, X15
         SUBSD        X13, X15
-        MOVQ         X15, ret0+8(FP)
+        MOVSD        X15, ret0+8(FP)
         RET
 
 TEXT ·mulf64s(SB),$16-24
@@ -124,7 +124,7 @@ block0:
         MOVSD        y+8(FP), X13
         MOVO         X14, X15
         MULSD        X13, X15
-        MOVQ         X15, ret0+16(FP)
+        MOVSD        X15, ret0+16(FP)
         RET
 
 TEXT ·divf64s(SB),$16-24
@@ -134,6 +134,6 @@ block0:
         MOVSD        y+8(FP), X13
         MOVO         X14, X15
         DIVSD        X13, X15
-        MOVQ         X15, ret0+16(FP)
+        MOVSD        X15, ret0+16(FP)
         RET
 

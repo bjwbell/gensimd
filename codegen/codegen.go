@@ -960,7 +960,7 @@ func (f *Function) StoreValAddr(loc ssa.Instruction, val ssa.Value, addr *identi
 
 	if isComplex(val.Type()) {
 		return ErrorMsg("complex32/64 unsupported")
-	} else if isFloat(val.Type()) {
+	} else if isXmm(val.Type()) {
 		a, valReg, err := f.LoadValue(loc, val, 0, f.sizeof(val))
 		if err != nil {
 			return a, err
@@ -968,18 +968,6 @@ func (f *Function) StoreValAddr(loc ssa.Instruction, val ssa.Value, addr *identi
 		asm += a
 
 		a, err = f.StoreValue(loc, addr, valReg)
-		if err != nil {
-			return a, err
-		}
-		asm += a
-		f.freeReg(valReg)
-	} else if isSimd(val.Type()) || isSSE2(val.Type()) {
-		a, valReg, err := f.LoadSimdValue(loc, val)
-		if err != nil {
-			return a, err
-		}
-		asm += a
-		a, err = f.StoreSimd(loc, valReg, addr)
 		if err != nil {
 			return a, err
 		}
@@ -1219,12 +1207,9 @@ func (f *Function) LoadIdentSimple(loc ssa.Instruction, ident *identifier) (stri
 
 func (f *Function) allocIdentReg(loc ssa.Instruction, ident *identifier, size uint) (string, *register) {
 	asm, reg := f.allocReg(loc, regType(ident.typ), size)
-	if size > 8 && ((!isSimd(ident.typ) && !isSSE2(ident.typ)) || reg.typ != XMM_REG) {
+	if size > 8 && !isXmm(ident.typ) {
 		msg := "ident (%v), allocating more than 8 byte chunk"
 		ice(fmt.Sprintf(msg, ident.name))
-	}
-	if isSimd(ident.typ) || isSSE2(ident.typ) || isIntegerSSE2(ident.typ) {
-		return asm, reg
 	}
 	return asm, reg
 }
@@ -1414,7 +1399,7 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 	} else {
 		var tmpData *register
 		var a1 string
-		if isSimd(instr.Type()) || isSSE2(instr.Type()) {
+		if isXmm(instr.Type()) {
 			a1, tmpData = f.allocReg(instr, XMM_REG, XmmRegSize)
 		} else {
 			a1, tmpData = f.allocReg(instr, regType(instr.Type()), DataRegSize)
@@ -1531,7 +1516,6 @@ func (f *Function) IndexAddr(instr *ssa.IndexAddr) (string, *Error) {
 		asm += Lea(ctx, xInfo.name, xOffset, &xReg, addr, false)
 		//assignment.aliases = append(assignment.aliases, xInfo)
 	} else {
-
 		ice(fmt.Sprintf("indexing non-slice/array variable, type %v", xInfo.typ))
 	}
 

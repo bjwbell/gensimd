@@ -221,7 +221,7 @@ block1:
         XORPD        X14, X14
         MOVO         X14, X15
         SUBSS        X13, X15
-        MOVL         X15, ret0+8(FP)
+        MOVSS        X15, ret0+8(FP)
         RET
 block2:
         //           $1092616192 = 0000000041200000 = 10(float32)
@@ -230,7 +230,7 @@ block2:
         MOVSS        x+0(FP), X12
         MOVO         X13, X14
         SUBSS        X12, X14
-        MOVL         X14, ret0+8(FP)
+        MOVSS        X14, ret0+8(FP)
         RET
 
 TEXT ·ift9s(SB),$32-16
@@ -250,7 +250,7 @@ block0:
         JMP          block1
 block1:
         MOVSD        x+0(FP), X15
-        MOVQ         X15, ret0+8(FP)
+        MOVSD        X15, ret0+8(FP)
         RET
 block2:
         //           $4613937818241073152 = 4008000000000000 = 3(float64)
@@ -261,6 +261,6 @@ block2:
         MULSD        X13, X15
         MOVO         X15, X12
         SUBSD        X13, X12
-        MOVQ         X12, ret0+8(FP)
+        MOVSD        X12, ret0+8(FP)
         RET
 

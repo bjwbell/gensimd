@@ -20,9 +20,9 @@ block0:
 TEXT ·boolt2s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         $0, R15
-        MOVB         R15, t0-1(SP)
         MOVB         x+0(FP), R15
+        MOVB         $0, R14
+        MOVB         R14, t0-1(SP)
         CMPB         R15, $0
         JEQ          block2
         JMP          block1

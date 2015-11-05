@@ -11,18 +11,12 @@ TEXT ·addpd(SB),$88-48
         MOVQ         $0, t1-24(SP)
 block0:
         MOVUPD       x+0(FP), X15
-        MOVUPD       X15, t0-16(SP)
-        MOVUPD       y+16(FP), X14
-        MOVUPD       X14, t1-32(SP)
-        MOVUPD       t0-16(SP), X13
-        MOVUPD       X13, t2-48(SP)
-        MOVUPD       t1-32(SP), X12
-        MOVUPD       X12, t3-64(SP)
-        MOVUPD       t2-48(SP), X11
-        MOVUPD       t3-64(SP), X10
+        MOVO         X15, X14
+        MOVUPD       y+16(FP), X13
+        MOVO         X13, X12
+        MOVO         X14, X11
+        MOVO         X12, X10
         ADDPD        X11, X10
-        MOVUPD       X10, t4-80(SP)
-        MOVUPD       t4-80(SP), X9
-        MOVUPD       X9, ret0+32(FP)
+        MOVUPD       X10, ret0+32(FP)
         RET
 

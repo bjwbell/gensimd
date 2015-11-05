@@ -157,14 +157,6 @@ func (f *Function) Func() (string, *Error) {
 	}
 	if f.Trace {
 		fmt.Println("TRACE {BasicBlocks}")
-		fmt.Println("TRACE ZeroNonSsaLocals")
-	}
-	zeroNonSsaLocals, err := f.ZeroNonSsaLocals()
-	if err != nil {
-		return zeroNonSsaLocals, err
-	}
-	if f.Trace {
-		fmt.Println("TRACE {ZeroNonSsaLocals}")
 	}
 	frameSize := f.localIdentsSize()
 	frameSize = f.align(frameSize)
@@ -173,7 +165,6 @@ func (f *Function) Func() (string, *Error) {
 	asm += f.SetStackPointer()
 	asm += zeroRetValue
 	asm += zeroSsaLocals
-	asm += zeroNonSsaLocals
 	asm += basicblocks
 	asm = f.fixupRets(asm)
 	asm = addIndent(asm, f.Indent)
@@ -275,23 +266,6 @@ func (f *Function) newIdent(v ssa.Value) (identifier, *Error) {
 	f.identifiers[name] = &ident
 	// zeroing the memory is done at the beginning of the function
 	return ident, nil
-}
-
-func (f *Function) ZeroNonSsaLocals() (string, *Error) {
-	asm := "// BEGIN ZeroNonSsaLocals\n"
-	ctx := context{f, nil}
-	for _, ident := range f.identifiers {
-		if ident.isSsaLocal() || ident.isParam() || ident.isConst() {
-			continue
-		}
-		if ident.isBlockLocal() || ident.isPhi() {
-			continue
-		}
-		sp := getRegister(REG_SP)
-		asm += ZeroMemory(ctx, ident.name, ident.offset, ident.size(), sp)
-	}
-	asm += "// END ZeroNonSsaLocals\n"
-	return asm, nil
 }
 
 func (f *Function) ZeroRetValue() (string, *Error) {
@@ -521,8 +495,8 @@ func (f *Function) Call(call *ssa.Call) (string, *Error) {
 }
 
 func (f *Function) SimdIntrinsic(call *ssa.Call) (string, *Error) {
-	var a string
-	var e *Error
+	var asm string
+	var err *Error
 
 	args := call.Common().Args
 	x := f.Ident(args[0])
@@ -535,15 +509,20 @@ func (f *Function) SimdIntrinsic(call *ssa.Call) (string, *Error) {
 		}
 		optypes := GetOpDataType(x.typ)
 		a, e := packedOp(f, call, simdinstr, optypes.xmmvariant, y, x, result)
-		return a, e
+		asm = a
+		err = e
 	} else {
 		intrinsic, ok := intrinsics[name]
 		if !ok {
 			panic(ice(fmt.Sprintf("Expected simd intrinsic got (%v)", name)))
 		}
-		a, e = intrinsic(f, call, x, y, result)
-		return a, e
+		a, e := intrinsic(f, call, x, y, result)
+		asm = a
+		err = e
 	}
+	asm = fmt.Sprintf("// BEGIN SIMD Intrinsic %v\n", call) + asm +
+		fmt.Sprintf("// END SIMD Intrinsic %v\n", call)
+	return asm, err
 }
 
 func isSimdIntrinsic(call *ssa.Call) bool {
@@ -756,39 +735,33 @@ func (f *Function) If(instr *ssa.If) (string, *Error) {
 		ice("malformed CFG with if stmt")
 	}
 
-	if info, ok := f.identifiers[instr.Cond.Name()]; !ok {
+	cond, ok := f.identifiers[instr.Cond.Name()]
+	if !ok {
 
 		return ErrorMsg(fmt.Sprintf("If: unhandled case, cond (%v)", instr.Cond))
-	} else {
-
-		a, err := f.JumpPreamble(instr, instr.Block().Index, fblock)
-		if err != nil {
-			return "", err
-		}
-		asm += a
-
-		if a, reg, err := f.LoadIdentSimple(instr, info); err != nil {
-			return "", err
-		} else {
-			if _, err := f.spillAllIdent(info, instr); err != nil {
-				return "", err
-			}
-			asm += a
-			asm += CmpRegImm32(ctx, reg, uint32(0), info.size())
-			f.freeReg(reg)
-		}
-
-		asm += fmt.Sprintf("%-9v    ", JEQ) + "block" + strconv.Itoa(fblock) + "\n"
-		a, err = f.JumpPreamble(instr, instr.Block().Index, tblock)
-		if err != nil {
-			return "", err
-		}
-		asm += a
-		jmp := "JMP"
-		asm += fmt.Sprintf("%-9v    ", jmp) + "block" + strconv.Itoa(tblock) + "\n"
-
 	}
+	a, reg, err := f.LoadIdentSimple(instr, cond)
+	if err != nil {
+		return "", err
+	}
+	asm += a
 
+	a, err = f.JumpPreamble(instr, instr.Block().Index, fblock)
+	if err != nil {
+		return "", err
+	}
+	asm += a
+	asm += CmpRegImm32(ctx, reg, uint32(0), cond.size())
+	f.freeReg(reg)
+
+	asm += fmt.Sprintf("%-9v    ", JEQ) + "block" + strconv.Itoa(fblock) + "\n"
+	a, err = f.JumpPreamble(instr, instr.Block().Index, tblock)
+	if err != nil {
+		return "", err
+	}
+	asm += a
+	jmp := "JMP"
+	asm += fmt.Sprintf("%-9v    ", jmp) + "block" + strconv.Itoa(tblock) + "\n"
 	asm = fmt.Sprintf("// BEGIN ssa.If, %v\n", instr) + asm
 	asm += fmt.Sprintf("// END ssa.If, %v\n", instr)
 
@@ -799,16 +772,19 @@ func (f *Function) JumpPreamble(loc ssa.Instruction, blockIndex, jmpIndex int) (
 	asm := ""
 	phiInfos := f.phiInfo[blockIndex][jmpIndex]
 	for _, phiInfo := range phiInfos {
-		if a, err := f.StoreValAddr(loc, phiInfo.value, f.Ident(phiInfo.phi)); err != nil {
+		ident := f.Ident(phiInfo.phi)
+		ident.spilling = true
+		if a, err := f.StoreValAddr(loc, phiInfo.value, ident); err != nil {
 			return a, err
 		} else {
 			asm += a
 		}
-		if a, err := f.spillAllIdent(f.Ident(phiInfo.phi), loc); err != nil {
+		if a, err := f.spillAllIdent(ident, loc); err != nil {
 			return "", err
 		} else {
 			asm += a
 		}
+		ident.spilling = false
 	}
 
 	if a, e := f.spillRegisters(context{f, loc}); e != nil {
@@ -900,18 +876,19 @@ var dummySpSize = uint32(math.MaxUint32)
 func (f *Function) Return(ret *ssa.Return) (string, *Error) {
 	asm := ResetStackPointer(dummySpSize)
 	asm = "// BEGIN ssa.Return\n" + asm
-
+	retIdent := f.retIdent()
+	retIdent.spilling = true
 	if a, err := f.CopyToRet(ret, ret.Results); err != nil {
 		return "", err
 	} else {
 		asm += a
 	}
-	if a, e := f.spillAllIdent(f.retIdent(), ret); e != nil {
+	if a, e := f.spillAllIdent(retIdent, ret); e != nil {
 		return a, e
 	} else {
 		asm += a
 	}
-
+	retIdent.spilling = false
 	asm += Ret()
 	asm += "// END ssa.Return\n"
 	return asm, nil
@@ -946,7 +923,8 @@ func (f *Function) CopyToRet(ret *ssa.Return, val []ssa.Value) (string, *Error) 
 		e.Pos = val[1].Pos()
 		return "", e
 	}
-	return f.StoreValAddr(ret, val[0], f.retIdent())
+	retIdent := f.retIdent()
+	return f.StoreValAddr(ret, val[0], retIdent)
 }
 
 func ResetStackPointer(size uint32) string {
@@ -1033,7 +1011,7 @@ func (f *Function) StoreValAddr(loc ssa.Instruction, val ssa.Value, addr *identi
 				return a, err
 			}
 			asm += a
-			a, err = f.AssignRegIdent(valReg, addr, offset, uint(datasize))
+			a, err = f.AssignRegIdent(loc, valReg, addr, offset, uint(datasize))
 			if err != nil {
 				return a, err
 			}
@@ -1053,9 +1031,9 @@ func (f *Function) Store(instr *ssa.Store) (string, *Error) {
 	if !ok {
 		ice(fmt.Sprintf("couldnt store identifier \"%v\"", addr.name))
 	}
-	asm := fmt.Sprintf("// BEGIN Store\n")
+	asm := fmt.Sprintf("// BEGIN Store %v\n", instr)
 	a, err := f.StoreValAddr(instr, instr.Val, addr)
-	asm = asm + a + fmt.Sprintf("// END Store\n")
+	asm = asm + a + fmt.Sprintf("// END Store %v\n", instr)
 	return asm, err
 }
 
@@ -1186,7 +1164,7 @@ func (f *Function) SliceLen(loc ssa.Instruction, slice ssa.Value, ident *identif
 		panic(ice(fmt.Sprintf("getting len of slice, type should slice not (%v)", slice.Type().String())))
 	}
 
-	asm := fmt.Sprintf("// BEGIN SliceLen: slice (%v), ident (%v)\n", slice, *ident)
+	asm := fmt.Sprintf("// BEGIN SliceLen: slice (%v), ident (%v)\n", slice, ident.String())
 
 	a, reg, err := f.LoadValue(loc, slice, sliceLenOffset(), sliceLenSize())
 	asm += a
@@ -1291,11 +1269,11 @@ func (f *Function) StoreValue(loc ssa.Instruction, ident *identifier, reg *regis
 		ice(fmt.Sprintf(msgstr, ident.name, ident.size(), reg.size()))
 
 	}
-	return f.AssignRegIdent(reg, ident, 0, ident.size())
+	return f.AssignRegIdent(loc, reg, ident, 0, ident.size())
 }
 
-func (f *Function) AssignRegIdent(reg *register, ident *identifier, offset uint, size uint) (string, *Error) {
-	return ident.newValue(reg, offset, size), nil
+func (f *Function) AssignRegIdent(loc ssa.Instruction, reg *register, ident *identifier, offset uint, size uint) (string, *Error) {
+	return ident.newValue(context{f, loc}, reg, offset, size), nil
 }
 
 func (f *Function) UnOp(instr *ssa.UnOp) (string, *Error) {
@@ -1428,9 +1406,10 @@ func (f *Function) UnOpPointer(instr *ssa.UnOp) (string, *Error) {
 	}
 	_, _, size := assignment.Addr()
 	if xInfo.isSsaLocal() {
-		a, reg := xInfo.load(context{f, instr})
+		ctx := context{f, instr}
+		a, reg := xInfo.load(ctx)
 		asm += a
-		asm += assignment.newValue(reg, 0, xInfo.size())
+		asm += assignment.newValue(ctx, reg, 0, xInfo.size())
 		f.freeReg(reg)
 	} else {
 		var tmpData *register
@@ -1661,7 +1640,7 @@ func (f *Function) spillNonBlockRegisters(ctx context) (string, *Error) {
 // t is the register type eg XMM_REG, size is bytes.
 func (f *Function) allocReg(loc ssa.Instruction, t RegType, size uint) (string, *register) {
 	asm := ""
-	reg := f.allocReg2(t, size)
+	reg := f.allocUnusedReg(t, size)
 	if reg == nil {
 		reg = f.chooseVictim(t, size)
 		if reg == nil {
@@ -1700,7 +1679,7 @@ func (f *Function) allocReg(loc ssa.Instruction, t RegType, size uint) (string, 
 }
 
 func (f *Function) allocTempReg(t RegType, size uint) (string, *register) {
-	reg := f.allocReg2(t, size)
+	reg := f.allocUnusedReg(t, size)
 	if reg != nil {
 		return "", reg
 	}
@@ -1735,7 +1714,7 @@ func (f *Function) allocTempReg(t RegType, size uint) (string, *register) {
 	return asm, reg
 }
 
-func (f *Function) allocReg2(t RegType, size uint) *register {
+func (f *Function) allocUnusedReg(t RegType, size uint) *register {
 	var reg *register
 	for i := 0; i < len(f.registers); i++ {
 		r := &f.registers[i]
@@ -1752,6 +1731,11 @@ func (f *Function) allocReg2(t RegType, size uint) *register {
 				break
 			}
 		}
+	}
+	if reg != nil {
+		reg.inUse = true
+		reg.dirty = false
+		reg.parent = nil
 	}
 	return reg
 }

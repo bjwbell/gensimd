@@ -699,7 +699,7 @@ block0:
 TEXT ·F32ToU8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), X15
+        MOVSS        x+0(FP), X15
         CVTTSS2SL    X15, R15
         MOVB         R15, ret0+8(FP)
         RET
@@ -707,7 +707,7 @@ block0:
 TEXT ·F32ToU16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), X15
+        MOVSS        x+0(FP), X15
         CVTTSS2SL    X15, R15
         MOVW         R15, ret0+8(FP)
         RET
@@ -715,7 +715,7 @@ block0:
 TEXT ·F32ToU32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), X15
+        MOVSS        x+0(FP), X15
         CVTTSS2SL    X15, R15
         MOVL         R15, ret0+8(FP)
         RET
@@ -723,7 +723,7 @@ block0:
 TEXT ·F32ToU64s(SB),$16-16
         MOVQ         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), X15
+        MOVSS        x+0(FP), X15
         CVTTSS2SQ    X15, R15
         MOVQ         R15, ret0+8(FP)
         RET
@@ -731,7 +731,7 @@ block0:
 TEXT ·F32ToI8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), X15
+        MOVSS        x+0(FP), X15
         CVTTSS2SL    X15, R15
         MOVB         R15, ret0+8(FP)
         RET
@@ -739,7 +739,7 @@ block0:
 TEXT ·F32ToI16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), X15
+        MOVSS        x+0(FP), X15
         CVTTSS2SL    X15, R15
         MOVW         R15, ret0+8(FP)
         RET
@@ -747,7 +747,7 @@ block0:
 TEXT ·F32ToI32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), X15
+        MOVSS        x+0(FP), X15
         CVTTSS2SL    X15, R15
         MOVL         R15, ret0+8(FP)
         RET
@@ -755,7 +755,7 @@ block0:
 TEXT ·F32ToI64s(SB),$16-16
         MOVQ         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), X15
+        MOVSS        x+0(FP), X15
         CVTTSS2SQ    X15, R15
         MOVQ         R15, ret0+8(FP)
         RET
@@ -763,14 +763,14 @@ block0:
 TEXT ·F32ToF32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), X15
+        MOVSS        x+0(FP), X15
         MOVL         X15, ret0+8(FP)
         RET
 
 TEXT ·F32ToF64s(SB),$16-16
         MOVQ         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), X15
+        MOVSS        x+0(FP), X15
         CVTSS2SD     X15, X14
         MOVQ         X14, ret0+8(FP)
         RET
@@ -778,7 +778,7 @@ block0:
 TEXT ·F64ToU8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVQ         x+0(FP), X15
+        MOVSD        x+0(FP), X15
         CVTTSD2SL    X15, R15
         MOVB         R15, ret0+8(FP)
         RET
@@ -786,7 +786,7 @@ block0:
 TEXT ·F64ToU16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVQ         x+0(FP), X15
+        MOVSD        x+0(FP), X15
         CVTTSD2SL    X15, R15
         MOVW         R15, ret0+8(FP)
         RET
@@ -794,7 +794,7 @@ block0:
 TEXT ·F64ToU32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVQ         x+0(FP), X15
+        MOVSD        x+0(FP), X15
         CVTTSD2SL    X15, R15
         MOVL         R15, ret0+8(FP)
         RET
@@ -802,7 +802,7 @@ block0:
 TEXT ·F64ToU64s(SB),$16-16
         MOVQ         $0, ret0+8(FP)
 block0:
-        MOVQ         x+0(FP), X15
+        MOVSD        x+0(FP), X15
         CVTTSD2SQ    X15, R15
         MOVQ         R15, ret0+8(FP)
         RET
@@ -810,7 +810,7 @@ block0:
 TEXT ·F64ToI8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVQ         x+0(FP), X15
+        MOVSD        x+0(FP), X15
         CVTTSD2SL    X15, R15
         MOVB         R15, ret0+8(FP)
         RET
@@ -818,7 +818,7 @@ block0:
 TEXT ·F64ToI16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVQ         x+0(FP), X15
+        MOVSD        x+0(FP), X15
         CVTTSD2SL    X15, R15
         MOVW         R15, ret0+8(FP)
         RET
@@ -826,7 +826,7 @@ block0:
 TEXT ·F64ToI32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVQ         x+0(FP), X15
+        MOVSD        x+0(FP), X15
         CVTTSD2SL    X15, R15
         MOVL         R15, ret0+8(FP)
         RET
@@ -834,7 +834,7 @@ block0:
 TEXT ·F64ToI64s(SB),$16-16
         MOVQ         $0, ret0+8(FP)
 block0:
-        MOVQ         x+0(FP), X15
+        MOVSD        x+0(FP), X15
         CVTTSD2SQ    X15, R15
         MOVQ         R15, ret0+8(FP)
         RET
@@ -842,7 +842,7 @@ block0:
 TEXT ·F64ToF32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVQ         x+0(FP), X15
+        MOVSD        x+0(FP), X15
         CVTSD2SS     X15, X14
         MOVL         X14, ret0+8(FP)
         RET
@@ -850,7 +850,7 @@ block0:
 TEXT ·F64ToF64s(SB),$8-16
         MOVQ         $0, ret0+8(FP)
 block0:
-        MOVQ         x+0(FP), X15
+        MOVSD        x+0(FP), X15
         MOVQ         X15, ret0+8(FP)
         RET
 

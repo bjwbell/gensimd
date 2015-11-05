@@ -17,9 +17,10 @@ type identifier struct {
 	// offset is from the stack pointer (SP)
 	local *ssa.Alloc
 	// offset is from the frame pointer (FP)
-	param *ssa.Parameter
-	cnst  *ssa.Const
-	value ssa.Value
+	param    *ssa.Parameter
+	cnst     *ssa.Const
+	value    ssa.Value
+	spilling bool
 }
 
 type context struct {
@@ -28,8 +29,20 @@ type context struct {
 }
 
 func (ident *identifier) String() string {
+	local := "nil"
+	if ident.local != nil {
+		local = ident.local.String()
+	}
+	param := "nil"
+	if ident.param != nil {
+		param = ident.param.String()
+	}
+	cnst := "nil"
+	if ident.cnst != nil {
+		cnst = ident.cnst.String()
+	}
 	return fmt.Sprintf("identifier{name: %v, typ: %v, local: %v, param: %v, cnst: %v, offset: %v}",
-		ident.name, ident.typ, ident.local, ident.param, ident.cnst, ident.offset)
+		ident.name, ident.typ, local, param, cnst, ident.offset)
 }
 
 func (ident *identifier) size() uint {
@@ -97,7 +110,39 @@ func (ident *identifier) loadConst(ctx context) (string, *register) {
 	return ident.storage.load(ctx, rgn)
 }
 
-func (ident *identifier) newValue(reg *register, offset uint, size uint) string {
+func (ident *identifier) newValue(ctx context, reg *register, offset uint, size uint) string {
+	// constants can't be modified
+	if ident.cnst != nil {
+		ice("cannot modify constant")
+	}
+
+	asm := ""
+	chunk := region{offset, size}
+	if ident.f.Trace {
+		parentName := "nil"
+		if reg.parent != nil {
+			parentName = reg.parent.owner().name
+		}
+		fmt.Printf(ident.f.Indent+"New value %v (offset=%v, size=%v) -> %v (d=%v, p=%v)\n",
+			ident.name, offset, size, reg.name, reg.dirty, parentName)
+	}
+	if ident.spilling {
+		asm = ident.storage.storeAndSpill(ctx, reg, chunk)
+	} else {
+		asm = ident.storage.store(ctx, reg, chunk)
+	}
+	if ident.f.Trace {
+		parentName := "nil"
+		if reg.parent != nil {
+			parentName = reg.parent.owner().name
+		}
+		fmt.Printf(ident.f.Indent+"New value {%v (offset=%v, size=%v) -> %v (d=%v, p=%v)}\n",
+			ident.name, offset, size, reg.name, reg.dirty, parentName)
+	}
+	return asm
+}
+
+func (ident *identifier) storeAndSpill(reg *register, offset uint, size uint) string {
 	// constants can't be modified
 	if ident.cnst != nil {
 		ice("cannot modify constant")
@@ -111,15 +156,10 @@ func (ident *identifier) newValue(reg *register, offset uint, size uint) string 
 		if reg.parent != nil {
 			parentName = reg.parent.owner().name
 		}
-		fmt.Printf(ident.f.Indent+"New value %v (offset=%v, size=%v) -> %v (d=%v,p=%v)\n",
+		fmt.Printf(ident.f.Indent+"New value %v (offset=%v, size=%v) -> %v (d=%v, p=%v)\n",
 			ident.name, offset, size, reg.name, reg.dirty, parentName)
 	}
-
-	if reg.parent != ident.storage {
-		asm = ident.storage.store(ctx, reg, chunk)
-	} else {
-		// nothing to do
-	}
+	asm = ident.storage.storeAndSpill(ctx, reg, chunk)
 	if ident.f.Trace {
 		parentName := "nil"
 		if reg.parent != nil {
@@ -194,7 +234,16 @@ func (ident *identifier) isRetIdent() bool {
 }
 
 func (ident *identifier) isBlockLocal() bool {
-	return !(ident.isSsaLocal() || ident.isParam() || ident.isPhi())
+	if ident.isSsaLocal() ||
+		ident.isParam() ||
+		ident.isPhi() ||
+		ident.isRetIdent() {
+
+		return false
+	} else {
+		// expensive computation
+		return len(getBlocks(ident)) <= 1
+	}
 }
 
 func (ident *identifier) isPointer() bool {

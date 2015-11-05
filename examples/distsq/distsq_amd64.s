@@ -16,16 +16,13 @@ TEXT ·distsq(SB),$544-52
         MOVQ         $0, t34-72(SP)
 block0:
         MOVQ         x+8(FP), R15
-        MOVQ         R15, t0-88(SP)
-        MOVQ         y+32(FP), R14
-        MOVQ         R14, t1-96(SP)
-        MOVQ         t0-88(SP), R12
-        MOVQ         t1-96(SP), R11
-        CMPQ         R12, R11
-        SETNE        R13
-        MOVB         R13, t2-97(SP)
-        MOVB         t2-97(SP), R15
-        CMPB         R15, $0
+        MOVQ         R15, R14
+        MOVQ         y+32(FP), R13
+        MOVQ         R13, R12
+        CMPQ         R14, R12
+        SETNE        R11
+        MOVB         R11, t2-97(SP)
+        CMPB         R11, $0
         JEQ          block2
         JMP          block1
 block1:
@@ -34,11 +31,12 @@ block1:
         RET
 block2:
         MOVQ         x+8(FP), R14
-        MOVQ         R14, t3-105(SP)
-        MOVL         $2147483647, R13
-        MOVL         R13, t4-109(SP)
-        MOVQ         $0, R12
-        MOVQ         R12, t5-117(SP)
+        MOVQ         R14, R13
+        MOVL         $2147483647, R12
+        MOVL         R12, t4-109(SP)
+        MOVQ         $0, R11
+        MOVQ         R11, t5-117(SP)
+        MOVQ         R13, t3-105(SP)
         JMP block5
 block3:
         MOVL         t4-109(SP), R15
@@ -56,7 +54,6 @@ block5:
         CMPQ         R14, R13
         SETLT        R15
         MOVB         R15, t6-130(SP)
-        MOVB         t6-130(SP), R15
         CMPB         R15, $0
         JEQ          block4
         JMP          block3
@@ -66,7 +63,6 @@ block6:
         CMPQ         R14, R13
         SETEQ        R15
         MOVB         R15, t7-131(SP)
-        MOVB         t7-131(SP), R15
         CMPB         R15, $0
         JEQ          block10
         MOVL         t9-121(SP), R15
@@ -79,8 +75,8 @@ block7:
         ADDQ         R13, R15
         MOVL         t9-121(SP), R12
         MOVL         R12, t4-109(SP)
-        MOVQ         R15, R14
-        MOVQ         R14, t5-117(SP)
+        MOVQ         R15, t5-117(SP)
+        MOVQ         R15, t8-143(SP)
         JMP block5
 block8:
         MOVQ         t10-129(SP), R14
@@ -88,7 +84,6 @@ block8:
         CMPQ         R14, R13
         SETLT        R15
         MOVB         R15, t11-144(SP)
-        MOVB         t11-144(SP), R15
         CMPB         R15, $0
         JEQ          block7
         JMP          block6
@@ -99,8 +94,8 @@ block9:
         ADDQ         R13, R15
         MOVL         t12-135(SP), R12
         MOVL         R12, t9-121(SP)
-        MOVQ         R15, R14
-        MOVQ         R14, t10-129(SP)
+        MOVQ         R15, t10-129(SP)
+        MOVQ         R15, t13-152(SP)
         JMP block8
 block10:
         MOVQ         t10-129(SP), R14
@@ -120,9 +115,7 @@ block10:
         MOVOU        t18-200(SP), X15
         MOVOU        t16-176(SP), X14
         PSUBL        X15, X14
-        MOVOU        X14, t19-216(SP)
-        MOVOU        t19-216(SP), X13
-        MOVOU        X13, t14-16(SP)
+        MOVO         X14, X13
         MOVQ         t10-129(SP), R12
         IMUL3Q       $16, R12, R12
         MOVQ         y+24(FP), R13
@@ -140,49 +133,40 @@ block10:
         MOVOU        t24-264(SP), X12
         MOVOU        t22-240(SP), X11
         PSUBL        X12, X11
-        MOVOU        X11, t25-280(SP)
-        MOVOU        t25-280(SP), X10
-        MOVOU        X10, t20-32(SP)
-        MOVOU        t14-16(SP), X9
+        MOVO         X11, X10
+        MOVO         X13, X9
+        MOVO         X13, X8
+        MOVO         X8, X7
+        PMULULQ      X9, X7
         MOVOU        X9, t27-296(SP)
-        MOVOU        X9, t28-312(SP)
-        MOVOU        t27-296(SP), X7
-        MOVOU        t28-312(SP), X6
-        MOVO         X6, X8
-        PMULULQ      X7, X8
-        PSRLO        $4, X7
-        PSRLO        $4, X6
-        MOVO         X6, X5
-        PMULULQ      X7, X5
-        PSHUFD       $8, X8, X4
-        PSHUFD       $8, X5, X3
-        PUNPCKLLQ    X3, X4
-        MOVOU        X4, t26-48(SP)
-        MOVOU        t20-32(SP), X8
+        PSRLO        $4, X9
+        MOVOU        X8, t28-312(SP)
+        PSRLO        $4, X8
+        MOVO         X8, X6
+        PMULULQ      X9, X6
+        PSHUFD       $8, X7, X5
+        PSHUFD       $8, X6, X4
+        PUNPCKLLQ    X4, X5
+        MOVO         X5, X9
+        MOVO         X10, X8
+        MOVO         X10, X7
+        MOVO         X7, X6
+        PMULULQ      X8, X6
         MOVOU        X8, t31-344(SP)
-        MOVOU        X8, t32-360(SP)
-        MOVOU        t31-344(SP), X6
-        MOVOU        t32-360(SP), X5
-        MOVO         X5, X7
-        PMULULQ      X6, X7
-        PSRLO        $4, X6
-        PSRLO        $4, X5
-        MOVO         X5, X3
-        PMULULQ      X6, X3
-        PSHUFD       $8, X7, X2
-        PSHUFD       $8, X3, X1
-        PUNPCKLLQ    X1, X2
-        MOVOU        X2, t30-64(SP)
-        MOVOU        t26-48(SP), X7
-        MOVOU        X7, t35-392(SP)
-        MOVOU        t30-64(SP), X6
-        MOVOU        X6, t36-408(SP)
-        MOVOU        t36-408(SP), X5
-        MOVOU        t35-392(SP), X3
-        PADDL        X5, X3
-        MOVOU        X3, t37-424(SP)
-        MOVOU        t37-424(SP), X1
-        MOVOU        X1, t34-80(SP)
+        PSRLO        $4, X8
+        MOVOU        X7, t32-360(SP)
+        PSRLO        $4, X7
+        MOVO         X7, X4
+        PMULULQ      X8, X4
+        PSHUFD       $8, X6, X3
+        PSHUFD       $8, X4, X2
+        PUNPCKLLQ    X2, X3
+        MOVO         X3, X8
+        MOVO         X9, X7
+        MOVO         X8, X6
+        PADDL        X6, X7
+        MOVO         X7, X4
+        MOVOU        X4, t34-80(SP)
         MOVQ         $0, R10
         IMUL3Q       $4, R10, R10
         LEAQ         t34-80(SP), R11
@@ -195,8 +179,11 @@ block10:
         SETLT        R10
         MOVL         R8, t43-441(SP)
         MOVB         R10, t40-437(SP)
-        MOVB         t40-437(SP), R15
-        CMPB         R15, $0
+        MOVOU        X8, t30-64(SP)
+        MOVOU        X9, t26-48(SP)
+        MOVOU        X10, t20-32(SP)
+        MOVOU        X13, t14-16(SP)
+        CMPB         R10, $0
         JEQ          block12
         JMP          block11
 block11:
@@ -222,8 +209,7 @@ block12:
         SETLT        R14
         MOVL         R12, t49-470(SP)
         MOVB         R14, t46-466(SP)
-        MOVB         t46-466(SP), R15
-        CMPB         R15, $0
+        CMPB         R14, $0
         JEQ          block14
         JMP          block13
 block13:
@@ -249,8 +235,7 @@ block14:
         SETLT        R14
         MOVL         R12, t55-499(SP)
         MOVB         R14, t52-495(SP)
-        MOVB         t52-495(SP), R15
-        CMPB         R15, $0
+        CMPB         R14, $0
         JEQ          block16
         JMP          block15
 block15:
@@ -276,8 +261,7 @@ block16:
         SETLT        R14
         MOVL         R12, t12-135(SP)
         MOVB         R14, t58-524(SP)
-        MOVB         t58-524(SP), R15
-        CMPB         R15, $0
+        CMPB         R14, $0
         JEQ          block9
         JMP          block17
 block17:

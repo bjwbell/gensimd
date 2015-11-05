@@ -15,8 +15,11 @@ type storer interface {
 	ownerRegion() region
 	load(ctx context, chunk region) (string, *register)
 	store(ctx context, r *register, chunk region) string
+	storeAndSpill(ctx context, r *register, chunk region) string
 	spillRegister(ctx context, r *register, force bool) string
 	spillRegisters(ctx context, force bool) string
+	addAlias(ctx context, newAlias alias) bool
+	removeAlias(ctx context, r *register) bool
 	size() uint
 }
 
@@ -383,7 +386,15 @@ func (m *memory) name() string {
 }
 
 func (m *memory) optype() OpDataType {
-	return GetOpDataType(m.owner().typ)
+	if isIntegerSimd(m.owner().typ) || isSimd(m.owner().typ) || isSSE2(m.owner().typ) || isFloat(m.owner().typ) {
+		return GetOpDataType(m.owner().typ)
+	} else {
+		size := m.owner().size()
+		if size > DataRegSize {
+			size = DataRegSize
+		}
+		return GetIntegerOpDataType(false, size)
+	}
 }
 
 func (m *memory) isInitialized(rgn region) bool {
@@ -437,23 +448,24 @@ func (m *memory) loadNew(ctx context, chunk region) (string, *register) {
 		if chunk.size > XmmRegSize {
 			ice("can't copy to register, size too large")
 		}
-		optype := m.optype()
-		optype.size = chunk.size
-		offset := m.offset() + int(chunk.offset)
-		asm += MovMemReg(ctx, optype, m.name(), offset, m.reg(), r, false)
 	} else {
 		if chunk.size > DataRegSize {
 			ice("can't copy to register, size too large")
 		}
-		optype := GetIntegerOpDataType(false, chunk.size)
-		offset := m.offset() + int(chunk.offset)
-		asm += MovMemReg(ctx, optype, m.name(), offset, m.reg(), r, false)
 	}
+	optype := m.optype()
+	optype.size = chunk.size
+	offset := m.offset() + int(chunk.offset)
+	asm += MovMemReg(ctx, optype, m.name(), offset, m.reg(), r, false)
 	r.dirty = false
 	return asm, r
 }
 
 func (m *memory) store(ctx context, r *register, chunk region) string {
+	return m.storeMem(ctx, r, chunk, false)
+}
+
+func (m *memory) storeMem(ctx context, r *register, chunk region, forceMem bool) string {
 	if r.parent == m {
 		if m.fetch(chunk) != r {
 			ice("invalid register aliasing")
@@ -461,21 +473,51 @@ func (m *memory) store(ctx context, r *register, chunk region) string {
 		return ""
 	}
 	if dst := m.fetch(chunk); dst != nil {
-		optype := m.optype()
-		asm := MovRegReg(ctx, optype, r, dst, false)
-		if !dst.dirty {
-			ice("dst register should be dirty")
-		}
-		return asm
-	} else {
-		if r.parent == nil {
-			m.addAlias(ctx, alias{dst: r, region: chunk})
-			return ""
+		if !forceMem {
+			return MovRegReg(ctx, m.optype(), r, dst, false)
 		} else {
-			m.setInitialized(chunk)
-			return r.save(ctx, chunk, m)
+			m.removeAlias(ctx, dst)
 		}
 	}
+
+	if !forceMem {
+		// can repurpose r to alias m
+		if unassignRegister(r, ctx.loc) {
+			m.addAlias(ctx, alias{dst: r, region: chunk})
+			return ""
+		}
+		f := m.owner().f
+		if newReg := f.allocUnusedReg(regType(m.owner().typ), chunk.size); newReg != nil {
+			m.addAlias(ctx, alias{dst: newReg, region: chunk})
+			return MovRegReg(ctx, m.optype(), r, newReg, false)
+		}
+	}
+	m.setInitialized(chunk)
+	return r.save(ctx, chunk, m)
+}
+
+func unassignRegister(r *register, loc ssa.Instruction) bool {
+	// owner missing
+	if r.parent == nil {
+		return true
+	}
+	owner := r.parent.owner()
+	if owner == nil {
+		ice("all storage should have owner")
+	}
+	if owner.f.Optimize && !aliveAfter(owner, loc) {
+		if !r.parent.removeAlias(context{owner.f, loc}, r) {
+			ice("couldnt unassign register from identifier")
+		}
+		return true
+	}
+	return false
+}
+
+func (m *memory) storeAndSpill(ctx context, r *register, chunk region) string {
+	asm := m.storeMem(ctx, r, chunk, true)
+	asm += m.spillRegisters(ctx, false)
+	return asm
 }
 
 func (m *memory) spillRegister(ctx context, r *register, force bool) string {
@@ -487,11 +529,16 @@ func (m *memory) spillRegister(ctx context, r *register, force bool) string {
 
 	if ctx.f.Optimize && !alive(m.owner(), ctx.loc) {
 		// case 0 - do nothing, ident is dead
+		if ctx.f.Trace {
+			ident := m.owner()
+			fmt.Printf(ident.f.Indent+"not spilling %v, %v dead\n",
+				r.name, ident.name)
+		}
+
 	} else if r.dirty || force || !m.isInitialized(regAlias.region) {
 		// case 1 - dirty == true or force == true or memory isn't initialized
 		asm = r.save(ctx, regAlias.region, m)
 		m.setInitialized(regAlias.region)
-
 	} else {
 		// case 2 - dirty == false and force == false, nothing to do
 	}
@@ -670,6 +717,11 @@ func (cnst *constant) loadNew(ctx context, chunk region) (string, *register) {
 }
 
 func (cnst *constant) store(ctx context, r *register, chunk region) string {
+	ice("cannot modify constants")
+	return ""
+}
+
+func (cnst *constant) storeAndSpill(ctx context, r *register, chunk region) string {
 	ice("cannot modify constants")
 	return ""
 }

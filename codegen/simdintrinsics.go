@@ -122,7 +122,7 @@ func packedOp(f *Function, loc ssa.Instruction, instrtype InstructionType, optyp
 		return "", err
 	}
 	asm += b
-	spill := result == y
+	spill := result != y
 	asm += instrRegReg(context{f, loc}, instr, regx, regy, spill)
 	c, err := f.StoreSimd(loc, regy, result)
 	if err != nil {

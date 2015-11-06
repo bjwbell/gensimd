@@ -1,3 +1,4 @@
 [submodule "vendor/golang.org/x/tools"]
 	path = vendor/golang.org/x/tools
 	url = https://github.com/bjwbell/tools
+	branch = gensimd

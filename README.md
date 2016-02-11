@@ -165,7 +165,7 @@ The shuffle order operand in `ShuffleI32x4/ShuffleU32x4` MUST be a constant not 
     simd.SuffleU32x4(x, order)
 
 
-#### TODO
+#### Misc
 
 The below functions aren't implemented because they have no directly equivalent SSE2 instructions.
 
@@ -173,8 +173,6 @@ The below functions aren't implemented because they have no directly equivalent 
     func ShrI64x2(x, shift uint8) I64x2
     func ShlU64x2(x, shift uint8) U64x2
     func ShrU64x2(x, shift uint8) U64x2
-
-Change `MulU32x4`, to not forward to `MulI32x4`.
 
 ## Platform Specific - SSE2
 SSE2 intrinsics are availabe if `simd.SSE2()` returns true.
@@ -202,25 +200,3 @@ SSE2 intrinsics are availabe if `simd.SSE2()` returns true.
     func AndnotPd(x, y simd.M128d) simd.M128d
     func CmpeqPd(x, y simd.M128d) simd.M128d
     func CmpeqSd(x, y simd.M128d) simd.M128d
-
-#### Gotcha's
-    
-    
-#### TODO
-Other SSE2 intrinsics.
-
-Are these needed?
-
-    func LoadSi128(memaddr *simd.M128i) simd.M128i
-    func LoaduSi128(memaddr *simd.M128i) simd.M128i
-    func StoreuSi128(memaddr *simd.M128i, a simd.M128i)
-    
-## Platform Specific - SSE3/SSSE3
-TODO
-
-Use `simd.SSSE2()` to check SSSE3 support.
-
-
-## Platform Specific - SSE4/SSE4a/4.1/4.2/
-TODO
-

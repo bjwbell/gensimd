@@ -243,9 +243,9 @@ func mulI32x4(f *Function, loc ssa.Instruction, x, y, result *identifier) (strin
 
 func shrU16x8(f *Function, loc ssa.Instruction, x, count, result *identifier) (string, *Error) {
 	ctx := context{f, loc}
-	// PSRL isn't used before go1.5.2 (https://github.com/golang/go/issues/13010)
-	v152 := goversion{1, 5, 2}
-	if v, e := goVersion(); e == nil && cmpGoVersion(v, v152) > 0 {
+	// PSRL isn't used before go1.6 (https://github.com/golang/go/issues/13010)
+	v160 := goversion{1, 6, 0}
+	if v, e := goVersion(); e == nil && cmpGoVersion(v, v160) > 0 {
 		return packedOp(f, loc, I_PSRL, XMM_U16X8, count, x, result)
 	} else {
 

@@ -154,7 +154,7 @@ The behavior of the floating point SIMD functions `Add*`, `Sub*`, `Mul*`, and `D
 #### Gotchas
 There are no SIMD functions for 64 bit integer multiplication because there's no equivalent SSE2 instruction.
 
-Until Go 1.5.2, `ShrU16x8` is slow because of [golang/go#13010](https://github.com/golang/go/issues/13010) "cmd/asm: x86, incorrect Optab entry - PSRLW".
+Until Go 1.6, `ShrU16x8` is slow because of [golang/go#13010](https://github.com/golang/go/issues/13010) "cmd/asm: x86, incorrect Optab entry - PSRLW".
 
 `MulI32x4` is slow because the instruction "PMULLD" wasn't added until SSE4.1.
 It's emulated using SSE2 instructions, [SSE multiplication of 4 32-bit integers](http://stackoverflow.com/questions/10500766/sse-multiplication-of-4-32-bit-integers).

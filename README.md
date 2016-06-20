@@ -6,7 +6,7 @@ packages and convert them to Go assembly with the `gensimd` command.
 
 *CODEGEN REWRITE* - Code generation is being rewritten to use the new Go compiler SSA backend, the rewrite is in progress at https://github.com/bjwbell/ssa and https://github.com/bjwbell/gir.
 
-[![Build Status](https://travis-ci.org/bjwbell/gensimd.svg?branch=master)](https://travis-ci.org/bjwbell/gensimd)
+[![Build Status](http://travis-ci.org/bjwbell/gensimd.svg?branch=master)](https://travis-ci.org/bjwbell/gensimd)
 
 ## Install
 

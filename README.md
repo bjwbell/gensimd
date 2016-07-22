@@ -17,9 +17,6 @@ go install github.com/bjwbell/gensimd
 go get github.com/bjwbell/gensimd/simd
 ```
 
-Vendoring `golang.org/x/tools/go/ssa` and enabling `GO15VENDOREXPERIMENT` is a temporary
-hack.
-
 ## Optional - SSE2
 
 The SSE2 intrinsics package is `github.com/bjwbell/gensimd/simd/sse`

@@ -96,8 +96,8 @@ block2:
         ADDQ         R8, R9
         MOVL         (R9), R8
         MOVL         R8, t22-265(SP)
-        MOVL         t20-253(SP), R9
-        MOVL         t22-265(SP), R10
+        MOVLQZX      t20-253(SP), R9
+        MOVLQZX      t22-265(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVL         R8, ret0+48(FP)

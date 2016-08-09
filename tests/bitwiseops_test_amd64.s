@@ -5,8 +5,8 @@
 TEXT ·oruint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         a+0(FP), R14
-        MOVB         b+1(FP), R13
+        MOVBQZX      a+0(FP), R14
+        MOVBQZX      b+1(FP), R13
         MOVB         R13, R15
         ORQ          R14, R15
         MOVB         R15, ret0+8(FP)
@@ -15,8 +15,8 @@ block0:
 TEXT ·anduint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         a+0(FP), R14
-        MOVB         b+1(FP), R13
+        MOVBQZX      a+0(FP), R14
+        MOVBQZX      b+1(FP), R13
         MOVB         R13, R15
         ANDB         R14, R15
         MOVB         R15, ret0+8(FP)
@@ -25,8 +25,8 @@ block0:
 TEXT ·xoruint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         a+0(FP), R14
-        MOVB         b+1(FP), R13
+        MOVBQZX      a+0(FP), R14
+        MOVBQZX      b+1(FP), R13
         MOVB         R13, R15
         XORQ         R14, R15
         MOVB         R15, ret0+8(FP)
@@ -35,7 +35,7 @@ block0:
 TEXT ·notuint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         a+0(FP), R15
+        MOVBQZX      a+0(FP), R15
         XORQ         $-1, R15
         MOVB         R15, ret0+8(FP)
         RET
@@ -43,8 +43,8 @@ block0:
 TEXT ·andnotuint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         a+0(FP), R14
-        MOVB         b+1(FP), R13
+        MOVBQZX      a+0(FP), R14
+        MOVBQZX      b+1(FP), R13
         MOVB         R13, R15
         XORB         $-1, R15
         ANDB         R14, R15
@@ -54,8 +54,8 @@ block0:
 TEXT ·shluint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         x+0(FP), R14
-        MOVB         shift+1(FP), R13
+        MOVBQZX      x+0(FP), R14
+        MOVBQZX      shift+1(FP), R13
         MOVB         R14, R15
         MOVB         R13, CX
         MOVL         $8, R14
@@ -69,8 +69,8 @@ block0:
 TEXT ·shruint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         x+0(FP), R14
-        MOVB         shift+1(FP), R13
+        MOVBQZX      x+0(FP), R14
+        MOVBQZX      shift+1(FP), R13
         MOVB         R14, R15
         MOVB         R13, CX
         MOVL         $8, R14
@@ -84,8 +84,8 @@ block0:
 TEXT ·oruint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         a+0(FP), R14
-        MOVW         b+2(FP), R13
+        MOVWQZX      a+0(FP), R14
+        MOVWQZX      b+2(FP), R13
         MOVW         R13, R15
         ORQ          R14, R15
         MOVW         R15, ret0+8(FP)
@@ -94,8 +94,8 @@ block0:
 TEXT ·anduint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         a+0(FP), R14
-        MOVW         b+2(FP), R13
+        MOVWQZX      a+0(FP), R14
+        MOVWQZX      b+2(FP), R13
         MOVW         R13, R15
         ANDW         R14, R15
         MOVW         R15, ret0+8(FP)
@@ -104,8 +104,8 @@ block0:
 TEXT ·xoruint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         a+0(FP), R14
-        MOVW         b+2(FP), R13
+        MOVWQZX      a+0(FP), R14
+        MOVWQZX      b+2(FP), R13
         MOVW         R13, R15
         XORQ         R14, R15
         MOVW         R15, ret0+8(FP)
@@ -114,7 +114,7 @@ block0:
 TEXT ·notuint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         a+0(FP), R15
+        MOVWQZX      a+0(FP), R15
         XORQ         $-1, R15
         MOVW         R15, ret0+8(FP)
         RET
@@ -122,8 +122,8 @@ block0:
 TEXT ·andnotuint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         a+0(FP), R14
-        MOVW         b+2(FP), R13
+        MOVWQZX      a+0(FP), R14
+        MOVWQZX      b+2(FP), R13
         MOVW         R13, R15
         XORW         $-1, R15
         ANDW         R14, R15
@@ -133,8 +133,8 @@ block0:
 TEXT ·shluint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         x+0(FP), R14
-        MOVB         shift+2(FP), R13
+        MOVWQZX      x+0(FP), R14
+        MOVBQZX      shift+2(FP), R13
         MOVW         R14, R15
         MOVW         R13, CX
         MOVL         $16, R14
@@ -148,8 +148,8 @@ block0:
 TEXT ·shruint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         x+0(FP), R14
-        MOVB         shift+2(FP), R13
+        MOVWQZX      x+0(FP), R14
+        MOVBQZX      shift+2(FP), R13
         MOVW         R14, R15
         MOVW         R13, CX
         MOVL         $16, R14
@@ -163,8 +163,8 @@ block0:
 TEXT ·oruint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         a+0(FP), R14
-        MOVL         b+4(FP), R13
+        MOVLQZX      a+0(FP), R14
+        MOVLQZX      b+4(FP), R13
         MOVL         R13, R15
         ORQ          R14, R15
         MOVL         R15, ret0+8(FP)
@@ -173,8 +173,8 @@ block0:
 TEXT ·anduint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         a+0(FP), R14
-        MOVL         b+4(FP), R13
+        MOVLQZX      a+0(FP), R14
+        MOVLQZX      b+4(FP), R13
         MOVL         R13, R15
         ANDL         R14, R15
         MOVL         R15, ret0+8(FP)
@@ -183,8 +183,8 @@ block0:
 TEXT ·xoruint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         a+0(FP), R14
-        MOVL         b+4(FP), R13
+        MOVLQZX      a+0(FP), R14
+        MOVLQZX      b+4(FP), R13
         MOVL         R13, R15
         XORQ         R14, R15
         MOVL         R15, ret0+8(FP)
@@ -193,7 +193,7 @@ block0:
 TEXT ·notuint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         a+0(FP), R15
+        MOVLQZX      a+0(FP), R15
         XORQ         $-1, R15
         MOVL         R15, ret0+8(FP)
         RET
@@ -201,8 +201,8 @@ block0:
 TEXT ·andnotuint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         a+0(FP), R14
-        MOVL         b+4(FP), R13
+        MOVLQZX      a+0(FP), R14
+        MOVLQZX      b+4(FP), R13
         MOVL         R13, R15
         XORL         $-1, R15
         ANDL         R14, R15
@@ -212,8 +212,8 @@ block0:
 TEXT ·shluint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), R14
-        MOVB         shift+4(FP), R13
+        MOVLQZX      x+0(FP), R14
+        MOVBQZX      shift+4(FP), R13
         MOVL         R14, R15
         MOVL         R13, CX
         MOVL         $31, R14
@@ -233,8 +233,8 @@ block0:
 TEXT ·shruint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), R14
-        MOVB         shift+4(FP), R13
+        MOVLQZX      x+0(FP), R14
+        MOVBQZX      shift+4(FP), R13
         MOVL         R14, R15
         MOVL         R13, CX
         MOVL         $31, R14
@@ -304,7 +304,7 @@ TEXT ·shluint64s(SB),$16-24
         MOVQ         $0, ret0+16(FP)
 block0:
         MOVQ         x+0(FP), R14
-        MOVB         shift+8(FP), R13
+        MOVBQZX      shift+8(FP), R13
         MOVQ         R14, R15
         MOVQ         R13, CX
         MOVL         $63, R14
@@ -325,7 +325,7 @@ TEXT ·shruint64s(SB),$16-24
         MOVQ         $0, ret0+16(FP)
 block0:
         MOVQ         x+0(FP), R14
-        MOVB         shift+8(FP), R13
+        MOVBQZX      shift+8(FP), R13
         MOVQ         R14, R15
         MOVQ         R13, CX
         MOVL         $63, R14
@@ -345,8 +345,8 @@ block0:
 TEXT ·orint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         a+0(FP), R14
-        MOVB         b+1(FP), R13
+        MOVBQZX      a+0(FP), R14
+        MOVBQZX      b+1(FP), R13
         MOVB         R13, R15
         ORQ          R14, R15
         MOVB         R15, ret0+8(FP)
@@ -355,8 +355,8 @@ block0:
 TEXT ·andint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         a+0(FP), R14
-        MOVB         b+1(FP), R13
+        MOVBQZX      a+0(FP), R14
+        MOVBQZX      b+1(FP), R13
         MOVB         R13, R15
         ANDB         R14, R15
         MOVB         R15, ret0+8(FP)
@@ -365,8 +365,8 @@ block0:
 TEXT ·xorint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         a+0(FP), R14
-        MOVB         b+1(FP), R13
+        MOVBQZX      a+0(FP), R14
+        MOVBQZX      b+1(FP), R13
         MOVB         R13, R15
         XORQ         R14, R15
         MOVB         R15, ret0+8(FP)
@@ -375,7 +375,7 @@ block0:
 TEXT ·notint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         a+0(FP), R15
+        MOVBQZX      a+0(FP), R15
         XORQ         $-1, R15
         MOVB         R15, ret0+8(FP)
         RET
@@ -383,8 +383,8 @@ block0:
 TEXT ·andnotint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         a+0(FP), R14
-        MOVB         b+1(FP), R13
+        MOVBQZX      a+0(FP), R14
+        MOVBQZX      b+1(FP), R13
         MOVB         R13, R15
         XORB         $-1, R15
         ANDB         R14, R15
@@ -394,8 +394,8 @@ block0:
 TEXT ·shlint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         x+0(FP), R14
-        MOVB         shift+1(FP), R13
+        MOVBQZX      x+0(FP), R14
+        MOVBQZX      shift+1(FP), R13
         MOVB         R14, R15
         MOVB         R13, CX
         MOVL         $8, R14
@@ -409,8 +409,8 @@ block0:
 TEXT ·shrint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         x+0(FP), R14
-        MOVB         shift+1(FP), R13
+        MOVBQZX      x+0(FP), R14
+        MOVBQZX      shift+1(FP), R13
         MOVB         R14, R15
         MOVB         R13, CX
         MOVL         $8, R14
@@ -424,8 +424,8 @@ block0:
 TEXT ·orint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         a+0(FP), R14
-        MOVW         b+2(FP), R13
+        MOVWQZX      a+0(FP), R14
+        MOVWQZX      b+2(FP), R13
         MOVW         R13, R15
         ORQ          R14, R15
         MOVW         R15, ret0+8(FP)
@@ -434,8 +434,8 @@ block0:
 TEXT ·andint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         a+0(FP), R14
-        MOVW         b+2(FP), R13
+        MOVWQZX      a+0(FP), R14
+        MOVWQZX      b+2(FP), R13
         MOVW         R13, R15
         ANDW         R14, R15
         MOVW         R15, ret0+8(FP)
@@ -444,8 +444,8 @@ block0:
 TEXT ·xorint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         a+0(FP), R14
-        MOVW         b+2(FP), R13
+        MOVWQZX      a+0(FP), R14
+        MOVWQZX      b+2(FP), R13
         MOVW         R13, R15
         XORQ         R14, R15
         MOVW         R15, ret0+8(FP)
@@ -454,7 +454,7 @@ block0:
 TEXT ·notint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         a+0(FP), R15
+        MOVWQZX      a+0(FP), R15
         XORQ         $-1, R15
         MOVW         R15, ret0+8(FP)
         RET
@@ -462,8 +462,8 @@ block0:
 TEXT ·andnotint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         a+0(FP), R14
-        MOVW         b+2(FP), R13
+        MOVWQZX      a+0(FP), R14
+        MOVWQZX      b+2(FP), R13
         MOVW         R13, R15
         XORW         $-1, R15
         ANDW         R14, R15
@@ -473,8 +473,8 @@ block0:
 TEXT ·shlint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         x+0(FP), R14
-        MOVB         shift+2(FP), R13
+        MOVWQZX      x+0(FP), R14
+        MOVBQZX      shift+2(FP), R13
         MOVW         R14, R15
         MOVW         R13, CX
         MOVL         $16, R14
@@ -488,8 +488,8 @@ block0:
 TEXT ·shrint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         x+0(FP), R14
-        MOVB         shift+2(FP), R13
+        MOVWQZX      x+0(FP), R14
+        MOVBQZX      shift+2(FP), R13
         MOVW         R14, R15
         MOVW         R13, CX
         MOVL         $16, R14
@@ -503,8 +503,8 @@ block0:
 TEXT ·orint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         a+0(FP), R14
-        MOVL         b+4(FP), R13
+        MOVLQZX      a+0(FP), R14
+        MOVLQZX      b+4(FP), R13
         MOVL         R13, R15
         ORQ          R14, R15
         MOVL         R15, ret0+8(FP)
@@ -513,8 +513,8 @@ block0:
 TEXT ·andint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         a+0(FP), R14
-        MOVL         b+4(FP), R13
+        MOVLQZX      a+0(FP), R14
+        MOVLQZX      b+4(FP), R13
         MOVL         R13, R15
         ANDL         R14, R15
         MOVL         R15, ret0+8(FP)
@@ -523,8 +523,8 @@ block0:
 TEXT ·xorint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         a+0(FP), R14
-        MOVL         b+4(FP), R13
+        MOVLQZX      a+0(FP), R14
+        MOVLQZX      b+4(FP), R13
         MOVL         R13, R15
         XORQ         R14, R15
         MOVL         R15, ret0+8(FP)
@@ -533,7 +533,7 @@ block0:
 TEXT ·notint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         a+0(FP), R15
+        MOVLQZX      a+0(FP), R15
         XORQ         $-1, R15
         MOVL         R15, ret0+8(FP)
         RET
@@ -541,8 +541,8 @@ block0:
 TEXT ·andnotint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         a+0(FP), R14
-        MOVL         b+4(FP), R13
+        MOVLQZX      a+0(FP), R14
+        MOVLQZX      b+4(FP), R13
         MOVL         R13, R15
         XORL         $-1, R15
         ANDL         R14, R15
@@ -552,8 +552,8 @@ block0:
 TEXT ·shlint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), R14
-        MOVB         shift+4(FP), R13
+        MOVLQZX      x+0(FP), R14
+        MOVBQZX      shift+4(FP), R13
         MOVL         R14, R15
         MOVL         R13, CX
         MOVL         $31, R14
@@ -573,8 +573,8 @@ block0:
 TEXT ·shrint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), R14
-        MOVB         shift+4(FP), R13
+        MOVLQZX      x+0(FP), R14
+        MOVBQZX      shift+4(FP), R13
         MOVL         R14, R15
         MOVL         R13, CX
         MOVL         $31, R14
@@ -644,7 +644,7 @@ TEXT ·shlint64s(SB),$16-24
         MOVQ         $0, ret0+16(FP)
 block0:
         MOVQ         x+0(FP), R14
-        MOVB         shift+8(FP), R13
+        MOVBQZX      shift+8(FP), R13
         MOVQ         R14, R15
         MOVQ         R13, CX
         MOVL         $63, R14
@@ -665,7 +665,7 @@ TEXT ·shrint64s(SB),$16-24
         MOVQ         $0, ret0+16(FP)
 block0:
         MOVQ         x+0(FP), R14
-        MOVB         shift+8(FP), R13
+        MOVBQZX      shift+8(FP), R13
         MOVQ         R14, R15
         MOVQ         R13, CX
         MOVL         $63, R14

@@ -5,7 +5,7 @@
 TEXT ·ift0s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         x+0(FP), R14
+        MOVBQZX      x+0(FP), R14
         MOVB         $2, R13
         CMPB         R14, R13
         SETCS        R15
@@ -14,11 +14,11 @@ block0:
         JEQ          block2
         JMP          block1
 block1:
-        MOVB         x+0(FP), R15
+        MOVBQZX      x+0(FP), R15
         MOVB         R15, ret0+8(FP)
         RET
 block2:
-        MOVB         x+0(FP), R14
+        MOVBQZX      x+0(FP), R14
         MOVB         R14, R15
         MOVB         R15, AX
         MULB         R14
@@ -29,7 +29,7 @@ block2:
 TEXT ·ift1s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         x+0(FP), R14
+        MOVWQZX      x+0(FP), R14
         MOVW         $128, R13
         CMPW         R14, R13
         SETHI        R15
@@ -38,19 +38,19 @@ block0:
         JEQ          block2
         JMP          block1
 block1:
-        MOVW         x+0(FP), R15
+        MOVWQZX      x+0(FP), R15
         XORQ         $-1, R15
         MOVW         R15, ret0+8(FP)
         RET
 block2:
-        MOVW         x+0(FP), R14
+        MOVWQZX      x+0(FP), R14
         MOVW         R14, ret0+8(FP)
         RET
 
 TEXT ·ift2s(SB),$16-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), R14
+        MOVLQZX      x+0(FP), R14
         MOVL         $1024, R13
         CMPL         R14, R13
         SETCS        R15
@@ -59,14 +59,14 @@ block0:
         JEQ          block2
         JMP          block1
 block1:
-        MOVL         x+0(FP), R14
+        MOVLQZX      x+0(FP), R14
         MOVL         $509, R13
         MOVL         R13, R15
         ANDL         R14, R15
         MOVL         R15, ret0+8(FP)
         RET
 block2:
-        MOVL         x+0(FP), R12
+        MOVLQZX      x+0(FP), R12
         MOVL         $511, R11
         MOVL         R11, R14
         ANDL         R12, R14
@@ -107,7 +107,7 @@ block2:
 TEXT ·ift4s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         x+0(FP), R14
+        MOVBQZX      x+0(FP), R14
         MOVB         $0, R13
         CMPB         R14, R13
         SETLT        R15
@@ -116,21 +116,21 @@ block0:
         JEQ          block2
         JMP          block1
 block1:
-        MOVB         x+0(FP), R13
+        MOVBQZX      x+0(FP), R13
         XORQ         R14, R14
         MOVB         R14, R15
         SUBB         R13, R15
         MOVB         R15, ret0+8(FP)
         RET
 block2:
-        MOVB         x+0(FP), R14
+        MOVBQZX      x+0(FP), R14
         MOVB         R14, ret0+8(FP)
         RET
 
 TEXT ·ift5s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         x+0(FP), R14
+        MOVWQZX      x+0(FP), R14
         MOVW         $-255, R13
         CMPW         R14, R13
         SETLT        R15
@@ -140,7 +140,7 @@ block0:
         JMP          block1
 block1:
         MOVW         $-255, R14
-        MOVW         x+0(FP), R13
+        MOVWQZX      x+0(FP), R13
         MOVW         R14, R15
         MOVW         R15, AX
         IMULW        R13
@@ -149,7 +149,7 @@ block1:
         RET
 block2:
         MOVW         $255, R13
-        MOVW         x+0(FP), R12
+        MOVWQZX      x+0(FP), R12
         MOVW         R13, R14
         MOVW         R14, AX
         IMULW        R12
@@ -160,7 +160,7 @@ block2:
 TEXT ·ift6s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), R14
+        MOVLQZX      x+0(FP), R14
         MOVL         $1, R13
         CMPL         R14, R13
         SETEQ        R15

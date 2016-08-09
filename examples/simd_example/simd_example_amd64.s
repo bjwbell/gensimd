@@ -44,7 +44,7 @@ TEXT ·shli32x4(SB),$24-40
         MOVQ         $0, ret0+24(FP)
         MOVQ         $0, ret0+32(FP)
 block0:
-        MOVB         shift+16(FP), R15
+        MOVBQZX      shift+16(FP), R15
         MOVQ         R15, X15
         MOVOU        x+0(FP), X14
         PSLLL        X15, X14
@@ -55,7 +55,7 @@ TEXT ·shri32x4(SB),$24-40
         MOVQ         $0, ret0+24(FP)
         MOVQ         $0, ret0+32(FP)
 block0:
-        MOVB         shift+16(FP), R15
+        MOVBQZX      shift+16(FP), R15
         MOVQ         R15, X15
         MOVOU        x+0(FP), X14
         PSRAL        X15, X14

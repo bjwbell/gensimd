@@ -44,13 +44,13 @@ block2:
         MOVQ         R13, t4-173(SP)
         JMP block5
 block3:
-        MOVL         t3-165(SP), R15
+        MOVLQZX      t3-165(SP), R15
         MOVL         R15, t138-177(SP)
         MOVQ         $0, R14
         MOVQ         R14, t139-185(SP)
         JMP block8
 block4:
-        MOVL         t3-165(SP), R15
+        MOVLQZX      t3-165(SP), R15
         MOVL         R15, ret0+48(FP)
         RET
 block5:
@@ -223,8 +223,8 @@ block6:
         ADDQ         R9, R10
         MOVL         (R10), R9
         MOVL         R9, t58-810(SP)
-        MOVL         t56-798(SP), R8
-        MOVL         t58-810(SP), R10
+        MOVLQZX      t56-798(SP), R8
+        MOVLQZX      t58-810(SP), R10
         MOVL         R8, R9
         ADDL         R10, R9
         MOVQ         $2, BX
@@ -233,7 +233,7 @@ block6:
         ADDQ         BX, BP
         MOVL         (BP), BX
         MOVL         BX, t61-826(SP)
-        MOVL         t61-826(SP), R10
+        MOVLQZX      t61-826(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVQ         $3, DI
@@ -243,8 +243,8 @@ block6:
         MOVL         (BX), DI
         MOVL         DI, t64-842(SP)
         MOVL         R8, t62-830(SP)
-        MOVL         t62-830(SP), R9
-        MOVL         t64-842(SP), R10
+        MOVLQZX      t62-830(SP), R9
+        MOVLQZX      t64-842(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVQ         $0, SI
@@ -256,8 +256,8 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t67-858(SP)
         MOVL         R8, t65-846(SP)
-        MOVL         t65-846(SP), R9
-        MOVL         t67-858(SP), R10
+        MOVLQZX      t65-846(SP), R9
+        MOVLQZX      t67-858(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVQ         $1, SI
@@ -269,8 +269,8 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t70-874(SP)
         MOVL         R8, t68-862(SP)
-        MOVL         t68-862(SP), R9
-        MOVL         t70-874(SP), R10
+        MOVLQZX      t68-862(SP), R9
+        MOVLQZX      t70-874(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVQ         $2, SI
@@ -282,8 +282,8 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t73-890(SP)
         MOVL         R8, t71-878(SP)
-        MOVL         t71-878(SP), R9
-        MOVL         t73-890(SP), R10
+        MOVLQZX      t71-878(SP), R9
+        MOVLQZX      t73-890(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVQ         $3, SI
@@ -295,8 +295,8 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t76-906(SP)
         MOVL         R8, t74-894(SP)
-        MOVL         t74-894(SP), R9
-        MOVL         t76-906(SP), R10
+        MOVLQZX      t74-894(SP), R9
+        MOVLQZX      t76-906(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVQ         $0, SI
@@ -308,8 +308,8 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t79-922(SP)
         MOVL         R8, t77-910(SP)
-        MOVL         t77-910(SP), R9
-        MOVL         t79-922(SP), R10
+        MOVLQZX      t77-910(SP), R9
+        MOVLQZX      t79-922(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVQ         $1, SI
@@ -321,8 +321,8 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t82-938(SP)
         MOVL         R8, t80-926(SP)
-        MOVL         t80-926(SP), R9
-        MOVL         t82-938(SP), R10
+        MOVLQZX      t80-926(SP), R9
+        MOVLQZX      t82-938(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVQ         $2, SI
@@ -334,8 +334,8 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t85-954(SP)
         MOVL         R8, t83-942(SP)
-        MOVL         t83-942(SP), R9
-        MOVL         t85-954(SP), R10
+        MOVLQZX      t83-942(SP), R9
+        MOVLQZX      t85-954(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVQ         $3, SI
@@ -347,8 +347,8 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t88-970(SP)
         MOVL         R8, t86-958(SP)
-        MOVL         t86-958(SP), R9
-        MOVL         t88-970(SP), R10
+        MOVLQZX      t86-958(SP), R9
+        MOVLQZX      t88-970(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVOU        X10, t13-32(SP)
@@ -369,8 +369,8 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t93-998(SP)
         MOVL         R8, t89-974(SP)
-        MOVL         t91-986(SP), R9
-        MOVL         t93-998(SP), R10
+        MOVLQZX      t91-986(SP), R9
+        MOVLQZX      t93-998(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVQ         $2, SI
@@ -382,8 +382,8 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t96-1014(SP)
         MOVL         R8, t94-1002(SP)
-        MOVL         t94-1002(SP), R9
-        MOVL         t96-1014(SP), R10
+        MOVLQZX      t94-1002(SP), R9
+        MOVLQZX      t96-1014(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVQ         $3, SI
@@ -395,8 +395,8 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t99-1030(SP)
         MOVL         R8, t97-1018(SP)
-        MOVL         t97-1018(SP), R9
-        MOVL         t99-1030(SP), R10
+        MOVLQZX      t97-1018(SP), R9
+        MOVLQZX      t99-1030(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVQ         $0, SI
@@ -408,8 +408,8 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t102-1046(SP)
         MOVL         R8, t100-1034(SP)
-        MOVL         t100-1034(SP), R9
-        MOVL         t102-1046(SP), R10
+        MOVLQZX      t100-1034(SP), R9
+        MOVLQZX      t102-1046(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVQ         $1, SI
@@ -421,8 +421,8 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t105-1062(SP)
         MOVL         R8, t103-1050(SP)
-        MOVL         t103-1050(SP), R9
-        MOVL         t105-1062(SP), R10
+        MOVLQZX      t103-1050(SP), R9
+        MOVLQZX      t105-1062(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVQ         $2, SI
@@ -434,8 +434,8 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t108-1078(SP)
         MOVL         R8, t106-1066(SP)
-        MOVL         t106-1066(SP), R9
-        MOVL         t108-1078(SP), R10
+        MOVLQZX      t106-1066(SP), R9
+        MOVLQZX      t108-1078(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVQ         $3, SI
@@ -447,8 +447,8 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t111-1094(SP)
         MOVL         R8, t109-1082(SP)
-        MOVL         t109-1082(SP), R9
-        MOVL         t111-1094(SP), R10
+        MOVLQZX      t109-1082(SP), R9
+        MOVLQZX      t111-1094(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVQ         $0, SI
@@ -460,8 +460,8 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t114-1110(SP)
         MOVL         R8, t112-1098(SP)
-        MOVL         t112-1098(SP), R9
-        MOVL         t114-1110(SP), R10
+        MOVLQZX      t112-1098(SP), R9
+        MOVLQZX      t114-1110(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVQ         $1, SI
@@ -473,8 +473,8 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t117-1126(SP)
         MOVL         R8, t115-1114(SP)
-        MOVL         t115-1114(SP), R9
-        MOVL         t117-1126(SP), R10
+        MOVLQZX      t115-1114(SP), R9
+        MOVLQZX      t117-1126(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVQ         $2, SI
@@ -486,8 +486,8 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t120-1142(SP)
         MOVL         R8, t118-1130(SP)
-        MOVL         t118-1130(SP), R9
-        MOVL         t120-1142(SP), R10
+        MOVLQZX      t118-1130(SP), R9
+        MOVLQZX      t120-1142(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVQ         $3, SI
@@ -499,13 +499,13 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t123-1158(SP)
         MOVL         R8, t121-1146(SP)
-        MOVL         t121-1146(SP), R9
-        MOVL         t123-1158(SP), R10
+        MOVLQZX      t121-1146(SP), R9
+        MOVLQZX      t123-1158(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVL         R8, t124-1162(SP)
-        MOVL         t89-974(SP), R9
-        MOVL         t124-1162(SP), R10
+        MOVLQZX      t89-974(SP), R9
+        MOVLQZX      t124-1162(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVOU        X9, t25-48(SP)
@@ -518,8 +518,8 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t127-1178(SP)
         MOVL         R8, t125-1166(SP)
-        MOVL         t125-1166(SP), R9
-        MOVL         t127-1178(SP), R10
+        MOVLQZX      t125-1166(SP), R9
+        MOVLQZX      t127-1178(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVOU        X6, t39-96(SP)
@@ -532,8 +532,8 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t130-1194(SP)
         MOVL         R8, t128-1182(SP)
-        MOVL         t128-1182(SP), R9
-        MOVL         t130-1194(SP), R10
+        MOVLQZX      t128-1182(SP), R9
+        MOVLQZX      t130-1194(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVOU        X3, t53-144(SP)
@@ -546,13 +546,13 @@ block6:
         MOVL         (BX), SI
         MOVL         SI, t133-1210(SP)
         MOVL         R8, t131-1198(SP)
-        MOVL         t131-1198(SP), R9
-        MOVL         t133-1210(SP), R10
+        MOVLQZX      t131-1198(SP), R9
+        MOVLQZX      t133-1210(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVL         R8, t134-1214(SP)
-        MOVL         t138-177(SP), R9
-        MOVL         t134-1214(SP), R10
+        MOVLQZX      t138-177(SP), R9
+        MOVLQZX      t134-1214(SP), R10
         MOVL         R9, R8
         ADDL         R10, R8
         MOVQ         t139-185(SP), SI
@@ -569,7 +569,7 @@ block7:
         MOVQ         $1, R13
         MOVQ         R14, R15
         ADDQ         R13, R15
-        MOVL         t138-177(SP), R12
+        MOVLQZX      t138-177(SP), R12
         MOVL         R12, t3-165(SP)
         MOVQ         R15, t4-173(SP)
         MOVQ         R15, t137-1234(SP)

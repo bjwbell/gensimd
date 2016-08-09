@@ -31,13 +31,13 @@ block2:
         MOVQ         R13, t3-41(SP)
         JMP block5
 block3:
-        MOVL         t4-45(SP), R15
+        MOVLQZX      t4-45(SP), R15
         MOVL         R15, t9-57(SP)
         MOVQ         $0, R14
         MOVQ         R14, t10-65(SP)
         JMP block8
 block4:
-        MOVL         t4-45(SP), R15
+        MOVLQZX      t4-45(SP), R15
         MOVL         R15, ret0+48(FP)
         RET
 block5:
@@ -57,7 +57,7 @@ block6:
         MOVB         R15, t7-67(SP)
         CMPB         R15, $0
         JEQ          block10
-        MOVL         t9-57(SP), R15
+        MOVLQZX      t9-57(SP), R15
         MOVL         R15, t12-71(SP)
         JMP          block9
 block7:
@@ -65,7 +65,7 @@ block7:
         MOVQ         $1, R13
         MOVQ         R14, R15
         ADDQ         R13, R15
-        MOVL         t9-57(SP), R12
+        MOVLQZX      t9-57(SP), R12
         MOVL         R12, t4-45(SP)
         MOVQ         R15, t5-53(SP)
         MOVQ         R15, t8-79(SP)
@@ -84,7 +84,7 @@ block9:
         MOVQ         $1, R13
         MOVQ         R14, R15
         ADDQ         R13, R15
-        MOVL         t12-71(SP), R12
+        MOVLQZX      t12-71(SP), R12
         MOVL         R12, t9-57(SP)
         MOVQ         R15, t10-65(SP)
         MOVQ         R15, t13-88(SP)
@@ -152,8 +152,8 @@ block10:
         ADDQ         R10, R11
         MOVL         (R11), R10
         MOVL         R10, t29-276(SP)
-        MOVL         t29-276(SP), R9
-        MOVL         t9-57(SP), R8
+        MOVLQZX      t29-276(SP), R9
+        MOVLQZX      t9-57(SP), R8
         CMPL         R9, R8
         SETLT        R10
         MOVL         R8, t33-281(SP)
@@ -168,7 +168,7 @@ block11:
         ADDQ         R14, R15
         MOVL         (R15), R14
         MOVL         R14, t32-293(SP)
-        MOVL         t32-293(SP), R14
+        MOVLQZX      t32-293(SP), R14
         MOVL         R14, t33-281(SP)
         JMP block12
 block12:
@@ -178,8 +178,8 @@ block12:
         ADDQ         R14, R15
         MOVL         (R15), R14
         MOVL         R14, t35-305(SP)
-        MOVL         t35-305(SP), R13
-        MOVL         t33-281(SP), R12
+        MOVLQZX      t35-305(SP), R13
+        MOVLQZX      t33-281(SP), R12
         CMPL         R13, R12
         SETLT        R14
         MOVL         R12, t39-310(SP)
@@ -194,7 +194,7 @@ block13:
         ADDQ         R14, R15
         MOVL         (R15), R14
         MOVL         R14, t38-322(SP)
-        MOVL         t38-322(SP), R14
+        MOVLQZX      t38-322(SP), R14
         MOVL         R14, t39-310(SP)
         JMP block14
 block14:
@@ -204,8 +204,8 @@ block14:
         ADDQ         R14, R15
         MOVL         (R15), R14
         MOVL         R14, t41-334(SP)
-        MOVL         t41-334(SP), R13
-        MOVL         t39-310(SP), R12
+        MOVLQZX      t41-334(SP), R13
+        MOVLQZX      t39-310(SP), R12
         CMPL         R13, R12
         SETLT        R14
         MOVL         R12, t45-339(SP)
@@ -220,7 +220,7 @@ block15:
         ADDQ         R14, R15
         MOVL         (R15), R14
         MOVL         R14, t44-351(SP)
-        MOVL         t44-351(SP), R14
+        MOVLQZX      t44-351(SP), R14
         MOVL         R14, t45-339(SP)
         JMP block16
 block16:
@@ -230,8 +230,8 @@ block16:
         ADDQ         R14, R15
         MOVL         (R15), R14
         MOVL         R14, t47-363(SP)
-        MOVL         t47-363(SP), R13
-        MOVL         t45-339(SP), R12
+        MOVLQZX      t47-363(SP), R13
+        MOVLQZX      t45-339(SP), R12
         CMPL         R13, R12
         SETLT        R14
         MOVL         R12, t12-71(SP)
@@ -246,7 +246,7 @@ block17:
         ADDQ         R14, R15
         MOVL         (R15), R14
         MOVL         R14, t50-376(SP)
-        MOVL         t50-376(SP), R14
+        MOVLQZX      t50-376(SP), R14
         MOVL         R14, t12-71(SP)
         JMP block9
 

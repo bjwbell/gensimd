@@ -76,7 +76,7 @@ TEXT ·shli16x8s(SB),$24-40
         MOVQ         $0, ret0+24(FP)
         MOVQ         $0, ret0+32(FP)
 block0:
-        MOVB         shift+16(FP), R15
+        MOVBQZX      shift+16(FP), R15
         MOVQ         R15, X15
         MOVOU        x+0(FP), X14
         PSLLW        X15, X14
@@ -87,7 +87,7 @@ TEXT ·shri16x8s(SB),$24-40
         MOVQ         $0, ret0+24(FP)
         MOVQ         $0, ret0+32(FP)
 block0:
-        MOVB         shift+16(FP), R15
+        MOVBQZX      shift+16(FP), R15
         MOVQ         R15, X15
         MOVOU        x+0(FP), X14
         PSRAW        X15, X14
@@ -128,7 +128,7 @@ TEXT ·shlu16x8s(SB),$24-40
         MOVQ         $0, ret0+24(FP)
         MOVQ         $0, ret0+32(FP)
 block0:
-        MOVB         shift+16(FP), R15
+        MOVBQZX      shift+16(FP), R15
         MOVQ         R15, X15
         MOVOU        x+0(FP), X14
         PSLLW        X15, X14
@@ -140,7 +140,7 @@ TEXT ·shru16x8s(SB),$24-40
         MOVQ         $0, ret0+32(FP)
 block0:
         MOVOU        x+0(FP), X15
-        MOVB         shift+16(FP), R15
+        MOVBQZX      shift+16(FP), R15
         PEXTRW       $0, X15, R14
         MOVQ         R15, CX
         MOVL         $63, R13
@@ -298,7 +298,7 @@ TEXT ·shli32x4s(SB),$24-40
         MOVQ         $0, ret0+24(FP)
         MOVQ         $0, ret0+32(FP)
 block0:
-        MOVB         shift+16(FP), R15
+        MOVBQZX      shift+16(FP), R15
         MOVQ         R15, X15
         MOVOU        x+0(FP), X14
         PSLLL        X15, X14
@@ -309,7 +309,7 @@ TEXT ·shri32x4s(SB),$24-40
         MOVQ         $0, ret0+24(FP)
         MOVQ         $0, ret0+32(FP)
 block0:
-        MOVB         shift+16(FP), R15
+        MOVBQZX      shift+16(FP), R15
         MOVQ         R15, X15
         MOVOU        x+0(FP), X14
         PSRAL        X15, X14
@@ -358,7 +358,7 @@ TEXT ·shlu32x4s(SB),$24-40
         MOVQ         $0, ret0+24(FP)
         MOVQ         $0, ret0+32(FP)
 block0:
-        MOVB         shift+16(FP), R15
+        MOVBQZX      shift+16(FP), R15
         MOVQ         R15, X15
         MOVOU        x+0(FP), X14
         PSLLL        X15, X14
@@ -369,7 +369,7 @@ TEXT ·shru32x4s(SB),$24-40
         MOVQ         $0, ret0+24(FP)
         MOVQ         $0, ret0+32(FP)
 block0:
-        MOVB         shift+16(FP), R15
+        MOVBQZX      shift+16(FP), R15
         MOVQ         R15, X15
         MOVOU        x+0(FP), X14
         PSRLL        X15, X14

@@ -5,8 +5,8 @@
 TEXT ·adds(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), R14
-        MOVL         y+4(FP), R13
+        MOVLQZX      x+0(FP), R14
+        MOVLQZX      y+4(FP), R13
         MOVL         R14, R15
         ADDL         R13, R15
         MOVL         R15, ret0+8(FP)
@@ -15,8 +15,8 @@ block0:
 TEXT ·subs(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), R14
-        MOVL         y+4(FP), R13
+        MOVLQZX      x+0(FP), R14
+        MOVLQZX      y+4(FP), R13
         MOVL         R14, R15
         SUBL         R13, R15
         MOVL         R15, ret0+8(FP)
@@ -25,7 +25,7 @@ block0:
 TEXT ·negs(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), R13
+        MOVLQZX      x+0(FP), R13
         XORQ         R14, R14
         MOVL         R14, R15
         SUBL         R13, R15
@@ -35,8 +35,8 @@ block0:
 TEXT ·muls(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), R14
-        MOVL         y+4(FP), R13
+        MOVLQZX      x+0(FP), R14
+        MOVLQZX      y+4(FP), R13
         MOVL         R14, R15
         MOVL         R15, AX
         IMULL        R13
@@ -47,8 +47,8 @@ block0:
 TEXT ·divs(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), R14
-        MOVL         y+4(FP), R13
+        MOVLQZX      x+0(FP), R14
+        MOVLQZX      y+4(FP), R13
         XORQ         AX, AX
         XORQ         DX, DX
         MOVL         R14, AX
@@ -60,8 +60,8 @@ block0:
 TEXT ·addint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         x+0(FP), R14
-        MOVB         y+1(FP), R13
+        MOVBQZX      x+0(FP), R14
+        MOVBQZX      y+1(FP), R13
         MOVB         R14, R15
         ADDB         R13, R15
         MOVB         R15, ret0+8(FP)
@@ -70,8 +70,8 @@ block0:
 TEXT ·subint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         x+0(FP), R14
-        MOVB         y+1(FP), R13
+        MOVBQZX      x+0(FP), R14
+        MOVBQZX      y+1(FP), R13
         MOVB         R14, R15
         SUBB         R13, R15
         MOVB         R15, ret0+8(FP)
@@ -80,7 +80,7 @@ block0:
 TEXT ·negint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         x+0(FP), R13
+        MOVBQZX      x+0(FP), R13
         XORQ         R14, R14
         MOVB         R14, R15
         SUBB         R13, R15
@@ -90,8 +90,8 @@ block0:
 TEXT ·mulint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         x+0(FP), R14
-        MOVB         y+1(FP), R13
+        MOVBQZX      x+0(FP), R14
+        MOVBQZX      y+1(FP), R13
         MOVB         R14, R15
         MOVB         R15, AX
         IMULB        R13
@@ -102,8 +102,8 @@ block0:
 TEXT ·divint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         x+0(FP), R14
-        MOVB         y+1(FP), R13
+        MOVBQZX      x+0(FP), R14
+        MOVBQZX      y+1(FP), R13
         XORQ         AX, AX
         MOVB         R14, AX
         IDIVB        R13
@@ -114,8 +114,8 @@ block0:
 TEXT ·addint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         x+0(FP), R14
-        MOVW         y+2(FP), R13
+        MOVWQZX      x+0(FP), R14
+        MOVWQZX      y+2(FP), R13
         MOVW         R14, R15
         ADDW         R13, R15
         MOVW         R15, ret0+8(FP)
@@ -124,8 +124,8 @@ block0:
 TEXT ·subint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         x+0(FP), R14
-        MOVW         y+2(FP), R13
+        MOVWQZX      x+0(FP), R14
+        MOVWQZX      y+2(FP), R13
         MOVW         R14, R15
         SUBW         R13, R15
         MOVW         R15, ret0+8(FP)
@@ -134,7 +134,7 @@ block0:
 TEXT ·negint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         x+0(FP), R13
+        MOVWQZX      x+0(FP), R13
         XORQ         R14, R14
         MOVW         R14, R15
         SUBW         R13, R15
@@ -144,8 +144,8 @@ block0:
 TEXT ·mulint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         x+0(FP), R14
-        MOVW         y+2(FP), R13
+        MOVWQZX      x+0(FP), R14
+        MOVWQZX      y+2(FP), R13
         MOVW         R14, R15
         MOVW         R15, AX
         IMULW        R13
@@ -156,8 +156,8 @@ block0:
 TEXT ·divint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         x+0(FP), R14
-        MOVW         y+2(FP), R13
+        MOVWQZX      x+0(FP), R14
+        MOVWQZX      y+2(FP), R13
         XORQ         AX, AX
         XORQ         DX, DX
         MOVW         R14, AX
@@ -224,8 +224,8 @@ block0:
 TEXT ·adduint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         x+0(FP), R14
-        MOVB         y+1(FP), R13
+        MOVBQZX      x+0(FP), R14
+        MOVBQZX      y+1(FP), R13
         MOVB         R14, R15
         ADDB         R13, R15
         MOVB         R15, ret0+8(FP)
@@ -234,8 +234,8 @@ block0:
 TEXT ·subuint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         x+0(FP), R14
-        MOVB         y+1(FP), R13
+        MOVBQZX      x+0(FP), R14
+        MOVBQZX      y+1(FP), R13
         MOVB         R14, R15
         SUBB         R13, R15
         MOVB         R15, ret0+8(FP)
@@ -244,8 +244,8 @@ block0:
 TEXT ·muluint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         x+0(FP), R14
-        MOVB         y+1(FP), R13
+        MOVBQZX      x+0(FP), R14
+        MOVBQZX      y+1(FP), R13
         MOVB         R14, R15
         MOVB         R15, AX
         MULB         R13
@@ -256,8 +256,8 @@ block0:
 TEXT ·divuint8s(SB),$8-9
         MOVB         $0, ret0+8(FP)
 block0:
-        MOVB         x+0(FP), R14
-        MOVB         y+1(FP), R13
+        MOVBQZX      x+0(FP), R14
+        MOVBQZX      y+1(FP), R13
         XORQ         AX, AX
         MOVB         R14, AX
         DIVB         R13
@@ -268,8 +268,8 @@ block0:
 TEXT ·adduint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         x+0(FP), R14
-        MOVW         y+2(FP), R13
+        MOVWQZX      x+0(FP), R14
+        MOVWQZX      y+2(FP), R13
         MOVW         R14, R15
         ADDW         R13, R15
         MOVW         R15, ret0+8(FP)
@@ -278,8 +278,8 @@ block0:
 TEXT ·subuint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         x+0(FP), R14
-        MOVW         y+2(FP), R13
+        MOVWQZX      x+0(FP), R14
+        MOVWQZX      y+2(FP), R13
         MOVW         R14, R15
         SUBW         R13, R15
         MOVW         R15, ret0+8(FP)
@@ -288,8 +288,8 @@ block0:
 TEXT ·muluint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         x+0(FP), R14
-        MOVW         y+2(FP), R13
+        MOVWQZX      x+0(FP), R14
+        MOVWQZX      y+2(FP), R13
         MOVW         R14, R15
         MOVW         R15, AX
         MULW         R13
@@ -300,8 +300,8 @@ block0:
 TEXT ·divuint16s(SB),$8-10
         MOVW         $0, ret0+8(FP)
 block0:
-        MOVW         x+0(FP), R14
-        MOVW         y+2(FP), R13
+        MOVWQZX      x+0(FP), R14
+        MOVWQZX      y+2(FP), R13
         XORQ         AX, AX
         XORQ         DX, DX
         MOVW         R14, AX
@@ -313,8 +313,8 @@ block0:
 TEXT ·adduint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), R14
-        MOVL         y+4(FP), R13
+        MOVLQZX      x+0(FP), R14
+        MOVLQZX      y+4(FP), R13
         MOVL         R14, R15
         ADDL         R13, R15
         MOVL         R15, ret0+8(FP)
@@ -323,8 +323,8 @@ block0:
 TEXT ·subuint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), R14
-        MOVL         y+4(FP), R13
+        MOVLQZX      x+0(FP), R14
+        MOVLQZX      y+4(FP), R13
         MOVL         R14, R15
         SUBL         R13, R15
         MOVL         R15, ret0+8(FP)
@@ -333,8 +333,8 @@ block0:
 TEXT ·muluint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), R14
-        MOVL         y+4(FP), R13
+        MOVLQZX      x+0(FP), R14
+        MOVLQZX      y+4(FP), R13
         MOVL         R14, R15
         MOVL         R15, AX
         MULL         R13
@@ -345,8 +345,8 @@ block0:
 TEXT ·divuint32s(SB),$8-12
         MOVL         $0, ret0+8(FP)
 block0:
-        MOVL         x+0(FP), R14
-        MOVL         y+4(FP), R13
+        MOVLQZX      x+0(FP), R14
+        MOVLQZX      y+4(FP), R13
         XORQ         AX, AX
         XORQ         DX, DX
         MOVL         R14, AX

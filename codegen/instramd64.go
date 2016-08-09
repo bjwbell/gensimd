@@ -712,7 +712,24 @@ func MovMemReg(ctx context, datatype OpDataType, srcName string, srcOffset int, 
 	if datatype.op == OP_PACKED {
 		mov = GetInstr(I_PMOV, datatype)
 	} else {
-		mov = GetInstr(I_MOV, datatype)
+		var itype InstructionType
+		if datatype.size >= dst.size() || datatype.op == OP_XMM {
+			itype = I_MOV
+		} else {
+			switch datatype.size {
+			case 1:
+				itype = I_MOVBZX
+			case 2:
+				itype = I_MOVWZX
+			case 4:
+				itype = I_MOVLZX
+			default:
+				ice("Invalid size")
+			}
+		}
+		tmpdatatype := datatype
+		tmpdatatype.size = dst.size()
+		mov = GetInstr(itype, tmpdatatype)
 	}
 	return instrMemReg(ctx, mov, srcName, srcOffset, src, dst, spill)
 }

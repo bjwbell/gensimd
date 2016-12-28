@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/tools/go/types"
+	"go/types"
 
 	"golang.org/x/tools/go/ssa"
 )

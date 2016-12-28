@@ -7,7 +7,7 @@ import (
 
 	"github.com/bjwbell/gensimd/simd"
 
-	"golang.org/x/tools/go/types"
+	"go/types"
 )
 
 type simdtype struct {

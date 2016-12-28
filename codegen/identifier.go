@@ -3,8 +3,9 @@ package codegen
 import (
 	"fmt"
 
+	"go/types"
+
 	"golang.org/x/tools/go/ssa"
-	"golang.org/x/tools/go/types"
 )
 
 type identifier struct {

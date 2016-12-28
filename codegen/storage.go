@@ -5,8 +5,9 @@ import (
 	"strconv"
 	"strings"
 
+	"go/types"
+
 	"golang.org/x/tools/go/ssa"
-	"golang.org/x/tools/go/types"
 )
 
 type storer interface {

@@ -15,10 +15,11 @@ import (
 
 	"go/build"
 
+	"go/types"
+
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
-	"golang.org/x/tools/go/types"
 )
 
 func filePath(pathName string) string {
